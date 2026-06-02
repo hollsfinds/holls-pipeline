@@ -1,9 +1,23 @@
-<!doctype html>
+<!doctype html><script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Holls Finds Pipeline",
+  "schemaVersion": 1,
+  "description": "Holls Finds Pipeline — a live Kanban board reading/writing the 'Holls Finds Pipeline' Google Sheet. Columns: New Products, Roundup Prep, Drafting, Review/Add Images, Article Published/Social Pack Ready, Missing Images (parallel image-flag), Fully Published. Label-based roundup grouping, contextual card controls, auto draft + social-pack jobs, hover info popovers.",
+  "mcpTools": [
+    "mcp__google-sheets__get_sheet_data",
+    "mcp__google-sheets__update_cells"
+  ],
+  "mcpServerNames": [
+    "google-sheets",
+    "google-sheets"
+  ]
+}
+</script>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Holls Finds Pipeline — Web</title>
+<title>Holls Finds Pipeline</title>
 <style>
 :root{
   color-scheme: light;
@@ -49,6 +63,46 @@ button{font-family:inherit;cursor:pointer}
 .col-sub{font-size:10.5px;color:var(--muted);margin-top:3px}
 .cards{padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;min-height:46px}
 .cards.drag-over{background:#f8837810;outline:2px dashed #f8837855;outline-offset:-6px;border-radius:10px}
+/* empty columns minimize to a slim rail; they expand while you're dragging so you can still drop */
+.col.collapsed{width:46px;flex:0 0 46px;background:#fbf8f6}
+.col.collapsed .col-h{padding:12px 6px}
+.col.collapsed .row1{flex-direction:column;gap:7px}
+.col.collapsed .nm{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}
+.col.collapsed .info-btn{display:inline-flex}
+.col.collapsed .col-sub,.col.collapsed .cards{display:none}
+.board.dragging .col.collapsed{width:248px;flex:0 0 248px;background:#fff}
+.board.dragging .col.collapsed .col-h{padding:11px 12px}
+.board.dragging .col.collapsed .row1{flex-direction:row}
+.board.dragging .col.collapsed .nm{writing-mode:horizontal-tb;transform:none}
+.board.dragging .col.collapsed .info-btn{display:inline-flex}
+.board.dragging .col.collapsed .cards{display:flex}
+.alink.dry{color:var(--muted);text-decoration:none;cursor:default;font-style:italic}
+/* hover info popover */
+.infopop{position:fixed;z-index:60;background:#fff;border:1px solid var(--line);border-radius:13px;max-width:320px;padding:14px 16px;box-shadow:0 14px 36px #2c242130;font-size:13px;pointer-events:none;opacity:0;transition:opacity .12s;display:none}
+.infopop.show{display:block;opacity:1}
+.infopop .kicker{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--coral);margin-bottom:5px}
+.infopop h3{font-size:15px;margin-bottom:5px}
+.infopop p{margin:8px 0;font-size:12.5px;line-height:1.45}
+.infopop .auto{display:inline-block;background:#f8837818;color:#c0534a;font-weight:800;font-size:11px;padding:2px 9px;border-radius:20px;margin-bottom:4px}
+.infopop .where{background:var(--bg);border-radius:9px;padding:8px 10px;margin-top:10px;font-size:12px}
+.infopop .where b{color:var(--teal)}
+/* contextual card bits + social pack popup */
+.muted2{font-size:11px;color:var(--muted);font-style:italic;margin-top:4px}
+.badge.b-ok{background:#afd9ae55;color:#2f6b3a}
+.badge.b-flag{background:#f8837822;color:#c0534a}
+.scrim.wide .modal{max-width:640px}
+.modal{max-height:86vh;overflow:auto}
+.sblock{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin:9px 0}
+.sblabel{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:800;color:var(--ink);margin-bottom:6px}
+.sbtext{white-space:pre-wrap;font-family:inherit;font-size:12px;line-height:1.45;margin:0;color:var(--ink);background:var(--bg);border-radius:8px;padding:8px 10px}
+.btn.sm{padding:2px 9px;font-size:11px}
+.seg{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11.5px;font-weight:700;color:var(--muted);margin:6px 0 11px}
+.segbtn{border:1px solid var(--line);background:var(--bg);border-radius:20px;padding:4px 11px;font-size:11.5px;font-weight:700;color:var(--ink)}
+.segbtn.on{background:var(--coral);color:#fff;border-color:transparent}
+.pgroup{border:1px solid var(--line);border-radius:12px;padding:10px 12px 6px;margin:11px 0;background:#fff}
+.pghead{font-size:11.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--coral);margin-bottom:8px}
+.sfield{margin:0 0 9px}
+.sflabel{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;min-height:18px}
 /* card */
 .card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px;cursor:grab;
   box-shadow:0 1px 2px #2c24210a}
@@ -85,9 +139,26 @@ button{font-family:inherit;cursor:pointer}
 .tray.collapsed .tray-b{display:none}
 .tray.collapsed .chev{transform:rotate(-90deg)}
 .tray-b{padding:11px 13px;border-top:1px solid var(--line)}
-.pool-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:11px}
-.pool-item{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:12px;font-weight:600}
-.pool-item input{accent-color:var(--coral)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:20px;padding:4px 10px;font-size:11.5px;font-weight:700;color:var(--ink)}
+.chip:hover{background:var(--teal);color:#fff;border-color:transparent}
+.memlist{list-style:none;margin:6px 0 9px;padding:0;display:flex;flex-direction:column;gap:3px}
+.memlist li{font-size:11px;color:var(--muted);background:var(--bg);border-radius:7px;padding:4px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.memlist li.none{background:transparent;font-style:italic}
+.memlist li a{color:var(--teal);text-decoration:none;font-weight:600}
+.memlist li a:hover{text-decoration:underline}
+.memlist li{display:flex;align-items:center;gap:6px}
+.mname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.memedit{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;line-height:1;padding:2px 5px;border-radius:6px;flex:0 0 auto}
+.memedit:hover{background:var(--peach);color:#9a5b3f}
+.badge.b-hold{background:#fbceb155;color:#9a5b3f;cursor:pointer}
+.hold-card{background:#fff7f3;border-color:#fbceb1}
+.badge.b-spin{background:#43b3ae22;color:#2c7c78}
+.badge.b-grp{background:#43b3ae22;color:#2c7c78;cursor:pointer}
+.badge.b-none{background:var(--bg);color:var(--muted);cursor:pointer}
+.badge.b-undecided{background:#f8837818;color:#c0534a;cursor:pointer}
+.badge.b-count{background:var(--peach);color:#9a5b3f}
+.muted{color:var(--muted);font-size:12px}
 .tray-b .none{color:var(--muted);font-size:12px;font-style:italic}
 /* toolbar */
 .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
@@ -124,7 +195,7 @@ button{font-family:inherit;cursor:pointer}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--espresso);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:13px;z-index:80;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
-
+/* password gate */
 #hfgate{position:fixed;inset:0;z-index:200;background:#2C2421;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 #hfgate.hide{display:none}
 #hfgate .box{background:#fff;color:#2C2421;padding:28px 26px;border-radius:16px;width:300px;text-align:center;box-shadow:0 20px 50px #0006}
@@ -163,19 +234,6 @@ button{font-family:inherit;cursor:pointer}
       <div>
         <div class="lead">Your pipeline</div>
         <div class="sub">Drag cards across stages. <b style="color:var(--coral)">⚡</b> columns auto-fire a job when you drop a card (needs Cowork open + computer on). Tap any <b>ⓘ</b> to see what happens and where.</div>
-      </div>
-    </div>
-
-    <!-- roundup tray -->
-    <div class="tray collapsed" id="tray">
-      <div class="tray-h" id="trayHead">
-        <span class="ti">⭐ Roundup Pool</span>
-        <span class="hint">Star products to park them here, then select a few and build one multi-product roundup article.</span>
-        <span class="chev">▾</span>
-      </div>
-      <div class="tray-b">
-        <div class="pool-grid" id="poolGrid"></div>
-        <button class="btn coral" id="buildRoundupBtn">＋ Build Roundup from selected</button>
       </div>
     </div>
 
@@ -227,25 +285,36 @@ button{font-family:inherit;cursor:pointer}
 const SS = "1vKbLGryulWJ-dKV6YVI6jZ9kg0Qs9U1_OxK6hiDpfvI";
 
 /* ---------- column model ---------- */
-const STAGES = ["Direction","Drafting","Review","Ready","Image Check","Published"];
-const AUTO = {"Drafting":true,"Ready":true,"Image Check":true,"Published":"detect"};
+const NEWCOL = "New Products";
+const POOL = "Roundup Prep";
+const DRAFTCOL = "Drafting";
+const REVIEWCOL = "Review/Add Images";
+const PUBCOL = "Article Published/Social Pack Ready";
+const MISSING = "Missing Images";   // a parallel flag column, NOT a stage cards move into
+const FULLCOL = "Fully Published";
+const COLS = [NEWCOL,POOL,DRAFTCOL,REVIEWCOL,MISSING,PUBCOL,FULLCOL];
+/* ⚡ columns auto-fire a full-me job when a card lands there */
+const AUTO = {[DRAFTCOL]:true,[PUBCOL]:true};
+/* columns that fire a scheduled (full-me) job, via window.cowork.runScheduledTask */
+const TASK_IDS = {[DRAFTCOL]:"draft-pipeline-cards",[PUBCOL]:"social-pack-cards"};
+/* old stage names in the Sheet → current column names (keeps existing rows in the right column) */
+const STAGE_REMAP = {"Direction":NEWCOL,"New":NEWCOL,"Review":REVIEWCOL,"Roundup Pool":POOL,"Ready":PUBCOL,"Social Pack Ready":PUBCOL,"Article Published":PUBCOL,"Published":PUBCOL};
 const INFO = {
-  "New":{kicker:"Intake — triage",auto:null,space:["cc","Claude Code (daily, cloud)"],
-    body:"New products land here automatically — a Claude Code Routine pulls them from FreshStore each day, laptop off. Nothing is drafted yet. Your job: <b>Add to board</b> the ones worth pursuing, or <b>Exclude</b> the rest so they disappear."},
-  "Direction":{kicker:"Set the angle",auto:null,space:["ch","This app / your call"],
-    body:"Pick the <b>type</b> (single / roundup / non-affiliate) and the angle. No auto-trigger here — it's your editorial decision. Star a product to park it in the Roundup Pool for later."},
+  "New Products":{kicker:"Intake + direction",auto:null,space:["ch","This app / your call"],
+    body:"Every new product lands here. <b>Exclude</b> the ones you'll skip. For a keeper, hit <b>＋ Add to board</b> — a <b>roundup pop-up</b> opens right away. Assign it a group or mark <b>Not in a roundup</b>; on save it heads to <b>Drafting</b> and I start its article."},
+  "Roundup Prep":{kicker:"Group your roundups",auto:null,space:["ch","This app / your call"],
+    body:"One card per <b>roundup group</b>. Give two or more products the same group label and they collect here, with a <b>count</b> of how many are in. When a group's ready, hit <b>Draft roundup ⚡</b> and I write one multi-product article from its members."},
   "Drafting":{kicker:"Auto-draft",auto:true,space:["cw","Cowork + Claude in Chrome"],
     body:"Drop a card here and I auto-write the full article + SEO <b>in your voice</b>, then push it to FreshStore as a <b>draft</b> (never live). The card then auto-advances to Review. Runs in Cowork, so your computer needs to be on with the app open."},
-  "Review":{kicker:"Your eyes",auto:null,space:["ch","Chat + FreshStore admin"],
-    body:"Open the FreshStore draft, <b>add your images</b>, read it through. A <b>disclosure pre-check</b> runs automatically and flags pass/fail. Happy? Check <b>Article ✓</b> to unlock the next stage."},
-  "Ready":{kicker:"Auto social pack",auto:true,space:["cw","Cowork + Tailwind"],
-    body:"Gated on <b>Article ✓</b>. Drop here and the <b>social pack auto-generates</b>, saves for your approval, then stages to Tailwind as drafts. Nothing is ever auto-scheduled — you approve before anything queues."},
-  "Image Check":{kicker:"Pre-publish QA",auto:true,space:["cw","Cowork + Claude in Chrome"],
-    body:"Auto-checks the draft has its hero / listing / social images <b>and 4 images in the Inspiration section</b>. All present → clears green. Missing → card holds <b>red</b> (e.g. 'Inspiration 2/4') and you can override to proceed."},
-  "Published":{kicker:"Auto-detect",auto:"detect",space:["cw","FreshStore admin → board detects"],
-    body:"You flip the article live in FreshStore admin. On refresh, the board <b>notices</b> it's published and moves the card here with the date. The board never publishes for you — it only detects."}
+  "Review/Add Images":{kicker:"Your eyes",auto:null,space:["ch","Chat + FreshStore admin"],
+    body:"Open the FreshStore draft, <b>add your images</b>, read it through. Tick <b>Article ✓</b> when you're happy, then publish it in FreshStore — the board moves it forward."},
+  "Article Published/Social Pack Ready":{kicker:"Live + social pack",auto:true,space:["cw","Cowork"],
+    body:"When the article goes live the card lands here, its <b>social pack auto-generates</b> (with disclosures), and it gets <b>flagged in Missing Images</b> as a check. <b>Click the card</b> to open the pack, then mark it <b>Scheduled</b> to finish. No Tailwind — you queue it yourself."},
+  "Missing Images":{kicker:"Image safety net",auto:null,space:["ch","This app / your call"],
+    body:"A reminder list: every freshly-published card lands here until you confirm its images. Hit <b>Images added</b> or <b>Not required</b> to clear it. (At go-live this auto-checks your live article and only flags real gaps.) A card can't be marked Fully Published until it's cleared here."},
+  "Fully Published":{kicker:"Done",auto:null,space:["ch","This app"],
+    body:"Article live, images confirmed, social pack scheduled. The finish line — cards land here when you mark the social pack <b>Scheduled</b>."}
 };
-const COLS = ["New",...STAGES];
 
 /* ---------- tiny helpers ---------- */
 const $=(s,r=document)=>r.querySelector(s);
@@ -265,7 +334,7 @@ function unwrap(resp){
   if(r&&r.result!==undefined)r=r.result;
   return r;
 }
-/* ===== DATA ADAPTER — swap this block to move to Supabase later; the board calls only through mcp() ===== */
+/* ===== DATA ADAPTER (web build) — talks to the Sheet through the Apps Script bridge ===== */
 const EXEC_URL  = "https://script.google.com/macros/s/AKfycbxPkObU7vxVtY4ZseyenU46h9IQKQStnJMr4XaoQOO3JZLF1-Wtg91yp1Uj5qVNBRhh/exec";
 const API_TOKEN = "holls-pipeline-2026";
 let _cache=null,_cacheT=0;
@@ -295,7 +364,6 @@ async function mcp(name,args){
   }
   throw new Error("unsupported: "+name);
 }
-/* ===== END DATA ADAPTER ===== */
 function valuesOf(resp){
   const r=unwrap(resp);
   if(r&&r.valueRanges&&r.valueRanges[0])return r.valueRanges[0].values||[];
@@ -306,20 +374,34 @@ function valuesOf(resp){
 
 /* ---------- state ---------- */
 let inbox=[];   // {row, date, name, url, img, desc, status}
-let pipe=[];    // {row, id, type, stage, artA, socA, discA, artUrl, notes, pool}
+let pipe=[];    // {row, id, type, stage, artA, discA, artUrl, notes, grp, needsImg, pubA, sched}
+let socialPacks={};  // { itemId: packObject } from the Social tab
 
-const NOTE_POOL="#pool";
-const hasPool=n=>(n||"").includes(NOTE_POOL);
+/* roundup grouping helpers — col I (Roundup Group): ""=undecided, "NONE"=not in a roundup, else the group label */
+const groupLabelOf = it => (it.grp && it.grp!=="NONE" && it.grp!=="HOLD") ? it.grp : "";
+const roundupDecided = it => !!(it.grp && it.grp.length);
+const membersOf = label => label ? pipe.filter(p=>p.type!=="roundup" && groupLabelOf(p)===label) : [];
+/* display title: pull the real product name from the matching Inbox row (its FreshStore title), fall back to the slug id */
+function srcUrlOf(it){const m=(it.notes||"").match(/src:(\S+)/);return m?m[1].trim():"";}
+function titleOf(it){
+  if(it.type==="roundup") return it.grp||it.id;
+  const u=srcUrlOf(it);
+  if(u){const hit=inbox.find(x=>x.url===u);if(hit&&hit.name)return hit.name;}
+  return it.id;
+}
 
 async function load(){
   try{
     setStatus("","Loading…");
     const inb=await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Inbox"});
     const pip=await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Pipeline"});
-    const iv=valuesOf(inb), pv=valuesOf(pip);
+    let soc=null; try{ soc=await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Social"}); }catch(e){}
+    const iv=valuesOf(inb), pv=valuesOf(pip), sv=soc?valuesOf(soc):[];
     inbox=iv.slice(1).map((r,i)=>({row:i+2,date:r[0]||"",name:r[1]||"",url:r[2]||"",img:r[3]||"",desc:r[4]||"",status:(r[5]||"new").trim().toLowerCase()})).filter(x=>x.name||x.url);
-    pipe=pv.slice(1).map((r,i)=>({row:i+2,id:r[0]||"",type:(r[1]||"single").trim().toLowerCase(),stage:(r[2]||"Direction").trim(),
-      artA:truthy(r[3]),socA:truthy(r[4]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",pool:hasPool(r[7])})).filter(x=>x.id);
+    pipe=pv.slice(1).map((r,i)=>{let st=(r[2]||NEWCOL).trim();if(STAGE_REMAP[st])st=STAGE_REMAP[st];return{row:i+2,id:r[0]||"",type:(r[1]||"single").trim().toLowerCase(),stage:st,
+      artA:truthy(r[3]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",grp:(r[8]||"").trim(),needsImg:truthy(r[9]),pubA:truthy(r[10]),sched:truthy(r[11]),angle:(r[12]||"")};}).filter(x=>x.id);
+    socialPacks={};
+    sv.slice(1).forEach(r=>{const id=(r[0]||"").trim();if(!id)return;try{socialPacks[id]=JSON.parse(r[1]||"{}");}catch(e){socialPacks[id]={blocks:[{label:"Pack",text:r[1]||""}]};}});
     setStatus("ok","Connected · "+inbox.filter(x=>x.status==="new").length+" new · "+pipe.length+" in pipeline");
     render();
   }catch(e){
@@ -333,24 +415,43 @@ const truthy=v=>["1","true","yes","y","✓","x"].includes((v||"").trim().toLower
 function render(){
   const board=$("#board");board.innerHTML="";
   COLS.forEach(col=>{
-    const items = col==="New"
-      ? inbox.filter(x=>x.status==="new")
-      : pipe.filter(x=>x.stage===col);
-    const c=document.createElement("div");c.className="col";c.dataset.col=col;
+    let items;
+    if(col===POOL) items=pipe.filter(x=>x.type==="roundup" && x.stage===POOL);
+    else if(col===NEWCOL) items=[...pipe.filter(x=>x.type!=="roundup" && x.stage===NEWCOL), ...inbox.filter(x=>x.status==="new")];
+    else if(col===MISSING) items=pipe.filter(x=>x.needsImg);   // parallel flag view — cards keep their real stage
+    else items=pipe.filter(x=>x.stage===col);
+    const holds = (col===POOL) ? pipe.filter(x=>x.type!=="roundup" && x.grp==="HOLD") : [];
+    const has = items.length || holds.length;
+    const c=document.createElement("div");c.className="col"+(has?"":" collapsed");c.dataset.col=col;
     const bolt = AUTO[col]===true?'<span class="bolt" title="auto-fires">⚡</span>':'';
     c.innerHTML=`<div class="col-h">
         <div class="row1">${bolt}<span class="nm">${esc(col)}</span>
           <button class="info-btn" data-info="${esc(col)}">i</button>
-          <span class="ct">${items.length}</span></div>
+          <span class="ct">${items.length+(holds.length?1:0)}</span></div>
       </div>
       <div class="cards" data-col="${esc(col)}"></div>`;
     const holder=$(".cards",c);
-    if(!items.length)holder.innerHTML='<div class="empty">—</div>';
-    items.forEach(it=>holder.appendChild(col==="New"?newCard(it):pipeCard(it)));
+    if(!has)holder.innerHTML='<div class="empty">—</div>';
+    items.forEach(it=>{
+      const el = it.status==="new" ? newCard(it)
+        : col===MISSING ? missingCard(it)
+        : (it.type==="roundup" && it.stage===POOL) ? groupCard(it)
+        : pipeCard(it);
+      holder.appendChild(el);
+    });
+    if(holds.length) holder.appendChild(onHoldCard(holds));
     board.appendChild(c);
   });
   wireDrop();
-  renderPool();
+}
+function onHoldCard(holds){
+  const d=document.createElement("div");d.className="card hold-card";d.draggable=false;
+  const list=holds.map(m=>{const u=srcUrlOf(m),t=esc(titleOf(m));const name=u?`<a href="${esc(u)}" target="_blank" rel="noopener">${t} ↗</a>`:t;return `<li><span class="mname">${name}</span><button class="memedit" data-assign="${m.row}" title="Assign a roundup, or remove">✎</button></li>`;}).join("");
+  d.innerHTML=`<div class="ttl">⏸ On Hold</div>
+    <div class="badges"><span class="badge b-hold">${holds.length} waiting</span></div>
+    <p class="desc">Parked products with no roundup yet. Hit ✎ to assign one.</p>
+    <ul class="memlist">${list}</ul>`;
+  return d;
 }
 function newCard(it){
   const d=document.createElement("div");d.className="card";d.draggable=false;
@@ -363,74 +464,182 @@ function newCard(it){
     </div>`;
   return d;
 }
+function draftLinkHTML(it){
+  if(!it.artUrl)return"";
+  return /^https?:\/\//i.test(it.artUrl)
+    ? `<a class="alink" href="${esc(it.artUrl)}" target="_blank" rel="noopener">Open draft in FreshStore ↗</a>`
+    : `<span class="alink dry" title="${esc(it.artUrl)}">Draft saved (dry-run)</span>`;
+}
 function pipeCard(it){
   const d=document.createElement("div");d.className="card";d.draggable=true;d.dataset.id=it.id;d.dataset.row=it.row;
-  const tb=it.type==="roundup"?'<span class="badge b-roundup">Roundup</span>'
-      :it.type.includes("non")?'<span class="badge b-nonaff">Non-affiliate</span>'
-      :'<span class="badge b-single">Single</span>';
-  const pool=it.pool?'<span class="badge b-pool">⭐ Pool</span>':'';
   const nonaff=it.type.includes("non");
-  const g=(on,lbl,key)=>`<button class="gate ${on?'on':''}" data-gate="${key}" data-row="${it.row}">${on?'✓ ':''}${lbl}</button>`;
-  const gates = it.type==="roundup" || !nonaff
-    ? `<div class="gates">${g(it.artA,"Article",'art')}${g(it.socA,"Social",'soc')}${nonaff?'':g(it.discA,"Disclosure",'disc')}</div>`
-    : `<div class="gates">${g(it.socA,"Social",'soc')}</div>`;
-  const cleanNotes=(it.notes||"").replace(NOTE_POOL,"").trim();
-  d.innerHTML=`<div class="ttl">${esc(it.id)}</div>
-    <div class="badges">${tb}${pool}</div>
-    ${it.artUrl?`<a class="alink" href="${esc(it.artUrl)}" target="_blank" rel="noopener">Open draft ↗</a>`:""}
-    ${cleanNotes?`<p class="desc">${esc(cleanNotes)}</p>`:""}
-    ${gates}
+  const tb=it.type==="roundup"?'<span class="badge b-roundup">Roundup</span>'
+      :nonaff?'<span class="badge b-nonaff">Non-affiliate</span>'
+      :'<span class="badge b-single">Single</span>';
+  const memTag = it.type==="roundup" ? `<span class="badge b-count">${membersOf(it.grp).length} products</span>` : "";
+  // roundup decision badge — single / non-affiliate cards only
+  let rdz="";
+  if(it.type!=="roundup"){
+    const lab=groupLabelOf(it);
+    if(lab) rdz=`<span class="badge b-grp" data-assign="${it.row}" title="Change roundup group">⭑ ${esc(lab)}</span>`;
+    else if(it.grp==="NONE") rdz=`<span class="badge b-none" data-assign="${it.row}" title="Change">No roundup</span>`;
+    else if(it.grp==="HOLD") rdz=`<span class="badge b-hold" data-assign="${it.row}" title="On hold — click to assign a roundup">⏸ On hold</span>`;
+    else rdz=`<span class="badge b-undecided" data-assign="${it.row}">⚑ Set roundup</span>`;
+  }
+  const flagTag = it.needsImg?'<span class="badge b-flag">⚠ Images</span>':'';
+  const spinTag = it.angle?'<span class="badge b-spin" title="Your input added">💬 spin</span>':'';
+  const gate=(on,lbl,key)=>`<button class="gate ${on?'on':''}" data-gate="${key}" data-row="${it.row}">${on?'✓ ':''}${lbl}</button>`;
+  const discBadge = it.discA?'<span class="badge b-ok">Disclosure ✓</span>':'';
+  // contextual controls by stage
+  let controls="";
+  if(it.stage===NEWCOL && it.type!=="roundup"){
+    const pl=srcUrlOf(it)?`<a class="alink" href="${esc(srcUrlOf(it))}" target="_blank" rel="noopener">View product ↗</a>`:"";
+    const spin=`<button class="btn ghost" data-angle="${it.row}">${it.angle?'💬 Edit spin':'💬 Your spin'}</button>`;
+    controls=`${pl}<div class="acts"><button class="btn ${roundupDecided(it)?'ghost':'coral'}" data-assign="${it.row}">${roundupDecided(it)?'Change roundup':'⚑ Set roundup'}</button>${spin}</div>`;
+  }else if(it.stage===DRAFTCOL){
+    controls=`<div class="muted2">Writing your draft…</div>`;
+  }else if(it.stage===REVIEWCOL){
+    const pub=it.artA?`<div class="acts"><button class="btn coral" data-markpub="${it.row}">Published in FreshStore ▸</button></div>`:"";
+    controls=`${draftLinkHTML(it)}<div class="gates">${gate(it.artA,"Article",'art')}</div>${discBadge}${pub}`;
+  }else if(it.stage===PUBCOL){
+    controls=`${draftLinkHTML(it)}<div class="gates">${gate(it.pubA,"Published",'pub')}</div>${discBadge}
+      <div class="acts"><button class="btn coral" data-social="${it.row}">📋 View social pack</button></div>`;
+  }else if(it.stage===FULLCOL){
+    controls=`${draftLinkHTML(it)}<span class="badge b-ok">Scheduled ✓</span>
+      <div class="acts"><button class="btn ghost" data-social="${it.row}">📋 Social pack</button></div>`;
+  }
+  d.innerHTML=`<div class="ttl">${esc(titleOf(it))}</div>
+    <div class="badges">${tb}${memTag}${rdz}${flagTag}${spinTag}</div>
+    ${controls}`;
+  return d;
+}
+function missingCard(it){
+  const d=document.createElement("div");d.className="card";d.draggable=false;
+  d.innerHTML=`<div class="ttl">${esc(titleOf(it))}</div>
+    <p class="desc">Confirm this published article's images.</p>
     <div class="acts">
-      <button class="btn star ${it.pool?'on':''}" data-pool="${it.row}">${it.pool?'★ In pool':'☆ Pool'}</button>
+      <button class="btn coral" data-imgdone="${it.row}">Images added</button>
+      <button class="btn ghost" data-imgskip="${it.row}">Not required</button>
     </div>`;
   return d;
 }
-function renderPool(){
-  const grid=$("#poolGrid");
-  const pooled=pipe.filter(x=>x.pool && x.type!=="roundup");
-  if(!pooled.length){grid.innerHTML='<div class="none">Nothing starred yet. Hit ☆ Pool on any product card to park it here.</div>';return;}
-  grid.innerHTML=pooled.map(p=>`<label class="pool-item"><input type="checkbox" value="${esc(p.id)}" data-row="${p.row}"> ${esc(p.id)}</label>`).join("");
+function groupCard(it){
+  const d=document.createElement("div");d.className="card";d.draggable=true;d.dataset.id=it.id;d.dataset.row=it.row;
+  const mem=membersOf(it.grp);
+  const list = mem.length ? mem.map(m=>{const u=srcUrlOf(m),t=esc(titleOf(m));const name=u?`<a href="${esc(u)}" target="_blank" rel="noopener">${t} ↗</a>`:t;return `<li><span class="mname">${name}</span><button class="memedit" data-assign="${m.row}" title="Move to another roundup, put on hold, or remove">✎</button></li>`;}).join("") : '<li class="none">No products assigned yet</li>';
+  d.innerHTML=`<div class="ttl">${esc(it.grp||it.id)}</div>
+    <div class="badges"><span class="badge b-roundup">Roundup</span><span class="badge b-count">${mem.length} products</span></div>
+    <ul class="memlist">${list}</ul>
+    <div class="acts">
+      <button class="btn coral" data-draftroundup="${it.row}"${mem.length<2?' disabled title="Add at least 2 products first"':''}>Draft roundup ⚡</button>
+      <button class="btn ghost" data-angle="${it.row}">${it.angle?'💬 Edit spin':'💬 Your spin'}</button>
+    </div>`;
+  return d;
 }
 
 /* ---------- drag + drop ---------- */
 let dragId=null,dragRow=null;
 function wireDrop(){
   $$(".card[draggable=true]").forEach(card=>{
-    card.addEventListener("dragstart",e=>{dragId=card.dataset.id;dragRow=card.dataset.row;e.dataTransfer.effectAllowed="move";});
+    card.addEventListener("dragstart",e=>{
+      if(e.target.closest("button,a,input,[data-assign]")){e.preventDefault();return;}
+      dragId=card.dataset.id;dragRow=card.dataset.row;e.dataTransfer.effectAllowed="move";
+      $("#board").classList.add("dragging");});
+    card.addEventListener("dragend",()=>$("#board").classList.remove("dragging"));
   });
   $$(".cards").forEach(zone=>{
-    zone.addEventListener("dragover",e=>{if(zone.dataset.col!=="New"){e.preventDefault();zone.classList.add("drag-over");}});
+    zone.addEventListener("dragover",e=>{if(zone.dataset.col!==NEWCOL){e.preventDefault();zone.classList.add("drag-over");}});
     zone.addEventListener("dragleave",()=>zone.classList.remove("drag-over"));
     zone.addEventListener("drop",async e=>{
-      e.preventDefault();zone.classList.remove("drag-over");
+      e.preventDefault();zone.classList.remove("drag-over");$("#board").classList.remove("dragging");
       const target=zone.dataset.col;
-      if(target==="New"||!dragRow)return;
+      if(target===NEWCOL||!dragRow)return;
       const it=pipe.find(p=>String(p.row)===String(dragRow));
       if(!it||it.stage===target)return;
       // gate enforcement
-      if(target==="Ready"&&!it.artA){toast("Check Article ✓ before moving to Ready");return;}
+      if(target===POOL && it.type!=="roundup"){toast("Products join a roundup by label — use ⚑ Set roundup on the card.");return;}
+      if(target===PUBCOL&&!it.artA){toast("Tick Article ✓ before publishing");return;}
       await moveStage(it,target);
     });
   });
 }
-async function moveStage(it,target){
-  const prev=it.stage;it.stage=target;render();
+async function moveStage(it,target,skipConfirm){
+  // roundup decision gate — a single / non-affiliate card can't draft until it's assigned a group or marked 'no roundup'
+  if(it.type!=="roundup" && target===DRAFTCOL && !roundupDecided(it)){
+    toast("Make the roundup call first — assign a group or tap ⚑ Set roundup → Not in a roundup");return;
+  }
+  // can't reach Fully Published until the Missing Images flag is cleared
+  if(target===FULLCOL && it.needsImg){
+    toast("Clear the Missing Images flag first (Images added / Not required)");return;
+  }
+  // confirm-first only for Drafting (social fires silently)
+  if(target===DRAFTCOL && !skipConfirm){
+    const ok=await confirmModal({
+      kicker:"Auto-draft",
+      title:"Draft “"+titleOf(it)+"” now?",
+      body:"I'll write the full article + SEO <b>in your voice</b> (with its affiliate disclosure) and push it to FreshStore as a <b>draft</b> (never live), then advance it to <b>Review/Add Images</b>.",
+      okLabel:"Draft it ⚡"});
+    if(!ok)return; // cancelled — card stays where it was
+  }
+  const prev=it.stage;it.stage=target;
+  const enterPub=(target===PUBCOL);
+  if(enterPub){it.pubA=1;it.needsImg=1;}   // published → mark live + flag images for a check
+  render();
   try{
     await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"C"+it.row,data:[[target]]});
-    if(AUTO[target]===true)toast("Moved to "+target+" ⚡ — auto-job fires when triggers are wired");
-    else toast("Moved to "+target);
+    if(enterPub) await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"J"+it.row+":K"+it.row,data:[["yes","yes"]]});
+    const taskId=TASK_IDS[target];
+    if(taskId){
+      if(window.cowork&&window.cowork.runScheduledTask){
+        try{
+          await window.cowork.runScheduledTask(taskId);
+          toast(target===DRAFTCOL?("Drafting “"+titleOf(it)+"” ⚡"):("Building the social pack for “"+titleOf(it)+"” ⚡"));
+        }catch(err){ toast("Moved, but the job didn't start: "+(err&&err.message||err)); }
+      }else{ toast("Moved to "+target+" — open inside Cowork to auto-fire the job"); }
+    }else{ toast("Moved to "+target); }
   }catch(e){it.stage=prev;render();toast("Save failed: "+(e.message||""));}
+}
+
+/* promise-based confirm using the existing scrim/modal shell */
+function confirmModal({kicker="Confirm",title="",body="",okLabel="Yes"}){
+  return new Promise(resolve=>{
+    const scrim=$("#scrim"),modal=$("#modal");
+    modal.innerHTML=`<button class="x" data-cc="0">×</button>
+      <div class="kicker">${esc(kicker)}</div>
+      <h3>${esc(title)}</h3>
+      <p>${body}</p>
+      <div class="mfoot">
+        <button class="btn ghost" data-cc="0">Cancel</button>
+        <button class="btn coral" data-cc="1">${esc(okLabel)}</button>
+      </div>`;
+    scrim.classList.add("show");
+    function cleanup(val){
+      scrim.classList.remove("show");
+      modal.removeEventListener("click",onClick);
+      scrim.removeEventListener("click",onBg);
+      resolve(val);
+    }
+    function onClick(e){const b=e.target.closest("[data-cc]");if(!b)return;cleanup(b.dataset.cc==="1");}
+    function onBg(e){if(e.target.id==="scrim")cleanup(false);}
+    modal.addEventListener("click",onClick);
+    scrim.addEventListener("click",onBg);
+  });
 }
 
 /* ---------- actions ---------- */
 document.addEventListener("click",async e=>{
-  const t=e.target.closest("[data-info],[data-add],[data-exclude],[data-gate],[data-pool]");
+  const t=e.target.closest("[data-add],[data-exclude],[data-gate],[data-assign],[data-draftroundup],[data-social],[data-imgdone],[data-imgskip],[data-markpub],[data-angle]");
   if(!t)return;
-  if(t.dataset.info!==undefined)return openInfo(t.dataset.info);
+  if(t.dataset.angle!==undefined)return openAngle(+t.dataset.angle);
   if(t.dataset.add!==undefined)return addToBoard(+t.dataset.add);
   if(t.dataset.exclude!==undefined)return excludeProduct(+t.dataset.exclude);
   if(t.dataset.gate!==undefined)return toggleGate(t.dataset.gate,+t.dataset.row);
-  if(t.dataset.pool!==undefined)return togglePool(+t.dataset.row);
+  if(t.dataset.assign!==undefined)return openRoundupAssign(+t.dataset.assign);
+  if(t.dataset.draftroundup!==undefined)return draftRoundup(+t.dataset.draftroundup);
+  if(t.dataset.social!==undefined)return openSocialPack(+t.dataset.social);
+  if(t.dataset.imgdone!==undefined)return clearImages(+t.dataset.imgdone,"added");
+  if(t.dataset.imgskip!==undefined)return clearImages(+t.dataset.imgskip,"skip");
+  if(t.dataset.markpub!==undefined){const it=pipe.find(p=>p.row===+t.dataset.markpub);if(it)moveStage(it,PUBCOL);return;}
 });
 
 function slugId(name){return (name||"item").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,34)+"-"+Date.now().toString(36).slice(-3);}
@@ -440,14 +649,15 @@ async function addToBoard(row){
   const id=slugId(it.name);
   const nextRow=pipe.length?Math.max(...pipe.map(p=>p.row))+1:2;
   it.status="on-board";
-  pipe.push({row:nextRow,id,type:"single",stage:"Direction",artA:0,socA:0,discA:0,artUrl:"",notes:"src:"+(it.url||""),pool:false});
+  pipe.push({row:nextRow,id,type:"single",stage:NEWCOL,artA:0,discA:0,needsImg:0,pubA:0,sched:0,artUrl:"",notes:"src:"+(it.url||""),grp:""});
   render();
   try{
-    await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"A"+nextRow+":H"+nextRow,
-      data:[[id,"single","Direction","","","","","src:"+(it.url||"")]]});
+    await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"A"+nextRow+":I"+nextRow,
+      data:[[id,"single",NEWCOL,"","","","","src:"+(it.url||""),""]]});
     await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Inbox",range:"F"+row,data:[["on-board"]]});
-    toast("Added to board → Direction");
-  }catch(e){toast("Save failed: "+(e.message||""));load();}
+  }catch(e){toast("Save failed: "+(e.message||""));load();return;}
+  // straight into the roundup decision — saving there drafts the card
+  openRoundupAssign(nextRow,true);
 }
 async function excludeProduct(row){
   const it=inbox.find(x=>x.row===row);if(!it)return;
@@ -457,50 +667,259 @@ async function excludeProduct(row){
 }
 async function toggleGate(key,row){
   const it=pipe.find(p=>p.row===row);if(!it)return;
-  const map={art:["artA","D"],soc:["socA","E"],disc:["discA","F"]};
+  const map={art:["artA","D"],disc:["discA","F"],pub:["pubA","K"]};
   const[fld,colLetter]=map[key];const nv=it[fld]?0:1;it[fld]=nv;render();
   try{await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:colLetter+row,data:[[nv?"yes":""]]});}
   catch(e){it[fld]=nv?0:1;render();toast("Save failed");}
 }
-async function togglePool(row){
+/* clear the Missing Images flag (col J) */
+async function clearImages(row,mode){
   const it=pipe.find(p=>p.row===row);if(!it)return;
-  it.pool=!it.pool;
-  let n=(it.notes||"").replace(NOTE_POOL,"").trim();
-  it.notes=it.pool?(n+" "+NOTE_POOL).trim():n;render();
-  try{await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"H"+row,data:[[it.notes]]});}
+  it.needsImg=0;render();
+  try{await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"J"+row,data:[[""]]});
+    toast(mode==="added"?"Images confirmed":"Marked: images not required");}
+  catch(e){it.needsImg=1;render();toast("Save failed");}
+}
+/* ---------- your spin (optional article input → col M) ---------- */
+function openAngle(row){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  const modal=$("#modal"),scrim=$("#scrim");
+  modal.innerHTML=`<button class="x" data-cc="x">×</button>
+    <div class="kicker">Your spin (optional)</div>
+    <h3>${esc(titleOf(it))}</h3>
+    <p>Anything you want woven into the article? A personal take, a room you'd use it in, a must-mention. I'll use it as inspiration, not word-for-word. Totally optional — leave it blank and I'll just write.</p>
+    <label>Your notes</label>
+    <textarea id="angleInput" rows="5" placeholder="e.g. I'd put this in a sunroom. Great for renters since there's no drilling. Lean into the cozy-corner angle.">${esc(it.angle||"")}</textarea>
+    <div class="mfoot">
+      <button class="btn ghost" data-cc="x">Cancel</button>
+      <button class="btn coral" data-cc="save">Save</button>
+    </div>`;
+  scrim.classList.add("show");
+  const input=$("#angleInput");
+  function close(){scrim.classList.remove("show");modal.removeEventListener("click",onClick);}
+  async function onClick(e){
+    const b=e.target.closest("[data-cc]");if(!b)return;
+    if(b.dataset.cc==="x"){close();return;}
+    if(b.dataset.cc==="save"){const v=input.value.trim();close();await saveAngle(row,v);return;}
+  }
+  modal.addEventListener("click",onClick);
+  setTimeout(()=>input&&input.focus(),30);
+}
+async function saveAngle(row,val){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  it.angle=val;render();
+  try{await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"M"+row,data:[[val]]});toast(val?"Your spin saved — I'll weave it in":"Spin cleared");}
   catch(e){toast("Save failed");}
 }
-
-/* build roundup */
-$("#buildRoundupBtn").addEventListener("click",async()=>{
-  const picks=$$("#poolGrid input:checked");
-  if(picks.length<2){toast("Pick at least 2 products for a roundup");return;}
-  const members=picks.map(p=>p.value);
-  const id="roundup-"+Date.now().toString(36).slice(-4);
-  const nextRow=pipe.length?Math.max(...pipe.map(p=>p.row))+1:2;
-  const notes="members: "+members.join(", ");
-  pipe.push({row:nextRow,id,type:"roundup",stage:"Drafting",artA:0,socA:0,discA:0,artUrl:"",notes,pool:false});
+/* ---------- social pack popup ---------- */
+function copyText(t){try{navigator.clipboard.writeText(t);}catch(e){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(_){}ta.remove();}}
+let socialTarget="article"; // "article" (#ad) | "amazon" (Associate line) — Pinterest link-target toggle, mirrors the Social Post Tool
+function packGroups(pack){
+  const groups=[];
+  if(pack && pack.pins){
+    pack.pins.forEach((p,i)=>{const n=i+1;const fields=[];
+      if(p.title)fields.push({label:"Title",text:p.title});
+      const desc = socialTarget==="amazon" ? (p.descAmazon||p.descArticle||"") : (p.descArticle||p.descAmazon||"");
+      if(desc)fields.push({label:"Description",text:desc});
+      if(p.alt)fields.push({label:"Alt text",text:p.alt});
+      if(p.canva)fields.push({label:"Canva overlay",text:p.canva});
+      if(p.board)fields.push({label:"Board",text:p.board});
+      groups.push({heading:"Pinterest · Pin "+n,fields});
+    });
+    if(pack.hashtags)groups.push({heading:"Pinterest hashtags",fields:[{label:"",text:pack.hashtags}]});
+    if(pack.instagram)groups.push({heading:"Instagram caption",fields:[{label:"",text:pack.instagram}]});
+    if(pack.facebook)groups.push({heading:"Facebook post",fields:[{label:"",text:pack.facebook}]});
+  }else if(pack){
+    (pack.blocks||[]).forEach(b=>groups.push({heading:b.label||"",fields:[{label:"",text:b.text||""}]}));
+  }
+  return groups;
+}
+async function openSocialPack(row){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  let pack=socialPacks[it.id];
+  if(!pack){
+    // the job may have written the pack after the board loaded — pull the Social tab fresh
+    try{
+      const soc=await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Social"});
+      valuesOf(soc).slice(1).forEach(r=>{const id=(r[0]||"").trim();if(!id)return;try{socialPacks[id]=JSON.parse(r[1]||"{}");}catch(e){socialPacks[id]={blocks:[{label:"Pack",text:r[1]||""}]};}});
+      pack=socialPacks[it.id];
+    }catch(e){}
+  }
+  const modal=$("#modal"),scrim=$("#scrim");
+  function draw(){
+    let body;
+    if(!pack){
+      body=`<p class="muted">The social pack isn't ready yet. It generates when the card lands in Article Published/Social Pack Ready — give it a minute, then reopen. (In dry-run, run the social-pack task once.)</p>`;
+    }else{
+      const disc = pack.disclosureOk!==false ? '<span class="badge b-ok">Disclosure ✓</span>' : '<span class="badge b-flag">⚠ Disclosure unconfirmed</span>';
+      const toggle = pack.pins ? `<div class="seg"><span>Pins link to:</span>
+          <button class="segbtn ${socialTarget==='article'?'on':''}" data-target="article">Article (#ad)</button>
+          <button class="segbtn ${socialTarget==='amazon'?'on':''}" data-target="amazon">Amazon (Associate line)</button>
+        </div>` : "";
+      let ci=0;
+      const list=packGroups(pack).map(g=>{
+        const rows=g.fields.map(fl=>{const idx=ci++;return `<div class="sfield">
+            <div class="sflabel"><span>${esc(fl.label||"")}</span><button class="btn ghost sm" data-copy="${idx}">Copy</button></div>
+            <pre class="sbtext" id="sb${idx}">${esc(fl.text||"")}</pre>
+          </div>`;}).join("");
+        return `<div class="pgroup"><div class="pghead">${esc(g.heading)}</div>${rows}</div>`;
+      }).join("");
+      body=`${pack.url?`<div class="where">Article: <b>${esc(pack.title||titleOf(it))}</b><br><a href="${esc(pack.url)}" target="_blank" rel="noopener">${esc(pack.url)}</a></div>`:""}
+        <div style="margin:9px 0">${disc}</div>${toggle}${list}`;
+    }
+    const canSchedule=!it.needsImg;
+    modal.innerHTML=`<button class="x" data-cc="x">×</button>
+      <div class="kicker">Social pack</div>
+      <h3>${esc(titleOf(it))}</h3>
+      ${body}
+      <div class="mfoot">
+        ${it.sched?'<span class="badge b-ok">Scheduled ✓</span>'
+          :`<button class="btn coral" data-schedule="${it.row}"${canSchedule?'':' disabled title="Clear the Missing Images flag first"'}>Mark Scheduled → Fully Published</button>`}
+      </div>`;
+  }
+  draw();
+  scrim.classList.add("show");scrim.classList.add("wide");
+  function close(){scrim.classList.remove("show");scrim.classList.remove("wide");modal.removeEventListener("click",onClick);scrim.removeEventListener("click",onBg);}
+  function onClick(e){
+    const tg=e.target.closest("[data-target]");
+    if(tg){socialTarget=tg.dataset.target;draw();return;}
+    const cp=e.target.closest("[data-copy]");
+    if(cp){const el=document.getElementById("sb"+cp.dataset.copy);if(el){copyText(el.textContent);cp.textContent="Copied!";setTimeout(()=>cp.textContent="Copy",1200);}return;}
+    const sc=e.target.closest("[data-schedule]");
+    if(sc){close();markScheduled(+sc.dataset.schedule);return;}
+    const b=e.target.closest("[data-cc]");if(b&&b.dataset.cc==="x"){close();return;}
+  }
+  function onBg(e){if(e.target.id==="scrim")close();}
+  modal.addEventListener("click",onClick);scrim.addEventListener("click",onBg);
+}
+async function markScheduled(row){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  if(it.needsImg){toast("Clear the Missing Images flag first");return;}
+  it.sched=1;it.stage=FULLCOL;render();
+  try{
+    await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"L"+row,data:[["yes"]]});
+    await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"C"+row,data:[[FULLCOL]]});
+    toast("Scheduled → Fully Published 🎉");
+  }catch(e){toast("Save failed: "+(e.message||""));load();}
+}
+/* ---------- roundup grouping ---------- */
+function suggestLabels(it){
+  const existing=[...new Set(pipe.filter(p=>p.type==="roundup").map(p=>p.grp).filter(Boolean))];
+  const stop=new Set(["the","and","for","with","set","from","your","large","small","boho","wood","beads","woven","modern","home","decor","chic","leaf","feather","black","tapestry","decoration"]);
+  const tc=s=>s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();
+  let words=(titleOf(it)||"").split(/[^a-z0-9]+/i).filter(Boolean);
+  if(words.length>2) words=words.slice(1); // drop the leading brand word
+  words=words.filter(w=>w.length>=3 && isNaN(w) && !stop.has(w.toLowerCase()));
+  const guesses=[];
+  if(words.length>=2) guesses.push(words.slice(0,3).map(tc).join(" "));
+  if(words.length) guesses.push(tc(words[words.length-1])+"s");
+  return [...new Set([...existing,...guesses])].filter(Boolean).slice(0,8);
+}
+function openRoundupAssign(row,thenDraft){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  if(thenDraft===undefined) thenDraft = (it.stage===NEWCOL); // deciding roundup is how a card leaves New Products
+  const sugg=suggestLabels(it);
+  const chips=sugg.length?sugg.map(s=>`<button type="button" class="chip" data-chip="${esc(s)}">${esc(s)}</button>`).join(""):'<span class="muted">No suggestions — type your own.</span>';
+  const modal=$("#modal"),scrim=$("#scrim");
+  modal.innerHTML=`<button class="x" data-cc="x">×</button>
+    <div class="kicker">Roundup decision</div>
+    <h3>${esc(titleOf(it))}</h3>
+    <p>Add this product to a roundup group, or mark it as not part of one. The same label on two or more products makes one roundup.${thenDraft?" On save I'll send it to <b>Drafting</b> and start its single-article draft right away.":""}</p>
+    <label>Group label</label>
+    <input id="grpInput" placeholder="e.g. Boho Throws Under $50" value="${esc(groupLabelOf(it))}">
+    <div class="chips">${chips}</div>
+    <div class="mfoot">
+      <button class="btn ghost" data-cc="hold">⏸ On hold</button>
+      <button class="btn ghost" data-cc="none">Not in a roundup${thenDraft?" → draft":""}</button>
+      <button class="btn coral" data-cc="save">${thenDraft?"Save &amp; draft ⚡":"Assign to group"}</button>
+    </div>`;
+  scrim.classList.add("show");
+  const input=$("#grpInput");
+  function close(){scrim.classList.remove("show");modal.removeEventListener("click",onClick);}
+  async function onClick(e){
+    const chip=e.target.closest("[data-chip]");
+    if(chip){input.value=chip.dataset.chip;return;}
+    const b=e.target.closest("[data-cc]");if(!b)return;
+    const v=b.dataset.cc;
+    if(v==="x"){close();return;}
+    if(v==="hold"){close();await setOnHold(row);if(thenDraft)await draftAfterDecision(row);return;}
+    if(v==="none"){close();await setNoRoundup(row);if(thenDraft)await draftAfterDecision(row);return;}
+    if(v==="save"){const lab=input.value.trim();if(!lab){toast("Type a label or pick 'Not in a roundup'");return;}close();await assignGroup(row,lab);if(thenDraft)await draftAfterDecision(row);return;}
+  }
+  modal.addEventListener("click",onClick);
+  setTimeout(()=>input&&input.focus(),30);
+}
+async function draftAfterDecision(row){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  await moveStage(it,DRAFTCOL,true); // skipConfirm: the roundup popup was the confirm
+}
+async function writeCellI(row,val){
+  await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"I"+row,data:[[val]]});
+}
+async function setNoRoundup(row){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  it.grp="NONE";render();
+  try{await writeCellI(row,"NONE");toast("Marked: not in a roundup");}catch(e){it.grp="";render();toast("Save failed");}
+}
+async function setOnHold(row){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  it.grp="HOLD";render();
+  try{await writeCellI(row,"HOLD");toast("On hold — reassign a roundup whenever you like");}catch(e){it.grp="";render();toast("Save failed");}
+}
+async function assignGroup(row,label){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  it.grp=label;
+  let created=null;
+  if(!pipe.find(p=>p.type==="roundup" && p.grp===label)){
+    const nextRow=pipe.length?Math.max(...pipe.map(p=>p.row))+1:2;
+    const gid="roundup-"+label.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,30);
+    created={row:nextRow,id:gid,type:"roundup",stage:POOL,artA:0,discA:0,needsImg:0,pubA:0,sched:0,artUrl:"",notes:"",grp:label};
+    pipe.push(created);
+  }
   render();
   try{
-    await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"A"+nextRow+":H"+nextRow,
-      data:[[id,"roundup","Drafting","","","","",notes]]});
-    toast("Roundup created → Drafting ⚡ ("+members.length+" products)");
+    await writeCellI(row,label);
+    if(created){
+      await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"A"+created.row+":I"+created.row,
+        data:[[created.id,"roundup",POOL,"","","","","",label]]});
+    }
+    toast("Added to roundup: "+label);
   }catch(e){toast("Save failed: "+(e.message||""));load();}
-});
+}
+async function draftRoundup(row){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  const mem=membersOf(it.grp);
+  if(mem.length<2){toast("Add at least 2 products to this roundup first");return;}
+  const ok=await confirmModal({kicker:"Auto-draft",
+    title:"Draft the “"+(it.grp||it.id)+"” roundup now?",
+    body:"I'll write one multi-product roundup article from its <b>"+mem.length+"</b> products and push it to FreshStore as a <b>draft</b> (never live), then move this card to <b>Review/Add Images</b>.",
+    okLabel:"Draft it ⚡"});
+  if(!ok)return;
+  await moveStage(it,DRAFTCOL,true);
+}
 
-/* ---------- info modal ---------- */
-function openInfo(col){
-  const d=INFO[col];if(!d)return;
+/* ---------- info popover (hover) ---------- */
+function infoHTML(col){
+  const d=INFO[col];if(!d)return"";
   const autoTag = d.auto===true?'<div class="auto">⚡ Auto-fires on drop</div>'
     : d.auto==="detect"?'<div class="auto">⚙ Auto-detected on refresh</div>':'';
-  $("#modal").innerHTML=`<button class="x" data-close>×</button>
-    <div class="kicker">${esc(d.kicker)}</div>
-    <h3>${esc(col)}</h3>
-    ${autoTag}
-    <p>${d.body}</p>
+  return `<div class="kicker">${esc(d.kicker)}</div><h3>${esc(col)}</h3>${autoTag}<p>${d.body}</p>
     <div class="where">Where you do this: <b>${esc(d.space[1])}</b></div>`;
-  $("#scrim").classList.add("show");
 }
+const infopop=document.createElement("div");infopop.className="infopop";document.body.appendChild(infopop);
+function showInfo(btn){
+  const col=btn.dataset.info;if(!INFO[col])return;
+  infopop.innerHTML=infoHTML(col);infopop.classList.add("show");
+  const r=btn.getBoundingClientRect(),pw=infopop.offsetWidth,ph=infopop.offsetHeight;
+  let left=r.left, top=r.bottom+8;
+  if(left+pw>window.innerWidth-10)left=window.innerWidth-pw-10;
+  if(left<10)left=10;
+  if(top+ph>window.innerHeight-10)top=r.top-ph-8;
+  infopop.style.left=left+"px";infopop.style.top=top+"px";
+}
+function hideInfo(){infopop.classList.remove("show");}
+document.addEventListener("mouseover",e=>{const b=e.target.closest("[data-info]");if(b)showInfo(b);});
+document.addEventListener("mouseout",e=>{const b=e.target.closest("[data-info]");if(b)hideInfo();});
 $("#scrim").addEventListener("click",e=>{if(e.target.id==="scrim"||e.target.dataset.close!==undefined)$("#scrim").classList.remove("show");});
 
 /* help legend */
@@ -529,14 +948,10 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
   $$(".view").forEach(v=>v.classList.remove("active"));$("#view-"+b.dataset.view).classList.add("active");
   maybeLoadFrame(b.dataset.view);
 }));
-$("#trayHead").addEventListener("click",()=>{
-  const t=$("#tray");t.classList.toggle("collapsed");
-  try{localStorage.setItem("hf_tray",t.classList.contains("collapsed")?"1":"0")}catch(e){}
-});
-try{if(localStorage.getItem("hf_tray")==="0")$("#tray").classList.remove("collapsed")}catch(e){}
+/* roundup pool is now a board column, not a tray */
 
 buildHelp();
-/* ===== password gate (change APP_PASSWORD to your own) ===== */
+/* ===== password gate ===== */
 const APP_PASSWORD = "2424";
 function startApp(){ document.getElementById('hfgate').classList.add('hide'); load(); }
 function tryAuth(){
