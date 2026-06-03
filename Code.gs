@@ -11,7 +11,7 @@
 
 const SHEET_ID = "1vKbLGryulWJ-dKV6YVI6jZ9kg0Qs9U1_OxK6hiDpfvI";
 const TOKEN    = "holls-pipeline-2026";                 // must match API_TOKEN in the web app
-const TABS     = ["Inbox", "Pipeline", "Stats", "Social", "On Deck"];  // On Deck = product intake staging
+const TABS     = ["Inbox", "Pipeline", "Stats", "Social", "On Deck", "Meta"];  // On Deck = product intake staging; Meta = category/asin cache
 
 // On Deck column order (1-based). Keep in sync with the Sheet header row.
 // A Date Added | B ASIN | C Cleaned Title | D Raw Title | E Image URL |
