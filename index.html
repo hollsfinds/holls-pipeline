@@ -47,6 +47,28 @@ button{font-family:inherit;cursor:pointer}
 /* views */
 .view{display:none;padding:16px 18px}
 .view.active{display:block}
+/* On Deck — product intake cards (first board column) */
+.odcard{cursor:default}
+.odcard .odimg{width:100%;height:96px;object-fit:contain;background:var(--peach);border-radius:8px;margin-bottom:8px}
+.odcard .odtitle{width:100%;border:1px solid var(--line);border-radius:7px;padding:6px 7px;font-size:12px;font-weight:700;font-family:inherit;color:var(--ink);resize:vertical;min-height:36px;box-sizing:border-box}
+.odcard .odtitle:focus{outline:none;border-color:var(--coral)}
+.odcats{display:flex;flex-wrap:wrap;gap:4px;margin:7px 0 2px}
+.odcat{background:var(--sage);color:#2f5d2e;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:20px}
+.odcat.newc{background:var(--peach);color:#9a5b3f}
+.odasin{font-size:10px;color:var(--muted);margin-top:5px}
+.odstatus{font-size:10.5px;font-weight:800;margin-top:4px}
+.od-new{color:var(--muted)} .od-ready{color:var(--teal)} .od-sending{color:#c98a1f}
+.od-live{color:#2f7d31} .od-failed{color:#d2493b}
+.odcard .acts{display:flex;gap:6px;margin-top:8px}
+.odcard .acts .btn{text-decoration:none;display:inline-block}
+/* review & send modal */
+.rlbl{display:block;font-size:11px;font-weight:800;letter-spacing:.3px;color:#6b5f57;margin:12px 0 5px}
+.rinput{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 9px;font-size:13px;font-family:inherit;color:var(--ink);box-sizing:border-box}
+.rinput:focus{outline:none;border-color:var(--coral)}
+.rcats{display:flex;flex-wrap:wrap;gap:6px}
+.rcat{border:1px solid var(--line);border-radius:20px;padding:5px 11px;font-size:12px;cursor:pointer;user-select:none;background:#fff}
+.rcat.on{background:var(--coral);border-color:transparent;color:#fff;font-weight:700}
+
 /* board */
 .boardwrap{overflow-x:auto;padding-bottom:10px}
 .board{display:flex;gap:13px;min-width:max-content;align-items:flex-start}
@@ -304,7 +326,8 @@ const REVIEWCOL = "Review/Add Images";
 const PUBCOL = "Article Published/Social Pack Ready";
 const MISSING = "Missing Images";   // a parallel flag column, NOT a stage cards move into
 const FULLCOL = "Fully Published";
-const COLS = [NEWCOL,POOL,DRAFTCOL,REVIEWCOL,MISSING,PUBCOL,FULLCOL];
+const ONDECK = "On Deck";
+const COLS = [ONDECK,NEWCOL,POOL,DRAFTCOL,REVIEWCOL,MISSING,PUBCOL,FULLCOL];
 /* ⚡ columns auto-fire a full-me job when a card lands there */
 const AUTO = {[DRAFTCOL]:true,[PUBCOL]:true};
 /* columns that fire a scheduled (full-me) job, via window.cowork.runScheduledTask */
@@ -312,6 +335,8 @@ const TASK_IDS = {[DRAFTCOL]:"draft-pipeline-cards",[PUBCOL]:"social-pack-cards"
 /* old stage names in the Sheet → current column names (keeps existing rows in the right column) */
 const STAGE_REMAP = {"Direction":NEWCOL,"New":NEWCOL,"Review":REVIEWCOL,"Roundup Pool":POOL,"Ready":PUBCOL,"Social Pack Ready":PUBCOL,"Article Published":PUBCOL,"Published":PUBCOL};
 const INFO = {
+  "On Deck":{kicker:"Product intake",auto:null,space:["ch","This app + your Mac brain"],
+    body:"Bookmarked Amazon finds land here with a <b>cleaned title</b> you can edit right on the card. Hit <b>Send to FreshStore</b> and it imports <b>live</b> — tagged affiliate link + images pulled automatically — then I patch in the clean title + SEO. Sending runs on your Mac brain (computer on)."},
   "New Products":{kicker:"Intake + direction",auto:null,space:["ch","This app / your call"],
     body:"Every new product lands here. <b>Exclude</b> the ones you'll skip. For a keeper, hit <b>＋ Add to board</b> — a <b>roundup pop-up</b> opens right away. Assign it a group or mark <b>Not in a roundup</b>; on save it heads to <b>Drafting</b> and I start its article."},
   "Roundup Prep":{kicker:"Group your roundups",auto:null,space:["ch","This app / your call"],
@@ -388,6 +413,8 @@ function valuesOf(resp){
 let inbox=[];   // {row, date, name, url, img, desc, status}
 let pipe=[];    // {row, id, type, stage, artA, discA, artUrl, notes, grp, needsImg, pubA, sched}
 let socialPacks={};  // { itemId: packObject } from the Social tab
+let ondeck=[];       // {row, asin, title, raw, img, url, cats, newcats, status, fsid, notes} from the On Deck tab
+let allCats=[];      // [{id,title,slug}] live FreshStore categories, from the Meta tab cache
 
 /* roundup grouping helpers — col I (Roundup Group): ""=undecided, "NONE"=not in a roundup, else the group label */
 const groupLabelOf = it => (it.grp && it.grp!=="NONE" && it.grp!=="HOLD") ? it.grp : "";
@@ -417,12 +444,18 @@ async function load(){
     const inb=await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Inbox"});
     const pip=await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Pipeline"});
     let soc=null; try{ soc=await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Social"}); }catch(e){}
+    let odk=null; try{ odk=await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"On Deck"}); }catch(e){}
+    let mta=null; try{ mta=await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Meta"}); }catch(e){}
     const iv=valuesOf(inb), pv=valuesOf(pip), sv=soc?valuesOf(soc):[];
     inbox=iv.slice(1).map((r,i)=>({row:i+2,date:r[0]||"",name:r[1]||"",url:r[2]||"",img:r[3]||"",desc:r[4]||"",status:(r[5]||"new").trim().toLowerCase()})).filter(x=>x.name||x.url);
     pipe=pv.slice(1).map((r,i)=>{let st=(r[2]||NEWCOL).trim();if(STAGE_REMAP[st])st=STAGE_REMAP[st];return{row:i+2,id:r[0]||"",type:(r[1]||"single").trim().toLowerCase(),stage:st,
       artA:truthy(r[3]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",grp:(r[8]||"").trim(),needsImg:truthy(r[9]),pubA:truthy(r[10]),sched:truthy(r[11]),angle:(r[12]||"")};}).filter(x=>x.id);
     socialPacks={};
     sv.slice(1).forEach(r=>{const id=(r[0]||"").trim();if(!id)return;try{socialPacks[id]=JSON.parse(r[1]||"{}");}catch(e){socialPacks[id]={blocks:[{label:"Pack",text:r[1]||""}]};}});
+    const odv=odk?valuesOf(odk):[];
+    ondeck=odv.slice(1).map((r,i)=>({row:i+2,date:r[0]||"",asin:(r[1]||"").trim(),title:r[2]||"",raw:r[3]||"",img:r[4]||"",url:r[5]||"",cats:(r[6]||""),newcats:(r[7]||""),status:(r[8]||"New").trim(),fsid:r[9]||"",notes:r[10]||""})).filter(x=>x.asin);
+    const mv=mta?valuesOf(mta):[]; allCats=[];
+    const mrow=mv.find(r=>(r[0]||"")==="freshstore_categories"); if(mrow){try{allCats=JSON.parse(mrow[1]||"[]");}catch(e){allCats=[];}}
     setStatus("ok","Connected · "+inbox.filter(x=>x.status==="new").length+" new · "+pipe.length+" in pipeline");
     render();
   }catch(e){
@@ -437,7 +470,8 @@ function render(){
   const board=$("#board");board.innerHTML="";
   COLS.forEach(col=>{
     let items;
-    if(col===POOL) items=pipe.filter(x=>x.type==="roundup" && x.stage===POOL);
+    if(col===ONDECK) items=ondeck.filter(x=>{const s=x.status.toLowerCase();return s!=="duplicate"&&s!=="live";});
+    else if(col===POOL) items=pipe.filter(x=>x.type==="roundup" && x.stage===POOL);
     else if(col===NEWCOL) items=[...pipe.filter(x=>x.type!=="roundup" && x.stage===NEWCOL), ...inbox.filter(x=>x.status==="new")];
     else if(col===MISSING) items=pipe.filter(x=>x.needsImg);   // parallel flag view — cards keep their real stage
     else items=pipe.filter(x=>x.stage===col);
@@ -454,7 +488,8 @@ function render(){
     const holder=$(".cards",c);
     if(!has)holder.innerHTML='<div class="empty">—</div>';
     items.forEach(it=>{
-      const el = it.status==="new" ? newCard(it)
+      const el = col===ONDECK ? ondeckCard(it)
+        : it.status==="new" ? newCard(it)
         : col===MISSING ? missingCard(it)
         : (it.type==="roundup" && it.stage===POOL) ? groupCard(it)
         : pipeCard(it);
@@ -465,6 +500,93 @@ function render(){
   });
   wireDrop();
 }
+
+/* ---------- On Deck cards (product intake — first board column) ---------- */
+function ondeckCard(it){
+  const d=document.createElement("div");d.className="card odcard";d.draggable=false;d.dataset.row=it.row;
+  const img=it.img?`<img class="odimg" src="${esc(it.img)}" data-zoom="${esc(it.img)}" onerror="this.style.display='none'">`:"";
+  const cats=(it.cats||"").split(",").map(s=>s.trim()).filter(Boolean).map(c=>`<span class="odcat">${esc(c)}</span>`).join("");
+  const ncats=(it.newcats||"").split(",").map(s=>s.trim()).filter(Boolean).map(c=>`<span class="odcat newc">＋${esc(c)}</span>`).join("");
+  const st=it.status.toLowerCase();
+  let stCls="od-new",stTxt=esc(it.status);
+  if(st==="ready to send"){stCls="od-ready";stTxt="⏳ Queued to send";}
+  else if(st==="sending"){stCls="od-sending";stTxt="↻ Sending…";}
+  else if(st==="live"){stCls="od-live";stTxt="✓ Live in FreshStore";}
+  else if(st==="import failed"){stCls="od-failed";stTxt="⚠ Import failed";}
+  let acts="";
+  if(st==="new"||st==="import failed"){
+    acts=`<div class="acts"><button class="btn coral" data-send="${it.row}">${st==="import failed"?"Retry send ▸":"Send to FreshStore ▸"}</button>
+      <a class="btn ghost" href="${esc(it.url)}" target="_blank" rel="noopener">View ↗</a></div>`;
+  }else if(st==="ready to send"||st==="sending"){
+    acts=`<div class="acts"><button class="btn ghost" disabled>${st==="sending"?"Sending…":"Queued…"}</button></div>`;
+  }else if(st==="live"&&it.fsid){
+    acts=`<div class="acts"><a class="btn ghost" href="https://hollsfinds.com/admin/products/list/${esc(it.fsid)}" target="_blank" rel="noopener">Open in FreshStore ↗</a></div>`;
+  }
+  const note=(it.notes&&st==="import failed")?`<div class="odstatus od-failed">${esc(it.notes)}</div>`:"";
+  d.innerHTML=`${img}
+    <textarea class="odtitle" data-row="${it.row}" rows="2" title="Edit the cleaned title">${esc(it.title)}</textarea>
+    <div class="odcats">${cats}${ncats}</div>
+    <div class="odasin">ASIN ${esc(it.asin)}</div>
+    <div class="odstatus ${stCls}">${stTxt}</div>
+    ${note}${acts}`;
+  return d;
+}
+/* review & send: edit title + categories right before it goes live */
+function reviewSendModal(it){
+  return new Promise(resolve=>{
+    const scrim=$("#scrim"),modal=$("#modal");
+    const sel={};(it.cats||"").split(",").map(s=>s.trim()).filter(Boolean).forEach(c=>sel[c]=true);
+    const chips=allCats.length?allCats.map(c=>`<span class="rcat ${sel[c.title]?'on':''}" data-cat="${esc(c.title)}">${esc(c.title)}</span>`).join("")
+      :'<span class="muted2">No categories cached yet — add one below.</span>';
+    modal.innerHTML=`<button class="x" data-cc="0">×</button>
+      <div class="kicker">Send to FreshStore</div>
+      <h3>Review &amp; send live</h3>
+      <p>Fix the title or categories if you need to, then send. It imports <b>live</b> with images + your tagged link, and I patch in the clean title + SEO.</p>
+      <label class="rlbl">Title</label>
+      <textarea id="rtitle" class="rinput" rows="2">${esc(it.title)}</textarea>
+      <label class="rlbl">Categories <span class="muted2">(tap to toggle)</span></label>
+      <div class="rcats">${chips}</div>
+      <label class="rlbl">New category <span class="muted2">(comma-separated, optional)</span></label>
+      <input id="rnew" class="rinput" type="text" placeholder="e.g. Wall Decor, Entryway">
+      <div class="mfoot">
+        <button class="btn ghost" data-cc="0">Cancel</button>
+        <button class="btn coral" data-cc="1">Send it live ▸</button>
+      </div>`;
+    scrim.classList.add("show");
+    function onClick(e){
+      const chip=e.target.closest("[data-cat]");
+      if(chip){const c=chip.dataset.cat;if(sel[c]){delete sel[c];chip.classList.remove("on");}else{sel[c]=true;chip.classList.add("on");}return;}
+      const b=e.target.closest("[data-cc]");if(!b)return;
+      if(b.dataset.cc!=="1"){cleanup(null);return;}
+      const newcats=$("#rnew").value.split(",").map(s=>s.trim()).filter(Boolean);
+      const cats=Object.keys(sel);
+      if(!cats.length&&!newcats.length){toast("Pick or add at least one category");return;}
+      cleanup({title:$("#rtitle").value.trim(),categories:cats,newCategories:newcats});
+    }
+    function onBg(e){if(e.target.id==="scrim")cleanup(null);}
+    function cleanup(v){scrim.classList.remove("show");modal.removeEventListener("click",onClick);scrim.removeEventListener("click",onBg);resolve(v);}
+    modal.addEventListener("click",onClick);scrim.addEventListener("click",onBg);
+  });
+}
+async function sendOnDeck(row){
+  const it=ondeck.find(x=>x.row===row);if(!it)return;
+  const res=await reviewSendModal(it);if(!res)return;
+  const prev={title:it.title,cats:it.cats,newcats:it.newcats,status:it.status};
+  it.title=res.title||it.title;it.cats=res.categories.join(", ");it.newcats=res.newCategories.join(", ");it.status="Ready to Send";render();
+  try{
+    await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"On Deck",range:"C"+row,data:[[it.title]]});
+    await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"On Deck",range:"G"+row+":I"+row,data:[[it.cats,it.newcats,"Ready to Send"]]});
+    toast("Queued “"+(it.title||it.asin)+"” for FreshStore ▸");
+  }catch(e){ Object.assign(it,prev);render();toast("Save failed: "+(e.message||"")); }
+}
+async function saveOnDeckTitle(row,val){
+  const it=ondeck.find(x=>x.row===row);if(!it)return;
+  val=(val||"").trim();if(!val||val===it.title)return;
+  const prev=it.title;it.title=val;
+  try{ await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"On Deck",range:"C"+row,data:[[val]]});toast("Title updated"); }
+  catch(e){ it.title=prev;render();toast("Save failed"); }
+}
+
 function onHoldCard(holds){
   const d=document.createElement("div");d.className="card hold-card";d.draggable=false;
   const list=holds.map(m=>{const u=srcUrlOf(m),t=esc(titleOf(m));const name=u?`<a href="${esc(u)}" target="_blank" rel="noopener">${t} ↗</a>`:t;return `<li><span class="mname">${name}</span><button class="memedit" data-assign="${m.row}" title="Assign a roundup, or remove">✎</button></li>`;}).join("");
@@ -574,12 +696,12 @@ function wireDrop(){
     card.addEventListener("dragend",()=>$("#board").classList.remove("dragging"));
   });
   $$(".cards").forEach(zone=>{
-    zone.addEventListener("dragover",e=>{if(zone.dataset.col!==NEWCOL){e.preventDefault();zone.classList.add("drag-over");}});
+    zone.addEventListener("dragover",e=>{if(zone.dataset.col!==NEWCOL&&zone.dataset.col!==ONDECK){e.preventDefault();zone.classList.add("drag-over");}});
     zone.addEventListener("dragleave",()=>zone.classList.remove("drag-over"));
     zone.addEventListener("drop",async e=>{
       e.preventDefault();zone.classList.remove("drag-over");$("#board").classList.remove("dragging");
       const target=zone.dataset.col;
-      if(target===NEWCOL||!dragRow)return;
+      if(target===NEWCOL||target===ONDECK||!dragRow)return;
       const it=pipe.find(p=>String(p.row)===String(dragRow));
       if(!it||it.stage===target)return;
       // gate enforcement
@@ -654,8 +776,9 @@ function confirmModal({kicker="Confirm",title="",body="",okLabel="Yes"}){
 
 /* ---------- actions ---------- */
 document.addEventListener("click",async e=>{
-  const t=e.target.closest("[data-add],[data-exclude],[data-gate],[data-assign],[data-draftroundup],[data-social],[data-imgdone],[data-imgskip],[data-markpub],[data-angle]");
+  const t=e.target.closest("[data-add],[data-exclude],[data-gate],[data-assign],[data-draftroundup],[data-social],[data-imgdone],[data-imgskip],[data-markpub],[data-angle],[data-send]");
   if(!t)return;
+  if(t.dataset.send!==undefined)return sendOnDeck(+t.dataset.send);
   if(t.dataset.angle!==undefined)return openAngle(+t.dataset.angle);
   if(t.dataset.add!==undefined)return addToBoard(+t.dataset.add);
   if(t.dataset.exclude!==undefined)return excludeProduct(+t.dataset.exclude);
@@ -667,6 +790,8 @@ document.addEventListener("click",async e=>{
   if(t.dataset.imgskip!==undefined)return clearImages(+t.dataset.imgskip,"skip");
   if(t.dataset.markpub!==undefined){const it=pipe.find(p=>p.row===+t.dataset.markpub);if(it)moveStage(it,PUBCOL);return;}
 });
+/* On Deck — save an edited cleaned title on blur/change */
+document.addEventListener("change",e=>{const ta=e.target.closest(".odtitle");if(ta)saveOnDeckTitle(+ta.dataset.row,ta.value);});
 
 function slugId(name){return (name||"item").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,34)+"-"+Date.now().toString(36).slice(-3);}
 
