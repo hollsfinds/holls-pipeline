@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add to On Deck — Holls Finds</title>
+<style>
+  :root{
+    --coral:#F88378; --peach:#FBCEB1; --sage:#AFD9AE; --teal:#43B3AE;
+    --espresso:#2C2421; --white:#fff; --line:#eee2da;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--espresso);background:var(--white);padding:16px 18px 22px}
+  h1{font-size:18px;margin:0 0 2px}
+  .sub{font-size:12.5px;color:#8a7d74;margin:0 0 14px}
+  .thumb{width:100%;height:150px;object-fit:contain;background:#faf5f0;border:1px solid var(--line);
+    border-radius:10px;margin-bottom:12px}
+  label{display:block;font-size:12px;font-weight:600;letter-spacing:.2px;margin:12px 0 5px;color:#6b5f57}
+  input[type=text],textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;
+    font-size:14px;font-family:inherit;color:var(--espresso)}
+  input[type=text]:focus,textarea[type=text]:focus,textarea:focus{outline:none;border-color:var(--coral)}
+  .raw{font-size:11.5px;color:#a89c93;margin-top:5px;line-height:1.35;word-break:break-word}
+  .cats{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+  .cat{border:1px solid var(--line);border-radius:20px;padding:6px 11px;font-size:12.5px;cursor:pointer;
+    user-select:none;background:#fff;transition:.12s}
+  .cat.on{background:var(--coral);border-color:var(--coral);color:#fff;font-weight:600}
+  .cat.parent{font-weight:600}
+  .hint{font-size:11px;color:#a89c93;margin-top:4px}
+  button.add{width:100%;margin-top:18px;background:var(--coral);color:#fff;border:0;border-radius:10px;
+    padding:13px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.2px}
+  button.add:disabled{background:#e7cfc9;cursor:not-allowed}
+  .status{margin-top:14px;font-size:13.5px;text-align:center;min-height:18px;font-weight:600}
+  .ok{color:var(--teal)} .dup{color:#c98a1f} .err{color:#d2493b}
+  .small{font-size:11px;color:#b6aaa1;text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+  <h1>Add to On Deck ✨</h1>
+  <p class="sub">Tidy it up, pick a vibe, and stash it for later, bestie.</p>
+
+  <img id="thumb" class="thumb" alt="" style="display:none">
+
+  <label>Cleaned title <span style="font-weight:400;color:#b6aaa1">(edit me)</span></label>
+  <input type="text" id="title">
+  <div class="raw" id="raw"></div>
+
+  <label>Categories <span style="font-weight:400;color:#b6aaa1">(pick at least one)</span></label>
+  <div class="cats" id="cats"><span class="hint">loading your categories…</span></div>
+
+  <label>New category? <span style="font-weight:400;color:#b6aaa1">(comma-separated, optional)</span></label>
+  <input type="text" id="newcats" placeholder="e.g. Entryway, Wall Art">
+  <div class="hint">New ones get created in FreshStore when you Send.</div>
+
+  <button class="add" id="addBtn" disabled>Add to On Deck</button>
+  <div class="status" id="status"></div>
+  <div class="small" id="meta"></div>
+
+<script>
+  var EXEC_URL  = "https://script.google.com/macros/s/AKfycbxPkObU7vxVtY4ZseyenU46h9IQKQStnJMr4XaoQOO3JZLF1-Wtg91yp1Uj5qVNBRhh/exec";
+  var API_TOKEN = "holls-pipeline-2026";
+
+  // ---- read params from the bookmarklet ----
+  var P = new URLSearchParams(location.search);
+  var ASIN = (P.get("asin")||"").trim().toUpperCase();
+  var RAW  = (P.get("t")||"").trim();
+  var IMG  = (P.get("img")||"").trim();
+  var URLp = (P.get("url")||"").trim() || ("https://www.amazon.com/dp/"+ASIN);
+
+  // ---- 6-rule title cleanup (matches the Reference Tool) ----
+  function cleanTitle(t){
+    var orig=(t||"").trim();
+    t=orig;
+    var w=t.split(/\s+/);
+    if(t.length<=50 && w.length<=8) return t;            // 1. already clean
+    t=t.replace(/\([^)]*\)/g," ").replace(/\s+/g," ").trim(); // 2. strip parentheses
+    var cut=t.split(/\s[-|]\s|,/)[0].trim();              // 3. cut at first , - |
+    if(cut) t=cut;
+    t=t.replace(/\s*\d+(?:\.\d+)?\s*(?:"|inch(?:es)?|in|ft|cm|mm)\b/gi," ")
+       .replace(/\s+/g," ").trim();                       // 4. strip dimensions
+    w=t.split(/\s+/);
+    if(w.length>12) t=w.slice(0,12).join(" ");            // 5. 12-word cap
+    if(t.split(/\s+/).length<3) return orig;              // 6. safety revert
+    return t;
+  }
+
+  document.getElementById("title").value = cleanTitle(RAW);
+  document.getElementById("raw").textContent = RAW ? ("Raw: "+RAW) : "";
+  if(IMG){ var im=document.getElementById("thumb"); im.src=IMG; im.style.display="block"; }
+  document.getElementById("meta").textContent = "ASIN "+ASIN;
+
+  var selected = {};   // title -> true (existing categories)
+
+  function refreshBtn(){
+    var hasNew = document.getElementById("newcats").value.trim().length>0;
+    var hasSel = Object.keys(selected).length>0;
+    var hasTitle = document.getElementById("title").value.trim().length>0;
+    document.getElementById("addBtn").disabled = !((hasSel||hasNew) && hasTitle && ASIN);
+  }
+  document.getElementById("newcats").addEventListener("input", refreshBtn);
+  document.getElementById("title").addEventListener("input", refreshBtn);
+
+  // ---- load live categories from the Meta cache ----
+  function loadCats(){
+    fetch(EXEC_URL + "?token=" + encodeURIComponent(API_TOKEN) + "&action=meta")
+      .then(function(r){return r.json();})
+      .then(function(j){
+        var box=document.getElementById("cats"); box.innerHTML="";
+        var list=[];
+        try{ list=JSON.parse((j.meta&&j.meta.freshstore_categories)||"[]"); }catch(e){ list=[]; }
+        if(!list.length){ box.innerHTML='<span class="hint">No categories cached yet — type a new one below.</span>'; return; }
+        list.forEach(function(c){
+          var el=document.createElement("span");
+          el.className="cat"; el.textContent=c.title;
+          el.onclick=function(){
+            if(selected[c.title]){ delete selected[c.title]; el.classList.remove("on"); }
+            else { selected[c.title]=true; el.classList.add("on"); }
+            refreshBtn();
+          };
+          box.appendChild(el);
+        });
+      })
+      .catch(function(){ document.getElementById("cats").innerHTML='<span class="hint">Couldn\'t load categories — type a new one below.</span>'; });
+  }
+  loadCats();
+
+  // ---- submit ----
+  function setStatus(msg,cls){ var s=document.getElementById("status"); s.textContent=msg; s.className="status "+(cls||""); }
+
+  document.getElementById("addBtn").onclick=function(){
+    var btn=this; btn.disabled=true; setStatus("Saving…","");
+    var newcats=document.getElementById("newcats").value.split(",").map(function(s){return s.trim();}).filter(Boolean);
+    var payload={
+      action:"addOnDeck", token:API_TOKEN, asin:ASIN,
+      cleanedTitle:document.getElementById("title").value.trim(),
+      rawTitle:RAW, imageUrl:IMG, productUrl:URLp,
+      categories:Object.keys(selected), newCategories:newcats
+    };
+    fetch(EXEC_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)})
+      .then(function(r){return r.json();})
+      .then(function(j){
+        if(j.status==="added"){ setStatus("Added to On Deck! 🎉 Closing…","ok"); setTimeout(function(){window.close();},1100); }
+        else if(j.status==="duplicate"){
+          setStatus(j.where==="freshstore" ? "Already in your store, bestie 👀" : "Already on your On Deck list 👀","dup");
+          btn.disabled=false;
+        }
+        else { setStatus("Hmm: "+(j.error||"unknown error"),"err"); btn.disabled=false; }
+      })
+      .catch(function(e){ setStatus("Network hiccup — try again","err"); btn.disabled=false; });
+  };
+</script>
+</body>
+</html>
