@@ -245,7 +245,7 @@ button{font-family:inherit;cursor:pointer}
       <div class="toolacts">
         <button class="btn ghost" id="pullBtn">↻ Pull new products</button>
         <button class="btn ghost" id="detectBtn">✓ Check published</button>
-        <button class="btn coral" id="draftBtn">✍ Draft queued cards</button>
+        <button class="btn ghost" id="draftBtn">✍ Draft queued cards</button>
       </div>
     </div>
 
@@ -989,16 +989,19 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
 }));
 /* roundup pool is now a board column, not a tray */
 
-/* ---------- manual run buttons ---------- */
-function runJob(taskId,msg){
-  if(window.cowork&&window.cowork.runScheduledTask){
-    try{ window.cowork.runScheduledTask(taskId); toast(msg+" — reload in a minute to see the results."); }
-    catch(e){ toast("Couldn't start: "+(e&&e.message||e)); }
-  }else{ toast("This runs from the Cowork app (or your scheduled Mac brain once it's set up)."); }
+/* ---------- manual run buttons (flag-trigger the Mac brain) ----------
+   A web page can't start the brain directly, so each button drops a
+   "run requested" marker in Stats!Z1 (action) + Z2 (timestamp). The brain
+   reads it at the top of each cron sweep, does that step first, then clears Z1. */
+async function requestRun(action,msg){
+  try{
+    await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Stats",range:"Z1:Z2",data:[[action],[new Date().toISOString()]]});
+    toast(msg+" — the brain will pick this up on its next sweep.");
+  }catch(e){ toast("Couldn't reach the Sheet: "+(e&&e.message||e)); }
 }
-{ const db=document.getElementById("draftBtn"); if(db) db.addEventListener("click",()=>runJob("draft-pipeline-cards","Drafting queued cards ⚡"));
-  const pb=document.getElementById("pullBtn"); if(pb) pb.addEventListener("click",()=>runJob("feed-pull-products","Pulling new products ⚡"));
-  const xb=document.getElementById("detectBtn"); if(xb) xb.addEventListener("click",()=>runJob("detect-published","Checking FreshStore for published articles ⚡")); }
+{ const db=document.getElementById("draftBtn"); if(db) db.addEventListener("click",()=>requestRun("draft","Asked the brain to draft queued cards ✍"));
+  const pb=document.getElementById("pullBtn"); if(pb) pb.addEventListener("click",()=>requestRun("pull","Asked the brain to pull new products ↻"));
+  const xb=document.getElementById("detectBtn"); if(xb) xb.addEventListener("click",()=>requestRun("detect","Asked the brain to check for published articles ✓")); }
 /* hover-zoom for product thumbnails */
 const imgzoom=document.createElement("img");imgzoom.id="imgzoom";document.body.appendChild(imgzoom);
 document.addEventListener("mouseover",e=>{const t=e.target.closest("[data-zoom]");if(!t)return;imgzoom.src=t.dataset.zoom;imgzoom.classList.add("show");const r=t.getBoundingClientRect();let left=r.right+10,top=r.top-88;if(left+230>window.innerWidth)left=r.left-232;if(left<8)left=8;if(top<8)top=8;if(top+230>window.innerHeight)top=window.innerHeight-230;imgzoom.style.left=left+"px";imgzoom.style.top=top+"px";});
