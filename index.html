@@ -498,6 +498,7 @@ function render(){
     const has = items.length || holds.length;
     const c=document.createElement("div");c.className="col"+(has?"":" collapsed");c.dataset.col=col;
     c.style.borderTop="3px solid "+(ZONE[col]||"var(--line)");
+    if(col===ONDECK) c.style.background="#F8DCC9";   // On Deck = tinted "inbox" entry column
     const bolt = AUTO[col]===true?'<span class="bolt" title="auto-fires">⚡</span>':'';
     c.innerHTML=`<div class="col-h">
         <div class="row1">${bolt}<span class="nm">${esc(LABEL[col]||col)}</span>
