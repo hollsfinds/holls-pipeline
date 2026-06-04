@@ -68,6 +68,7 @@ button{font-family:inherit;cursor:pointer}
 .rcats{display:flex;flex-wrap:wrap;gap:6px}
 .rcat{border:1px solid var(--line);border-radius:20px;padding:5px 11px;font-size:12px;cursor:pointer;user-select:none;background:#fff}
 .rcat.on{background:var(--coral);border-color:transparent;color:#fff;font-weight:700}
+.rhint{font-size:11px;color:var(--teal);font-weight:700;margin-top:6px;min-height:14px}
 
 /* board */
 .boardwrap{overflow-x:auto;padding-bottom:10px}
@@ -328,6 +329,24 @@ const MISSING = "Missing Images";   // a parallel flag column, NOT a stage cards
 const FULLCOL = "Fully Published";
 const ONDECK = "On Deck";
 const COLS = [ONDECK,NEWCOL,POOL,DRAFTCOL,REVIEWCOL,MISSING,PUBCOL,FULLCOL];
+/* display labels (the stored stage VALUES stay the same so existing cards don't break) */
+const LABEL = {
+  [ONDECK]:"Products: On Deck",
+  [NEWCOL]:"Products: Live & Ready",
+  [POOL]:"Products: Roundup Prep",
+  [DRAFTCOL]:"Articles: Drafting",
+  [REVIEWCOL]:"Articles: Review/Add Images",
+  [MISSING]:"Articles: Missing Images",
+  [PUBCOL]:"Socials: Ready",
+  [FULLCOL]:"Published & Scheduled"
+};
+/* zone color stripes — Products (coral) / Articles (sage) / Socials (teal) / Published (espresso) */
+const ZONE = {
+  [ONDECK]:"#F88378",[NEWCOL]:"#F88378",[POOL]:"#F88378",
+  [DRAFTCOL]:"#AFD9AE",[REVIEWCOL]:"#AFD9AE",[MISSING]:"#AFD9AE",
+  [PUBCOL]:"#43B3AE",
+  [FULLCOL]:"#FBCEB1"
+};
 /* ⚡ columns auto-fire a full-me job when a card lands there */
 const AUTO = {[DRAFTCOL]:true,[PUBCOL]:true};
 /* columns that fire a scheduled (full-me) job, via window.cowork.runScheduledTask */
@@ -337,8 +356,8 @@ const STAGE_REMAP = {"Direction":NEWCOL,"New":NEWCOL,"Review":REVIEWCOL,"Roundup
 const INFO = {
   "On Deck":{kicker:"Product intake",auto:null,space:["ch","This app + your Mac brain"],
     body:"Bookmarked Amazon finds land here with a <b>cleaned title</b> you can edit right on the card. Hit <b>Send to FreshStore</b> and it imports <b>live</b> — tagged affiliate link + images pulled automatically — then I patch in the clean title + SEO. Sending runs on your Mac brain (computer on)."},
-  "New Products":{kicker:"Intake + direction",auto:null,space:["ch","This app / your call"],
-    body:"Every new product lands here. <b>Exclude</b> the ones you'll skip. For a keeper, hit <b>＋ Add to board</b> — a <b>roundup pop-up</b> opens right away. Assign it a group or mark <b>Not in a roundup</b>; on save it heads to <b>Drafting</b> and I start its article."},
+  "New Products":{kicker:"Live, ready to write",auto:null,space:["ch","This app / your call"],
+    body:"Products now <b>live in your store</b> (sent from On Deck, or pulled from your feed) land here, ready to turn into content. <b>Exclude</b> any you'll skip. For a keeper, hit <b>＋ Add to board</b> — a <b>roundup pop-up</b> opens; assign it a group or mark <b>Not in a roundup</b>, and on save it heads to <b>Drafting</b> and I start its article."},
   "Roundup Prep":{kicker:"Group your roundups",auto:null,space:["ch","This app / your call"],
     body:"One card per <b>roundup group</b>. Give two or more products the same group label and they collect here, with a <b>count</b> of how many are in. When a group's ready, hit <b>Draft roundup ⚡</b> and I write one multi-product article from its members."},
   "Drafting":{kicker:"Auto-draft",auto:true,space:["cw","Cowork + Claude in Chrome"],
@@ -350,7 +369,7 @@ const INFO = {
   "Missing Images":{kicker:"Image safety net",auto:null,space:["ch","This app / your call"],
     body:"A reminder list: every freshly-published card lands here until you confirm its images. Hit <b>Images added</b> or <b>Not required</b> to clear it. (At go-live this auto-checks your live article and only flags real gaps.) A card can't be marked Fully Published until it's cleared here."},
   "Fully Published":{kicker:"Done",auto:null,space:["ch","This app"],
-    body:"Article live, images confirmed, social pack scheduled. The finish line — cards land here when you mark the social pack <b>Scheduled</b>."}
+    body:"Article live, images confirmed, social pack scheduled — the finish line. Each card lists <b>live links to its product pages</b> so you can jump straight to any product. Cards land here when you mark the social pack <b>Scheduled</b>."}
 };
 
 /* ---------- tiny helpers ---------- */
@@ -470,7 +489,7 @@ function render(){
   const board=$("#board");board.innerHTML="";
   COLS.forEach(col=>{
     let items;
-    if(col===ONDECK) items=ondeck.filter(x=>{const s=x.status.toLowerCase();return s!=="duplicate"&&s!=="live";});
+    if(col===ONDECK) items=ondeck.filter(x=>{const s=x.status.toLowerCase();return s!=="duplicate"&&s!=="live"&&s!=="removed";});
     else if(col===POOL) items=pipe.filter(x=>x.type==="roundup" && x.stage===POOL);
     else if(col===NEWCOL) items=[...pipe.filter(x=>x.type!=="roundup" && x.stage===NEWCOL), ...inbox.filter(x=>x.status==="new")];
     else if(col===MISSING) items=pipe.filter(x=>x.needsImg);   // parallel flag view — cards keep their real stage
@@ -478,9 +497,10 @@ function render(){
     const holds = (col===POOL) ? pipe.filter(x=>x.type!=="roundup" && x.grp==="HOLD") : [];
     const has = items.length || holds.length;
     const c=document.createElement("div");c.className="col"+(has?"":" collapsed");c.dataset.col=col;
+    c.style.borderTop="3px solid "+(ZONE[col]||"var(--line)");
     const bolt = AUTO[col]===true?'<span class="bolt" title="auto-fires">⚡</span>':'';
     c.innerHTML=`<div class="col-h">
-        <div class="row1">${bolt}<span class="nm">${esc(col)}</span>
+        <div class="row1">${bolt}<span class="nm">${esc(LABEL[col]||col)}</span>
           <button class="info-btn" data-info="${esc(col)}">i</button>
           <span class="ct">${items.length+(holds.length?1:0)}</span></div>
       </div>
@@ -516,7 +536,8 @@ function ondeckCard(it){
   let acts="";
   if(st==="new"||st==="import failed"){
     acts=`<div class="acts"><button class="btn coral" data-send="${it.row}">${st==="import failed"?"Retry send ▸":"Send to FreshStore ▸"}</button>
-      <a class="btn ghost" href="${esc(it.url)}" target="_blank" rel="noopener">View ↗</a></div>`;
+      <a class="btn ghost" href="${esc(it.url)}" target="_blank" rel="noopener">View ↗</a>
+      <button class="btn ghost" data-remove="${it.row}" title="Remove from On Deck">✕</button></div>`;
   }else if(st==="ready to send"||st==="sending"){
     acts=`<div class="acts"><button class="btn ghost" disabled>${st==="sending"?"Sending…":"Queued…"}</button></div>`;
   }else if(st==="live"&&it.fsid){
@@ -547,12 +568,41 @@ function reviewSendModal(it){
       <label class="rlbl">Categories <span class="muted2">(tap to toggle)</span></label>
       <div class="rcats">${chips}</div>
       <label class="rlbl">New category <span class="muted2">(comma-separated, optional)</span></label>
-      <input id="rnew" class="rinput" type="text" placeholder="e.g. Wall Decor, Entryway">
+      <input id="rnew" class="rinput" type="text" placeholder="e.g. Wall Decor, Entryway" value="${esc(it.newcats||'')}">
+      <div class="rhint" id="rsug"></div>
       <div class="mfoot">
         <button class="btn ghost" data-cc="0">Cancel</button>
         <button class="btn coral" data-cc="1">Send it live ▸</button>
       </div>`;
     scrim.classList.add("show");
+    // AI category suggestion — Cowork artifact only; guarded so it no-ops on the web build
+    if(window.cowork && window.cowork.askClaude){
+      const sug=$("#rsug"); if(sug) sug.textContent="✨ suggesting categories…";
+      (async()=>{
+        try{
+          const names=allCats.map(c=>c.title);
+          const prod=String(it.title||it.raw||"").replace(/"/g,"'").slice(0,200);
+          const prompt='Tag a boho / modern-farmhouse home & fashion affiliate product with categories. Product: "'+prod+'". Existing categories: '+JSON.stringify(names)+'. Reply with STRICT JSON only, no prose: {"existing":[titles copied exactly from the existing list that fit this product],"new":[at most one short broad new category title, only if no existing category fits well, else empty array]}. Strongly prefer existing categories.';
+          const resp=await window.cowork.askClaude(prompt,[]);
+          let txt=typeof resp==="string"?resp:(resp&&(resp.text||resp.content))||JSON.stringify(resp);
+          const m=txt.match(/\{[\s\S]*\}/); if(!m){const s=$("#rsug");if(s)s.textContent="";return;}
+          const j=JSON.parse(m[0]); let added=0;
+          (j.existing||[]).forEach(name=>{
+            const match=allCats.find(c=>c.title.toLowerCase()===String(name).trim().toLowerCase());
+            if(match && !sel[match.title]){ sel[match.title]=true; added++;
+              const chip=Array.from(modal.querySelectorAll('[data-cat]')).find(el=>el.dataset.cat===match.title);
+              if(chip)chip.classList.add("on");
+            }
+          });
+          const box=$("#rnew"); const cur=(box.value||"").split(",").map(s=>s.trim()).filter(Boolean);
+          (j.new||[]).forEach(n=>{ n=String(n).trim();
+            if(n && !cur.some(x=>x.toLowerCase()===n.toLowerCase()) && !allCats.some(c=>c.title.toLowerCase()===n.toLowerCase())){cur.push(n);added++;}
+          });
+          box.value=cur.join(", ");
+          const s=$("#rsug"); if(s) s.textContent=added?"✨ AI pre-filled suggestions — tweak as you like":"";
+        }catch(e){ const s=$("#rsug"); if(s) s.textContent=""; }
+      })();
+    }
     function onClick(e){
       const chip=e.target.closest("[data-cat]");
       if(chip){const c=chip.dataset.cat;if(sel[c]){delete sel[c];chip.classList.remove("on");}else{sel[c]=true;chip.classList.add("on");}return;}
@@ -585,6 +635,17 @@ async function saveOnDeckTitle(row,val){
   const prev=it.title;it.title=val;
   try{ await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"On Deck",range:"C"+row,data:[[val]]});toast("Title updated"); }
   catch(e){ it.title=prev;render();toast("Save failed"); }
+}
+async function removeOnDeck(row){
+  const it=ondeck.find(x=>x.row===row);if(!it)return;
+  const ok=await confirmModal({kicker:"Remove from On Deck",
+    title:"Remove “"+(it.title||it.asin)+"”?",
+    body:"This clears the card off On Deck — it won't be imported. The row is archived in your Sheet (not deleted), so you can still find it there if needed.",
+    okLabel:"Remove"});
+  if(!ok)return;
+  const prev=it.status;it.status="Removed";render();
+  try{ await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"On Deck",range:"I"+row,data:[["Removed"]]});toast("Removed from On Deck"); }
+  catch(e){ it.status=prev;render();toast("Save failed: "+(e.message||"")); }
 }
 
 function onHoldCard(holds){
@@ -650,7 +711,10 @@ function pipeCard(it){
       <div class="acts"><button class="btn coral" data-social="${it.row}">📋 View social pack</button></div>`;
   }else if(it.stage===FULLCOL){
     const pubLink = it.artUrl && /^https?:\/\//i.test(it.artUrl) ? `<a class="alink" href="${esc(it.artUrl)}" target="_blank" rel="noopener">Open Published Article ↗</a>` : "";
-    controls=`${pubLink}<span class="badge b-ok">Scheduled ✓</span>
+    const prods = it.type==="roundup" ? membersOf(it.grp) : [it];
+    const plist = prods.map(p=>{const u=srcUrlOf(p);const t=esc(titleOf(p));return u?`<li><a href="${esc(u)}" target="_blank" rel="noopener">${t} ↗</a></li>`:`<li><span class="mname">${t}</span></li>`;}).join("");
+    const prodLinks = plist?`<div class="muted2" style="margin:8px 0 2px;font-weight:700">Live product pages</div><ul class="memlist">${plist}</ul>`:"";
+    controls=`${pubLink}<span class="badge b-ok">Scheduled ✓</span>${prodLinks}
       <div class="acts"><button class="btn ghost" data-social="${it.row}">📋 Social pack</button></div>`;
   }
   const im = (it.type!=="roundup" && it.stage===NEWCOL) ? imgOf(it) : "";
@@ -776,9 +840,10 @@ function confirmModal({kicker="Confirm",title="",body="",okLabel="Yes"}){
 
 /* ---------- actions ---------- */
 document.addEventListener("click",async e=>{
-  const t=e.target.closest("[data-add],[data-exclude],[data-gate],[data-assign],[data-draftroundup],[data-social],[data-imgdone],[data-imgskip],[data-markpub],[data-angle],[data-send]");
+  const t=e.target.closest("[data-add],[data-exclude],[data-gate],[data-assign],[data-draftroundup],[data-social],[data-imgdone],[data-imgskip],[data-markpub],[data-angle],[data-send],[data-remove]");
   if(!t)return;
   if(t.dataset.send!==undefined)return sendOnDeck(+t.dataset.send);
+  if(t.dataset.remove!==undefined)return removeOnDeck(+t.dataset.remove);
   if(t.dataset.angle!==undefined)return openAngle(+t.dataset.angle);
   if(t.dataset.add!==undefined)return addToBoard(+t.dataset.add);
   if(t.dataset.exclude!==undefined)return excludeProduct(+t.dataset.exclude);
@@ -1067,7 +1132,7 @@ function infoHTML(col){
   const d=INFO[col];if(!d)return"";
   const autoTag = d.auto===true?'<div class="auto">⚡ Auto-fires on drop</div>'
     : d.auto==="detect"?'<div class="auto">⚙ Auto-detected on refresh</div>':'';
-  return `<div class="kicker">${esc(d.kicker)}</div><h3>${esc(col)}</h3>${autoTag}<p>${d.body}</p>
+  return `<div class="kicker">${esc(d.kicker)}</div><h3>${esc(LABEL[col]||col)}</h3>${autoTag}<p>${d.body}</p>
     <div class="where">Where you do this: <b>${esc(d.space[1])}</b></div>`;
 }
 const infopop=document.createElement("div");infopop.className="infopop";document.body.appendChild(infopop);
