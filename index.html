@@ -1337,7 +1337,11 @@ document.addEventListener("mouseout",e=>{if(e.target.closest("[data-zoom]"))imgz
 buildHelp();
 /* ===== password gate ===== */
 const APP_PASSWORD = "2424";
-function startApp(){ document.getElementById('hfgate').classList.add('hide'); load(); if(/[?&]demo=imgcard/.test(location.search)) setTimeout(()=>imageReviewModal({}),500); }
+function startApp(){ document.getElementById('hfgate').classList.add('hide'); load();
+  /* gentle auto-refresh: re-pull the Sheet every 45s, but NEVER while a modal is open (so it can't interrupt an image review) */
+  if(window.__hfAuto) clearInterval(window.__hfAuto);
+  window.__hfAuto = setInterval(()=>{ if(!$("#scrim").classList.contains("show")) load(); }, 45000);
+  if(/[?&]demo=imgcard/.test(location.search)) setTimeout(()=>imageReviewModal({}),500); }
 function tryAuth(){
   const v=document.getElementById('hfpw').value;
   if(v===APP_PASSWORD){ try{localStorage.setItem('hf_auth','1')}catch(e){} startApp(); }
