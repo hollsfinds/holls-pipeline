@@ -2,7 +2,7 @@
 {
   "name": "Holls Finds Pipeline",
   "schemaVersion": 1,
-  "description": "Holls Finds Pipeline — a live Kanban board reading/writing the 'Holls Finds Pipeline' Google Sheet. Columns: New Products, Roundup Prep, Drafting, Review/Add Images, Article Published/Social Pack Ready, Missing Images (parallel image-flag), Fully Published. Label-based roundup grouping, contextual card controls, auto draft + social-pack jobs, hover info popovers.",
+  "description": "Holls Finds Pipeline — a live Kanban board reading/writing the 'Holls Finds Pipeline' Google Sheet. Columns: On Deck, New Products, Roundup Prep, Drafting, Review & Publish (image-review modal: 7 auto-generated images vs article summary, per-image regen, approve→send to FreshStore), Article Published/Social Pack Ready, Fully Published. Label-based roundup grouping, contextual card controls, auto draft + social-pack jobs, hover info popovers.",
   "mcpTools": [
     "mcp__google-sheets__get_sheet_data",
     "mcp__google-sheets__update_cells"
@@ -255,6 +255,7 @@ button{font-family:inherit;cursor:pointer}
       <button class="tab" data-view="social">Social Post Tool</button>
       <button class="tab" data-view="help">Help</button>
     </div>
+    <input id="boardSearch" type="search" placeholder="Search articles & products…" autocomplete="off" style="margin-left:auto;width:240px;padding:7px 11px;border:1px solid var(--line);border-radius:9px;font-size:13px;font-family:inherit;background:#fff;color:var(--ink)">
     <div class="status" id="status"><span class="led"></span><span id="statusText">Connecting…</span></div>
   </div>
 
@@ -323,19 +324,21 @@ const SS = "1vKbLGryulWJ-dKV6YVI6jZ9kg0Qs9U1_OxK6hiDpfvI";
 const NEWCOL = "New Products";
 const POOL = "Roundup Prep";
 const DRAFTCOL = "Drafting";
-const REVIEWCOL = "Review/Add Images";
+const REVIEWCOL = "Review/Add Images";   /* display label is now "Add Images" — stored value kept stable so existing cards don't break */
+const FSPUB = "FreshStore Publish";      /* new: card lands here after image approve+send, for final FreshStore review + publish */
 const PUBCOL = "Article Published/Social Pack Ready";
 const MISSING = "Missing Images";   // a parallel flag column, NOT a stage cards move into
 const FULLCOL = "Fully Published";
 const ONDECK = "On Deck";
-const COLS = [ONDECK,NEWCOL,POOL,DRAFTCOL,REVIEWCOL,MISSING,PUBCOL,FULLCOL];
+const COLS = [ONDECK,NEWCOL,POOL,DRAFTCOL,REVIEWCOL,FSPUB,PUBCOL,FULLCOL];   /* MISSING column retired — image generation makes it a non-issue */
 /* display labels (the stored stage VALUES stay the same so existing cards don't break) */
 const LABEL = {
   [ONDECK]:"Products: On Deck",
   [NEWCOL]:"Products: Live & Ready",
   [POOL]:"Products: Roundup Prep",
   [DRAFTCOL]:"Articles: Drafting",
-  [REVIEWCOL]:"Articles: Review/Add Images",
+  [REVIEWCOL]:"Articles: Add Images",
+  [FSPUB]:"Articles: FreshStore Publish",
   [MISSING]:"Articles: Missing Images",
   [PUBCOL]:"Socials: Ready",
   [FULLCOL]:"Published & Scheduled"
@@ -343,7 +346,7 @@ const LABEL = {
 /* zone color stripes — Products (coral) / Articles (sage) / Socials (teal) / Published (espresso) */
 const ZONE = {
   [ONDECK]:"#F88378",[NEWCOL]:"#F88378",[POOL]:"#F88378",
-  [DRAFTCOL]:"#AFD9AE",[REVIEWCOL]:"#AFD9AE",[MISSING]:"#AFD9AE",
+  [DRAFTCOL]:"#AFD9AE",[REVIEWCOL]:"#AFD9AE",[FSPUB]:"#AFD9AE",[MISSING]:"#AFD9AE",
   [PUBCOL]:"#43B3AE",
   [FULLCOL]:"#FBCEB1"
 };
@@ -361,13 +364,13 @@ const INFO = {
   "Roundup Prep":{kicker:"Group your roundups",auto:null,space:["ch","This app / your call"],
     body:"One card per <b>roundup group</b>. Give two or more products the same group label and they collect here, with a <b>count</b> of how many are in. When a group's ready, hit <b>Draft roundup ⚡</b> and I write one multi-product article from its members."},
   "Drafting":{kicker:"Auto-draft",auto:true,space:["cw","Cowork + Claude in Chrome"],
-    body:"Drop a card here and I auto-write the full article + SEO <b>in your voice</b>, then push it to FreshStore as a <b>draft</b> (never live). The card then auto-advances to Review. Runs in Cowork, so your computer needs to be on with the app open."},
-  "Review/Add Images":{kicker:"Your eyes",auto:null,space:["ch","Chat + FreshStore admin"],
-    body:"Open the FreshStore draft, <b>add your images</b>, read it through. Tick <b>Article ✓</b> when you're happy, then publish it in FreshStore — the board moves it forward."},
+    body:"Drop a card here and I auto-write the full article + SEO <b>in your voice</b>, then push it to FreshStore as a <b>draft</b> (never live). The card then auto-advances to <b>Add Images</b>. Runs in Cowork, so your computer needs to be on with the app open."},
+  "Review/Add Images":{kicker:"Your eyes — images",auto:null,space:["ch","This app + your Mac brain"],
+    body:"Hit <b>🖼 Review images</b> to see the 7 auto-generated images against an article summary. Redo any that miss (with a note), then <b>Approve &amp; send</b> — the brain attaches them all to the FreshStore draft and the card moves to <b>FreshStore Publish</b>."},
+  "FreshStore Publish":{kicker:"Final read + go live",auto:null,space:["ch","FreshStore"],
+    body:"Images are on the draft. Open it in FreshStore for a final read, tweak any words if needed, then <b>publish in FreshStore</b>. When it goes live, the published-detection moves the card on to <b>Social Pack Ready</b> and the social pack auto-generates — that flow is unchanged."},
   "Article Published/Social Pack Ready":{kicker:"Live + social pack",auto:true,space:["cw","Cowork"],
-    body:"When the article goes live the card lands here, its <b>social pack auto-generates</b> (with disclosures), and it gets <b>flagged in Missing Images</b> as a check. <b>Click the card</b> to open the pack, then mark it <b>Scheduled</b> to finish. No Tailwind — you queue it yourself."},
-  "Missing Images":{kicker:"Image safety net",auto:null,space:["ch","This app / your call"],
-    body:"A reminder list: every freshly-published card lands here until you confirm its images. Hit <b>Images added</b> or <b>Not required</b> to clear it. (At go-live this auto-checks your live article and only flags real gaps.) A card can't be marked Fully Published until it's cleared here."},
+    body:"When the article goes live the card lands here and its <b>social pack auto-generates</b> (with disclosures). <b>Click the card</b> to open the pack, then mark it <b>Scheduled</b> to finish. No Tailwind — you queue it yourself."},
   "Fully Published":{kicker:"Done",auto:null,space:["ch","This app"],
     body:"Article live, images confirmed, social pack scheduled — the finish line. Each card lists <b>live links to its product pages</b> so you can jump straight to any product. Cards land here when you mark the social pack <b>Scheduled</b>."}
 };
@@ -454,6 +457,20 @@ function imgOf(it){
   if(u){const hit=inbox.find(x=>x.url===u);if(hit&&hit.img)return hit.img;}
   return "";
 }
+/* ---------- board search (article titles + product cleaned & raw Amazon titles) ---------- */
+let searchQ="";
+function cardSearchText(it){
+  const p=[];
+  if(it.title)p.push(it.title);          // On Deck cleaned title
+  if(it.raw)p.push(it.raw);              // On Deck raw Amazon title
+  if(it.name)p.push(it.name);            // Inbox product name
+  if(it.grp)p.push(it.grp);              // roundup group label
+  if(it.asin)p.push(it.asin);
+  try{p.push(titleOf(it));}catch(e){}    // pipe article/product display title
+  if(it.type==="roundup"){try{membersOf(it.grp||it.id).forEach(m=>{p.push(titleOf(m));});}catch(e){}}
+  return p.join(" • ").toLowerCase();
+}
+function matchesSearch(it){return !searchQ || cardSearchText(it).includes(searchQ);}
 /* duplicate guard: is there already another card with a drafted article for this product URL? */
 const articleExistsFor = (url,exceptRow)=> !!url && pipe.some(p=>p.type!=="roundup" && p.row!==exceptRow && srcUrlOf(p)===url && (p.artUrl||"").length>0);
 
@@ -494,7 +511,8 @@ function render(){
     else if(col===NEWCOL) items=[...pipe.filter(x=>x.type!=="roundup" && x.stage===NEWCOL), ...inbox.filter(x=>x.status==="new")];
     else if(col===MISSING) items=pipe.filter(x=>x.needsImg);   // parallel flag view — cards keep their real stage
     else items=pipe.filter(x=>x.stage===col);
-    const holds = (col===POOL) ? pipe.filter(x=>x.type!=="roundup" && x.grp==="HOLD") : [];
+    let holds = (col===POOL) ? pipe.filter(x=>x.type!=="roundup" && x.grp==="HOLD") : [];
+    if(searchQ){items=items.filter(matchesSearch);holds=holds.filter(matchesSearch);}
     const has = items.length || holds.length;
     const c=document.createElement("div");c.className="col"+(has?"":" collapsed");c.dataset.col=col;
     c.style.borderTop="3px solid "+(ZONE[col]||"var(--line)");
@@ -619,6 +637,102 @@ function reviewSendModal(it){
     modal.addEventListener("click",onClick);scrim.addEventListener("click",onBg);
   });
 }
+/* ===== Image Review (board approval card) — opens from Review & Publish cards =====
+   Reads preview data from it.imgPreviews + it.imgSummary (populated by the Mac brain
+   via the Sheet). Falls back to sample data so the modal renders before that wiring
+   lands and for the ?demo=imgcard preview. Resolves {approved:true,regen:{}} on approve,
+   {approved:false,regen:{slot:note}} on regenerate, or null on cancel. */
+function imageReviewModal(it){
+  it=it||{};
+  return new Promise(resolve=>{
+    const scrim=$("#scrim"),modal=$("#modal");
+    const TINTS=["#FBCEB1","#AFD9AE","#cdeae8","#f4d9c9","#dcebd3","#fbe3d4","#cfe7e5"];
+    const ph=(label,dim,tint)=>"data:image/svg+xml;utf8,"+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><rect width='600' height='600' fill='"+tint+"'/><circle cx='300' cy='250' r='70' fill='#ffffff80'/><rect x='150' y='360' width='300' height='90' rx='14' fill='#ffffff66'/><text x='300' y='540' text-anchor='middle' font-family='sans-serif' font-size='30' font-weight='bold' fill='#7a5a44'>"+label+" "+dim+"</text></svg>");
+    const SAMPLE={hook:"5 pieces that make a workspace feel like yours — refined boho, not chaos boho.",tags:["Home office","Modern boho","Oak","Rattan","Cream + sage"],secs:[["The desk.","Light oak, tapered legs — the anchor the whole room leans on."],["The chair.","Rattan with a cream cushion. Cute, but you can actually sit in it."],["The shelf.","A floating oak ledge for plants and the one book you'll display."],["The lighting.","A warm rattan pendant that makes 4pm feel cozy, not corporate."],["The finishing touch.","Eucalyptus in a ceramic vase."]]};
+    const sum=it.imgSummary||SAMPLE;
+    const prev=it.imgPreviews||{};
+    const CHIPS=["Brighter","Less clutter","More greenery","Warmer light","Wider shot"];
+    const slots=[{id:"hero",name:"Hero",dim:"2000×1000",h:118},{id:"listing",name:"Listing",dim:"1200×900",h:104},{id:"social",name:"Social",dim:"1200×630",h:104},{id:"inspo1",name:"Inspo 1",dim:"1200²",h:90},{id:"inspo2",name:"Inspo 2",dim:"1200²",h:90},{id:"inspo3",name:"Inspo 3",dim:"1200²",h:90},{id:"inspo4",name:"Inspo 4",dim:"1200²",h:90}];
+    const chipHtml=CHIPS.map(c=>`<span class="ir-chip">${esc(c)}</span>`).join("");
+    const tileHtml=(s,i)=>{const src=prev[s.id]||ph(s.name,s.dim,TINTS[i]);const failed=!!prev[s.id+"_failed"];
+      return `<div class="ir-tile${failed?' ir-fail':''}" data-id="${s.id}"><div class="ir-imgbox" style="height:${s.h}px" data-src="${esc(src)}"><img src="${esc(src)}" alt="${esc(s.name)}"><span class="ir-zoom">tap to enlarge</span></div><div class="ir-trow"><span>${esc(s.name)}<span class="ir-pill">will redo</span></span><button class="ir-redo" type="button">↻ Redo</button></div><div class="ir-edit"><input class="ir-note" placeholder="what to change…"><div class="ir-chips">${chipHtml}</div></div><div class="ir-ov ir-failed">Couldn't generate<button class="ir-retry" type="button">Retry</button></div></div>`;};
+    let ttl="Article images";try{ttl=it.title||(it.row?titleOf(it):"")||"Article images";}catch(e){}
+    modal.innerHTML=`<style>
+      .scrim.imgwide .modal{max-width:760px}
+      .scrim.imgwide .modal .x{position:sticky;top:2px;float:none;display:block;width:28px;margin:0 0 -26px auto;z-index:6}
+      .ir-sumwrap{background:var(--bg,#faf7f5);border:1px solid var(--line,#ece6e2);border-radius:12px;padding:11px 13px;margin:11px 0 4px}
+      .ir-hook{font-size:12.5px;font-weight:700;line-height:1.45}
+      .ir-tags{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0}
+      .ir-tag{background:#FBCEB1;color:#9a5a32;font-weight:800;font-size:10.5px;padding:2px 9px;border-radius:20px}
+      .ir-secs{display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--line,#ece6e2);padding-top:9px}
+      .ir-sec{font-size:11.5px;line-height:1.35}.ir-sec b{color:#2C2421}.ir-sec span{color:#8a7f79}
+      .ir-intro{margin:8px 0 12px;font-size:12px;color:#8a7f79;line-height:1.5}
+      .ir-glbl{font-size:11px;font-weight:800;color:#8a7f79;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 7px}
+      .ir-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.ir-row4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+      .ir-tile{border:2px solid var(--line,#ece6e2);border-radius:12px;padding:8px;background:#fff;position:relative}
+      .ir-tile.ir-queued{border-color:#43B3AE;background:#43B3AE0d}.ir-tile.ir-fail{border-color:#e0857f}
+      .ir-imgbox{border-radius:8px;overflow:hidden;cursor:zoom-in;position:relative}.ir-imgbox img{display:block;width:100%;height:100%;object-fit:cover}
+      .ir-zoom{position:absolute;right:6px;bottom:6px;background:#2c2421aa;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;pointer-events:none}
+      .ir-trow{display:flex;align-items:center;justify-content:space-between;margin-top:7px;font-size:11.5px;color:#8a7f79;font-weight:700}
+      .ir-redo{border:1px solid var(--line,#ece6e2);background:var(--bg,#faf7f5);color:#c0534a;font-weight:800;font-size:11px;padding:4px 9px;border-radius:7px;cursor:pointer;white-space:nowrap}
+      .ir-tile.ir-queued .ir-redo{background:#43B3AE;color:#fff;border-color:#43B3AE}
+      .ir-pill{display:none;background:#43B3AE22;color:#226b67;font-weight:800;font-size:10px;padding:1px 7px;border-radius:20px;margin-left:6px}.ir-tile.ir-queued .ir-pill{display:inline-block}
+      .ir-edit{display:none;margin-top:7px}.ir-tile.ir-queued .ir-edit{display:block}
+      .ir-note{width:100%;padding:6px 8px;border:1px solid var(--line,#ece6e2);border-radius:7px;font-size:12px;font-family:inherit}
+      .ir-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+      .ir-chip{background:#fff;border:1px solid var(--line,#ece6e2);color:#8a7f79;font-weight:700;font-size:10.5px;padding:3px 8px;border-radius:20px;cursor:pointer}
+      .ir-chip:hover{border-color:#43B3AE;color:#43B3AE}
+      .ir-ov{position:absolute;inset:0;background:#fffffff2;border-radius:10px;display:none;flex-direction:column;align-items:center;justify-content:center;gap:7px;font-size:11.5px;font-weight:800;color:#b1443c}
+      .ir-tile.ir-fail .ir-failed{display:flex}
+      .ir-retry{border:1px solid #e0857f;background:#fff;color:#b1443c;font-weight:800;font-size:11px;padding:4px 12px;border-radius:7px;cursor:pointer}
+      .ir-allnote{display:none;margin-top:10px}.ir-allnote textarea{width:100%;padding:8px 10px;border:1px solid var(--line,#ece6e2);border-radius:9px;font-family:inherit;font-size:12.5px}
+      .ir-lb{position:fixed;inset:0;background:#2c2421e8;display:none;align-items:center;justify-content:center;z-index:120;padding:24px;cursor:zoom-out}.ir-lb.on{display:flex}.ir-lb img{max-width:92vw;max-height:88vh;border-radius:10px}
+      @media(max-width:560px){.ir-row4{grid-template-columns:1fr 1fr}}
+    </style>
+    <button class="x" data-cc="x">×</button>
+    <div class="kicker">Review images</div>
+    <h3>${esc(ttl)}</h3>
+    <div class="ir-sumwrap">
+      <div class="ir-hook">${esc(sum.hook)}</div>
+      <div class="ir-tags">${sum.tags.map(t=>`<span class="ir-tag">${esc(t)}</span>`).join("")}</div>
+      <div class="ir-secs">${sum.secs.map(s=>`<div class="ir-sec"><b>${esc(s[0])}</b> <span>${esc(s[1])}</span></div>`).join("")}</div>
+      ${it.artUrl&&/^https?:/i.test(it.artUrl)?`<a href="${esc(it.artUrl)}" target="_blank" rel="noopener" style="font-size:11px;color:#43B3AE;font-weight:800;text-decoration:none;display:inline-block;margin-top:8px">Read full draft ↗</a>`:""}
+    </div>
+    <p class="ir-intro">Quick check: do the images fit the article above? Hit <b style="color:#43B3AE">↻ Redo</b> on any that miss — add a note or tap a chip. Approve sends it all to FreshStore for final review.</p>
+    <div>${tileHtml(slots[0],0)}</div>
+    <div class="ir-glbl">Listing &amp; social</div>
+    <div class="ir-row2">${tileHtml(slots[1],1)}${tileHtml(slots[2],2)}</div>
+    <div class="ir-glbl">Inspiration row · in the article body</div>
+    <div class="ir-row4">${tileHtml(slots[3],3)}${tileHtml(slots[4],4)}${tileHtml(slots[5],5)}${tileHtml(slots[6],6)}</div>
+    <div class="ir-allnote"><textarea rows="2" placeholder="What should change across all 7? e.g. wrong room — this should be a bedroom set; or brighten the whole set…"></textarea></div>
+    <div class="mfoot">
+      <span class="ir-qcount" style="font-size:12px;color:#8a7f79;margin-right:auto;font-weight:700">All 7 fit the article?</span>
+      <button class="btn ghost" data-ir="redoall" type="button">↻ Redo all 7</button>
+      <button class="btn ghost" data-ir="regen" type="button" style="display:none;border-color:#43B3AE;color:#226b67">↻ Regenerate queued</button>
+      <button class="btn coral" data-ir="approve" type="button">Approve &amp; send ▸</button>
+    </div>`;
+    scrim.classList.add("show","imgwide");
+    const lb=document.createElement("div");lb.className="ir-lb";lb.innerHTML='<img alt="enlarged preview">';document.body.appendChild(lb);
+    lb.addEventListener("click",()=>lb.classList.remove("on"));
+    function refresh(){const q=modal.querySelectorAll(".ir-tile.ir-queued").length;modal.querySelector('[data-ir="regen"]').style.display=q?"inline-block":"none";modal.querySelector(".ir-qcount").textContent=q?(q+" queued for redo"):"All 7 fit the article?";modal.querySelector('[data-ir="approve"]').style.opacity=q?".5":"1";}
+    function collectRegen(){const out={};const all=modal.querySelector(".ir-allnote textarea").value.trim();modal.querySelectorAll(".ir-tile.ir-queued").forEach(t=>{out[t.dataset.id]=(t.querySelector(".ir-note").value.trim()||all||"");});return out;}
+    function onClick(e){
+      if(e.target.closest(".x")){cleanup(null);return;}
+      const box=e.target.closest(".ir-imgbox");if(box){lb.querySelector("img").src=box.dataset.src;lb.classList.add("on");return;}
+      const chip=e.target.closest(".ir-chip");if(chip){const n=chip.closest(".ir-tile").querySelector(".ir-note");n.value=(n.value?n.value.replace(/\s*$/,"")+", ":"")+chip.textContent.toLowerCase();n.focus();return;}
+      const redo=e.target.closest(".ir-redo");if(redo){const t=redo.closest(".ir-tile");t.classList.toggle("ir-queued");redo.textContent=t.classList.contains("ir-queued")?"Cancel":"↻ Redo";if(t.classList.contains("ir-queued"))t.querySelector(".ir-note").focus();refresh();return;}
+      const retry=e.target.closest(".ir-retry");if(retry){const t=retry.closest(".ir-tile");t.classList.remove("ir-fail");t.classList.add("ir-queued");t.querySelector(".ir-redo").textContent="Cancel";refresh();return;}
+      const b=e.target.closest("[data-ir]");if(!b)return;
+      if(b.dataset.ir==="redoall"){const an=modal.querySelector(".ir-allnote");const open=an.style.display==="block";an.style.display=open?"none":"block";modal.querySelectorAll(".ir-tile").forEach(t=>{if(t.classList.contains("ir-fail"))return;if(open){t.classList.remove("ir-queued");t.querySelector(".ir-redo").textContent="↻ Redo";}else{t.classList.add("ir-queued");t.querySelector(".ir-redo").textContent="Cancel";}});refresh();return;}
+      if(b.dataset.ir==="regen"){cleanup({approved:false,regen:collectRegen()});return;}
+      if(b.dataset.ir==="approve"){cleanup({approved:true,regen:{}});return;}
+    }
+    function onBg(e){if(e.target.id==="scrim")cleanup(null);}
+    function cleanup(v){scrim.classList.remove("show","imgwide");modal.removeEventListener("click",onClick);scrim.removeEventListener("click",onBg);lb.remove();resolve(v);}
+    modal.addEventListener("click",onClick);scrim.addEventListener("click",onBg);
+    refresh();
+  });
+}
 async function sendOnDeck(row){
   const it=ondeck.find(x=>x.row===row);if(!it)return;
   const res=await reviewSendModal(it);if(!res)return;
@@ -693,7 +807,7 @@ function pipeCard(it){
     else if(it.grp==="HOLD") rdz=`<span class="badge b-hold" data-assign="${it.row}" title="On hold — click to assign a roundup">⏸ On hold</span>`;
     else rdz=`<span class="badge b-undecided" data-assign="${it.row}">⚑ Set roundup</span>`;
   }
-  const flagTag = it.needsImg?'<span class="badge b-flag">⚠ Images</span>':'';
+  const flagTag = "";   // ⚠ Images badge retired with the Missing Images column
   const spinTag = it.angle?'<span class="badge b-spin" title="Your input added">💬 spin</span>':'';
   const gate=(on,lbl,key)=>`<button class="gate ${on?'on':''}" data-gate="${key}" data-row="${it.row}">${on?'✓ ':''}${lbl}</button>`;
   const discBadge = it.discA?'<span class="badge b-ok">Disclosure ✓</span>':'';
@@ -705,8 +819,10 @@ function pipeCard(it){
   }else if(it.stage===DRAFTCOL){
     controls=`<div class="muted2">Writing your draft…</div>`;
   }else if(it.stage===REVIEWCOL){
+    controls=`${draftLinkHTML(it)}<div class="acts"><button class="btn coral" data-imgreview="${it.row}">🖼 Review images</button></div>`;
+  }else if(it.stage===FSPUB){
     const pub=it.artA?`<div class="acts"><button class="btn coral" data-markpub="${it.row}">Published in FreshStore ▸</button></div>`:"";
-    controls=`${draftLinkHTML(it)}<div class="gates">${gate(it.artA,"Article",'art')}</div>${discBadge}${pub}`;
+    controls=`${draftLinkHTML(it)}<div class="muted2">Images sent. Final read on FreshStore, then publish.</div><div class="gates">${gate(it.artA,"Article",'art')}</div>${discBadge}${pub}`;
   }else if(it.stage===PUBCOL){
     controls=`${draftLinkHTML(it)}<div class="gates">${gate(it.pubA,"Published",'pub')}</div>${discBadge}
       <div class="acts"><button class="btn coral" data-social="${it.row}">📋 View social pack</button></div>`;
@@ -781,10 +897,7 @@ async function moveStage(it,target,skipConfirm){
   if(it.type!=="roundup" && target===DRAFTCOL && !roundupDecided(it)){
     toast("Make the roundup call first — assign a group or tap ⚑ Set roundup → Not in a roundup");return;
   }
-  // can't reach Fully Published until the Missing Images flag is cleared
-  if(target===FULLCOL && it.needsImg){
-    toast("Clear the Missing Images flag first (Images added / Not required)");return;
-  }
+  // (Missing Images gate retired — image pipeline handles images; nothing blocks Fully Published)
   // confirm-first only for Drafting (social fires silently)
   if(target===DRAFTCOL && !skipConfirm){
     const ok=await confirmModal({
@@ -796,7 +909,7 @@ async function moveStage(it,target,skipConfirm){
   }
   const prev=it.stage;it.stage=target;
   const enterPub=(target===PUBCOL);
-  if(enterPub){it.pubA=1;it.needsImg=1;}   // published → mark live + flag images for a check
+  if(enterPub){it.pubA=1;}   // published → mark live (image-check flag retired; the image pipeline guarantees images before publish)
   render();
   try{
     await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"C"+it.row,data:[[target]]});
@@ -841,8 +954,15 @@ function confirmModal({kicker="Confirm",title="",body="",okLabel="Yes"}){
 
 /* ---------- actions ---------- */
 document.addEventListener("click",async e=>{
-  const t=e.target.closest("[data-add],[data-exclude],[data-gate],[data-assign],[data-draftroundup],[data-social],[data-imgdone],[data-imgskip],[data-markpub],[data-angle],[data-send],[data-remove]");
+  const t=e.target.closest("[data-add],[data-exclude],[data-gate],[data-assign],[data-draftroundup],[data-social],[data-imgdone],[data-imgskip],[data-markpub],[data-imgreview],[data-angle],[data-send],[data-remove]");
   if(!t)return;
+  if(t.dataset.imgreview!==undefined){
+    const it=pipe.find(p=>p.row===+t.dataset.imgreview);if(!it)return;
+    const res=await imageReviewModal(it);if(!res)return;
+    if(res.approved){toast("Approved — sending to FreshStore ✓");moveStage(it,FSPUB);/* TODO(brain wiring): write approval to Sheet so the Mac brain runs upload-images.js */console.log("IMG APPROVE row",it.row,res);}
+    else{toast("Regen queued — the brain will redo the flagged images ↻");/* TODO(brain wiring): write regen request + notes to Sheet */console.log("IMG REGEN row",it.row,res.regen);}
+    return;
+  }
   if(t.dataset.send!==undefined)return sendOnDeck(+t.dataset.send);
   if(t.dataset.remove!==undefined)return removeOnDeck(+t.dataset.remove);
   if(t.dataset.angle!==undefined)return openAngle(+t.dataset.angle);
@@ -984,7 +1104,7 @@ async function openSocialPack(row){
       body=`${pack.url?`<div class="where">Article: <b>${esc(pack.title||titleOf(it))}</b><br><a href="${esc(pack.url)}" target="_blank" rel="noopener">${esc(pack.url)}</a></div>`:""}
         <div style="margin:9px 0">${disc}</div>${toggle}${list}`;
     }
-    const canSchedule=!it.needsImg;
+    const canSchedule=true;   // Missing Images flag retired (image pipeline handles images)
     modal.innerHTML=`<button class="x" data-cc="x">×</button>
       <div class="kicker">Social pack</div>
       <h3>${esc(titleOf(it))}</h3>
@@ -1011,7 +1131,6 @@ async function openSocialPack(row){
 }
 async function markScheduled(row){
   const it=pipe.find(p=>p.row===row);if(!it)return;
-  if(it.needsImg){toast("Clear the Missing Images flag first");return;}
   it.sched=1;it.stage=FULLCOL;render();
   try{
     await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"L"+row,data:[["yes"]]});
@@ -1200,12 +1319,13 @@ document.addEventListener("mouseout",e=>{if(e.target.closest("[data-zoom]"))imgz
 buildHelp();
 /* ===== password gate ===== */
 const APP_PASSWORD = "2424";
-function startApp(){ document.getElementById('hfgate').classList.add('hide'); load(); }
+function startApp(){ document.getElementById('hfgate').classList.add('hide'); load(); if(/[?&]demo=imgcard/.test(location.search)) setTimeout(()=>imageReviewModal({}),500); }
 function tryAuth(){
   const v=document.getElementById('hfpw').value;
   if(v===APP_PASSWORD){ try{localStorage.setItem('hf_auth','1')}catch(e){} startApp(); }
   else { document.getElementById('hferr').textContent='Nope, try again.'; }
 }
+{ const sb=document.getElementById('boardSearch'); if(sb) sb.addEventListener('input',()=>{searchQ=sb.value.trim().toLowerCase();render();}); }
 document.getElementById('hfgo').addEventListener('click',tryAuth);
 document.getElementById('hfpw').addEventListener('keydown',function(e){ if(e.key==='Enter') tryAuth(); });
 try{ if(localStorage.getItem('hf_auth')==='1') startApp(); }catch(e){}
