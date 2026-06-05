@@ -471,6 +471,12 @@ function cardSearchText(it){
   return p.join(" • ").toLowerCase();
 }
 function matchesSearch(it){return !searchQ || cardSearchText(it).includes(searchQ);}
+/* ---------- image-pipeline columns (Pipeline tab) ----------
+   N (col 14) img_previews  — brain writes JSON {hero,listing,social,inspo1..4, <slot>_failed?}
+   O (col 15) img_summary   — brain writes JSON {type,hook,tags:[],secs:[[h,t]]}
+   P (col 16) img_review    — board writes JSON {status:"approved"|"regen", regen:{slot:note}, at}
+   No Code.gs change needed: doGet returns these cols, updateRange writes them. */
+function safeJSON(s){try{return s?JSON.parse(s):null;}catch(e){return null;}}
 /* duplicate guard: is there already another card with a drafted article for this product URL? */
 const articleExistsFor = (url,exceptRow)=> !!url && pipe.some(p=>p.type!=="roundup" && p.row!==exceptRow && srcUrlOf(p)===url && (p.artUrl||"").length>0);
 
@@ -485,7 +491,7 @@ async function load(){
     const iv=valuesOf(inb), pv=valuesOf(pip), sv=soc?valuesOf(soc):[];
     inbox=iv.slice(1).map((r,i)=>({row:i+2,date:r[0]||"",name:r[1]||"",url:r[2]||"",img:r[3]||"",desc:r[4]||"",status:(r[5]||"new").trim().toLowerCase()})).filter(x=>x.name||x.url);
     pipe=pv.slice(1).map((r,i)=>{let st=(r[2]||NEWCOL).trim();if(STAGE_REMAP[st])st=STAGE_REMAP[st];return{row:i+2,id:r[0]||"",type:(r[1]||"single").trim().toLowerCase(),stage:st,
-      artA:truthy(r[3]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",grp:(r[8]||"").trim(),needsImg:truthy(r[9]),pubA:truthy(r[10]),sched:truthy(r[11]),angle:(r[12]||"")};}).filter(x=>x.id);
+      artA:truthy(r[3]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",grp:(r[8]||"").trim(),needsImg:truthy(r[9]),pubA:truthy(r[10]),sched:truthy(r[11]),angle:(r[12]||""),imgPreviews:safeJSON(r[13]),imgSummary:safeJSON(r[14]),imgReview:safeJSON(r[15])};}).filter(x=>x.id);
     socialPacks={};
     sv.slice(1).forEach(r=>{const id=(r[0]||"").trim();if(!id)return;try{socialPacks[id]=JSON.parse(r[1]||"{}");}catch(e){socialPacks[id]={blocks:[{label:"Pack",text:r[1]||""}]};}});
     const odv=odk?valuesOf(odk):[];
@@ -819,7 +825,8 @@ function pipeCard(it){
   }else if(it.stage===DRAFTCOL){
     controls=`<div class="muted2">Writing your draft…</div>`;
   }else if(it.stage===REVIEWCOL){
-    controls=`${draftLinkHTML(it)}<div class="acts"><button class="btn coral" data-imgreview="${it.row}">🖼 Review images</button></div>`;
+    const rg=(it.imgReview&&it.imgReview.status==="regen")?'<div class="muted2">↻ Regenerating flagged images…</div>':'';
+    controls=`${draftLinkHTML(it)}<div class="acts"><button class="btn coral" data-imgreview="${it.row}">🖼 Review images</button></div>${rg}`;
   }else if(it.stage===FSPUB){
     const pub=it.artA?`<div class="acts"><button class="btn coral" data-markpub="${it.row}">Published in FreshStore ▸</button></div>`:"";
     controls=`${draftLinkHTML(it)}<div class="muted2">Images sent. Final read on FreshStore, then publish.</div><div class="gates">${gate(it.artA,"Article",'art')}</div>${discBadge}${pub}`;
@@ -959,8 +966,20 @@ document.addEventListener("click",async e=>{
   if(t.dataset.imgreview!==undefined){
     const it=pipe.find(p=>p.row===+t.dataset.imgreview);if(!it)return;
     const res=await imageReviewModal(it);if(!res)return;
-    if(res.approved){toast("Approved — sending to FreshStore ✓");moveStage(it,FSPUB);/* TODO(brain wiring): write approval to Sheet so the Mac brain runs upload-images.js */console.log("IMG APPROVE row",it.row,res);}
-    else{toast("Regen queued — the brain will redo the flagged images ↻");/* TODO(brain wiring): write regen request + notes to Sheet */console.log("IMG REGEN row",it.row,res.regen);}
+    try{
+      if(res.approved){
+        // write img_review=approved (col P) → the Mac brain runs upload-images.js on the next sweep
+        await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"P"+it.row,data:[[JSON.stringify({status:"approved",at:new Date().toISOString()})]]});
+        moveStage(it,FSPUB);   // moveStage writes the stage (col C) + re-renders
+        toast("Approved — the brain will attach the images, then it's on FreshStore Publish ✓");
+      }else{
+        // write img_review=regen + per-slot notes (col P) → the brain re-runs generate-images.js for those slots
+        it.imgReview={status:"regen",regen:res.regen,at:new Date().toISOString()};
+        await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"P"+it.row,data:[[JSON.stringify(it.imgReview)]]});
+        render();
+        toast("Regen queued — the brain will redo the flagged images ↻");
+      }
+    }catch(err){toast("Couldn't save that — try again");}
     return;
   }
   if(t.dataset.send!==undefined)return sendOnDeck(+t.dataset.send);
