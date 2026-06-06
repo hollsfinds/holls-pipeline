@@ -359,7 +359,7 @@ const INFO = {
   "On Deck":{kicker:"Product intake",auto:null,space:["ch","This app + your Mac brain"],
     body:"Bookmarked Amazon finds land here with a <b>cleaned title</b> you can edit right on the card. Hit <b>Send to FreshStore</b> and it imports <b>live</b> — tagged affiliate link + images pulled automatically — then I patch in the clean title + SEO. Sending runs on your Mac brain (computer on)."},
   "New Products":{kicker:"Live, ready to write",auto:null,space:["ch","This app / your call"],
-    body:"Products now <b>live in your store</b> (sent from On Deck, or pulled from your feed) land here, ready to turn into content. <b>Exclude</b> any you'll skip. For a keeper, hit <b>＋ Add to board</b> — a <b>roundup pop-up</b> opens; assign it a group or mark <b>Not in a roundup</b>, and on save it heads to <b>Drafting</b> and I start its article."},
+    body:"Products now <b>live in your store</b> (sent from On Deck, or pulled from your feed) land here, ready to turn into content. <b>Exclude</b> any you'll skip. For a keeper, hit <b>Send to Draft</b> — a <b>roundup pop-up</b> opens; assign it a group or mark <b>Not in a roundup</b>, and on save it heads to <b>Drafting</b> and I start its article."},
   "Roundup Prep":{kicker:"Group your roundups",auto:null,space:["ch","This app / your call"],
     body:"One card per <b>roundup group</b>. Give two or more products the same group label and they collect here, with a <b>count</b> of how many are in. When a group's ready, hit <b>Draft roundup ⚡</b> and I write one multi-product article from its members."},
   "Drafting":{kicker:"Auto-draft",auto:true,space:["cw","Cowork + Claude in Chrome"],
@@ -785,7 +785,7 @@ function newCard(it){
     ${dup}
     ${it.desc?`<p class="desc">${esc(it.desc)}</p>`:""}
     <div class="acts">
-      <button class="btn coral" data-add="${it.row}">＋ Add to board</button>
+      <button class="btn coral" data-add="${it.row}">Send to Draft ▸</button>
       <button class="btn ghost" data-exclude="${it.row}">Exclude</button>
     </div>`;
   return d;
