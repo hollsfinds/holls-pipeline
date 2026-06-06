@@ -828,7 +828,7 @@ function pipeCard(it){
     controls=`${draftLinkHTML(it)}<div class="acts"><button class="btn coral" data-imgreview="${it.row}">🖼 Review images</button></div>${rg}`;
   }else if(it.stage===FSPUB){
     const pub=it.artA?`<div class="acts"><button class="btn coral" data-markpub="${it.row}">Published in FreshStore ▸</button></div>`:"";
-    controls=`${draftLinkHTML(it)}<div class="muted2">Images sent. Final read on FreshStore, then publish.</div><div class="gates">${gate(it.artA,"Article",'art')}</div>${discBadge}${pub}`;
+    controls=`${draftLinkHTML(it)}<div class="muted2">Images sent. Final read on FreshStore, then publish.</div><div class="acts"><button class="btn ghost" data-imgreview="${it.row}">🖼 Redo images</button></div><div class="gates">${gate(it.artA,"Article",'art')}</div>${discBadge}${pub}`;
   }else if(it.stage===PUBCOL){
     controls=`${draftLinkHTML(it)}<div class="gates">${gate(it.pubA,"Published",'pub')}</div>${discBadge}
       <div class="acts"><button class="btn coral" data-social="${it.row}">📋 View social pack</button></div>`;
@@ -967,10 +967,11 @@ document.addEventListener("click",async e=>{
     const res=await imageReviewModal(it);if(!res)return;
     try{
       if(res.approved){
+        const wasReview = it.stage===REVIEWCOL;
         // write img_review=approved (col P) → the Mac brain runs upload-images.js on the next sweep
         await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"P"+it.row,data:[[JSON.stringify({status:"approved",at:new Date().toISOString()})]]});
-        moveStage(it,FSPUB);   // moveStage writes the stage (col C) + re-renders
-        toast("Approved — the brain will attach the images, then it's on FreshStore Publish ✓");
+        if(wasReview){ moveStage(it,FSPUB); toast("Approved — the brain will attach the images, then it's on FreshStore Publish ✓"); }
+        else { render(); toast("Re-sending the updated images to FreshStore ✓"); }   // re-approve from FreshStore Publish: just re-upload, don't move
       }else{
         // write img_review=regen + per-slot notes (col P) → the brain re-runs generate-images.js for those slots
         it.imgReview={status:"regen",regen:res.regen,at:new Date().toISOString()};
