@@ -152,6 +152,9 @@ button{font-family:inherit;cursor:pointer}
 .btn.ghost{color:var(--muted)}
 .btn.star.on{background:var(--peach);border-color:transparent;color:#9a5b3f}
 .alink{font-size:11px;color:var(--teal);font-weight:700;text-decoration:none}
+.prodpill{margin:2px 0 6px}
+.prodpill a,.prodpill span{display:inline-block;max-width:100%;font-size:10.5px;font-weight:700;color:#9a5b3f;background:var(--peach);border-radius:999px;padding:3px 9px;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
+.prodpill a:hover{background:var(--coral);color:#fff}
 .empty{color:#c8bfb9;font-size:11px;text-align:center;padding:14px 4px;font-style:italic}
 /* roundup tray */
 .tray{margin-bottom:14px;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
@@ -324,12 +327,13 @@ const NEWCOL = "New Products";
 const POOL = "Roundup Prep";
 const DRAFTCOL = "Drafting";
 const REVIEWCOL = "Review/Add Images";   /* display label is now "Add Images" — stored value kept stable so existing cards don't break */
+const ATTACHING = "Attaching Images";    /* transient: card waits here while the brain uploads approved images to the FreshStore draft, then auto-advances to FreshStore Publish */
 const FSPUB = "FreshStore Publish";      /* new: card lands here after image approve+send, for final FreshStore review + publish */
 const PUBCOL = "Article Published/Social Pack Ready";
 const MISSING = "Missing Images";   // a parallel flag column, NOT a stage cards move into
 const FULLCOL = "Fully Published";
 const ONDECK = "On Deck";
-const COLS = [ONDECK,NEWCOL,POOL,DRAFTCOL,REVIEWCOL,FSPUB,PUBCOL,FULLCOL];   /* MISSING column retired — image generation makes it a non-issue */
+const COLS = [ONDECK,NEWCOL,POOL,DRAFTCOL,REVIEWCOL,ATTACHING,FSPUB,PUBCOL,FULLCOL];   /* MISSING column retired — image generation makes it a non-issue */
 /* display labels (the stored stage VALUES stay the same so existing cards don't break) */
 const LABEL = {
   [ONDECK]:"Products: On Deck",
@@ -337,6 +341,7 @@ const LABEL = {
   [POOL]:"Products: Roundup Prep",
   [DRAFTCOL]:"Articles: Drafting",
   [REVIEWCOL]:"Articles: Add Images",
+  [ATTACHING]:"Articles: Attaching Images",
   [FSPUB]:"Articles: FreshStore Publish",
   [MISSING]:"Articles: Missing Images",
   [PUBCOL]:"Socials: Ready",
@@ -345,7 +350,7 @@ const LABEL = {
 /* zone color stripes — Products (coral) / Articles (sage) / Socials (teal) / Published (espresso) */
 const ZONE = {
   [ONDECK]:"#F88378",[NEWCOL]:"#F88378",[POOL]:"#F88378",
-  [DRAFTCOL]:"#AFD9AE",[REVIEWCOL]:"#AFD9AE",[FSPUB]:"#AFD9AE",[MISSING]:"#AFD9AE",
+  [DRAFTCOL]:"#AFD9AE",[REVIEWCOL]:"#AFD9AE",[ATTACHING]:"#AFD9AE",[FSPUB]:"#AFD9AE",[MISSING]:"#AFD9AE",
   [PUBCOL]:"#43B3AE",
   [FULLCOL]:"#FBCEB1"
 };
@@ -365,7 +370,9 @@ const INFO = {
   "Drafting":{kicker:"Auto-draft",auto:true,space:["cw","Cowork + Claude in Chrome"],
     body:"Drop a card here and I auto-write the full article + SEO <b>in your voice</b>, then push it to FreshStore as a <b>draft</b> (never live). The card then auto-advances to <b>Add Images</b>. Runs in Cowork, so your computer needs to be on with the app open."},
   "Review/Add Images":{kicker:"Your eyes — images",auto:null,space:["ch","This app + your Mac brain"],
-    body:"Hit <b>🖼 Review images</b> to see the 7 auto-generated images against an article summary. Redo any that miss (with a note), then <b>Approve &amp; send</b> — the brain attaches them all to the FreshStore draft and the card moves to <b>FreshStore Publish</b>."},
+    body:"Hit <b>🖼 Review images</b> to see the 7 auto-generated images against an article summary. Redo any that miss (with a note), then <b>Approve &amp; send</b> — the card moves to <b>Attaching Images</b> while the brain uploads them."},
+  "Attaching Images":{kicker:"Uploading to the draft",auto:true,space:["ch","Your Mac brain"],
+    body:"A holding lane: the brain is <b>attaching your approved images</b> to the FreshStore draft. The card sits here until the upload finishes, then <b>auto-advances to FreshStore Publish</b> — so a card in FreshStore Publish always truly has its images. Needs your computer on."},
   "FreshStore Publish":{kicker:"Final read + go live",auto:null,space:["ch","FreshStore"],
     body:"Images are on the draft. Open it in FreshStore for a final read, tweak any words if needed, then <b>publish in FreshStore</b>. When it goes live, the published-detection moves the card on to <b>Social Pack Ready</b> and the social pack auto-generates — that flow is unchanged."},
   "Article Published/Social Pack Ready":{kicker:"Live + social pack",auto:true,space:["cw","Cowork"],
@@ -449,6 +456,21 @@ function titleOf(it){
   if(u){const hit=inbox.find(x=>x.url===u);if(hit&&hit.name)return hit.name;}
   return it.id;
 }
+/* the FreshStore article H1, once the brain has written it into img_summary (col O) as "title" */
+function articleTitleOf(it){ return (it.imgSummary && it.imgSummary.title) ? String(it.imgSummary.title).trim() : ""; }
+/* card heading: article title once the article exists (article stages), else the product name */
+const ARTICLE_STAGES = {[REVIEWCOL]:1,[ATTACHING]:1,[FSPUB]:1,[PUBCOL]:1,[FULLCOL]:1};
+function cardTitleOf(it){
+  if(it.type!=="roundup" && ARTICLE_STAGES[it.stage]){ const at=articleTitleOf(it); if(at) return at; }
+  return titleOf(it);
+}
+/* compact product pill (links to the live product page) — shown on single article-stage cards so the underlying product is still one click away */
+function prodPillHTML(it){
+  if(it.type==="roundup" || !ARTICLE_STAGES[it.stage]) return "";
+  const u=srcUrlOf(it); const name=esc(titleOf(it));
+  if(!u) return `<div class="prodpill"><span>📦 ${name}</span></div>`;
+  return `<div class="prodpill"><a href="${esc(u)}" target="_blank" rel="noopener">📦 ${name} ↗</a></div>`;
+}
 /* product photo: inbox cards carry .img; pipe cards look it up from the matching Inbox row */
 function imgOf(it){
   if(it.img) return it.img;
@@ -491,6 +513,11 @@ async function load(){
     inbox=iv.slice(1).map((r,i)=>({row:i+2,date:r[0]||"",name:r[1]||"",url:r[2]||"",img:r[3]||"",desc:r[4]||"",status:(r[5]||"new").trim().toLowerCase()})).filter(x=>x.name||x.url);
     pipe=pv.slice(1).map((r,i)=>{let st=(r[2]||NEWCOL).trim();if(STAGE_REMAP[st])st=STAGE_REMAP[st];return{row:i+2,id:r[0]||"",type:(r[1]||"single").trim().toLowerCase(),stage:st,
       artA:truthy(r[3]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",grp:(r[8]||"").trim(),needsImg:truthy(r[9]),pubA:truthy(r[10]),sched:truthy(r[11]),angle:(r[12]||""),imgPreviews:safeJSON(r[13]),imgSummary:safeJSON(r[14]),imgReview:safeJSON(r[15])};}).filter(x=>x.id);
+    // self-heal: a card parked in Attaching Images whose review flag (col P) has cleared = the brain finished the upload → advance it to FreshStore Publish (backup for the brain's own advance)
+    pipe.filter(x=>x.stage===ATTACHING && !x.imgReview).forEach(x=>{
+      x.stage=FSPUB;
+      mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"C"+x.row,data:[[FSPUB]]}).catch(()=>{});
+    });
     socialPacks={};
     sv.slice(1).forEach(r=>{const id=(r[0]||"").trim();if(!id)return;try{socialPacks[id]=JSON.parse(r[1]||"{}");}catch(e){socialPacks[id]={blocks:[{label:"Pack",text:r[1]||""}]};}});
     const odv=odk?valuesOf(odk):[];
@@ -826,6 +853,9 @@ function pipeCard(it){
   }else if(it.stage===REVIEWCOL){
     const rg=(it.imgReview&&it.imgReview.status==="regen")?'<div class="muted2">↻ Regenerating flagged images…</div>':'';
     controls=`${draftLinkHTML(it)}<div class="acts"><button class="btn coral" data-imgreview="${it.row}">🖼 Review images</button></div>${rg}`;
+  }else if(it.stage===ATTACHING){
+    const waiting=(it.imgReview&&it.imgReview.status==="approved");
+    controls=`${draftLinkHTML(it)}<div class="muted2">${waiting?'⚡ Attaching your approved images to the FreshStore draft… clears on the next brain sweep.':'✓ Images attached — moving to FreshStore Publish…'}</div>`;
   }else if(it.stage===FSPUB){
     const pub=it.artA?`<div class="acts"><button class="btn coral" data-markpub="${it.row}">Published in FreshStore ▸</button></div>`:"";
     controls=`${draftLinkHTML(it)}<div class="muted2">Images sent. Final read on FreshStore, then publish.</div><div class="acts"><button class="btn ghost" data-imgreview="${it.row}">🖼 Redo images</button></div><div class="gates">${gate(it.artA,"Article",'art')}</div>${discBadge}${pub}`;
@@ -843,8 +873,9 @@ function pipeCard(it){
   const im = (it.type!=="roundup" && it.stage===NEWCOL) ? imgOf(it) : "";
   const thumb = im ? `<img class="thumb-sm" src="${esc(im)}" data-zoom="${esc(im)}" onerror="this.style.display='none'">` : "";
   const dupTag = (it.type!=="roundup" && it.stage===NEWCOL && articleExistsFor(srcUrlOf(it),it.row)) ? '<span class="badge b-dup" title="Another card already has an article for this product">⚠ Already drafted</span>' : "";
-  d.innerHTML=`<div class="chead">${thumb}<div class="ttl">${esc(titleOf(it))}</div></div>
+  d.innerHTML=`<div class="chead">${thumb}<div class="ttl">${esc(cardTitleOf(it))}</div></div>
     <div class="badges">${tb}${memTag}${rdz}${flagTag}${spinTag}${dupTag}</div>
+    ${prodPillHTML(it)}
     ${controls}`;
   return d;
 }
@@ -970,7 +1001,7 @@ document.addEventListener("click",async e=>{
         const wasReview = it.stage===REVIEWCOL;
         // write img_review=approved (col P) → the Mac brain runs upload-images.js on the next sweep
         await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"P"+it.row,data:[[JSON.stringify({status:"approved",at:new Date().toISOString()})]]});
-        if(wasReview){ moveStage(it,FSPUB); toast("Approved — the brain will attach the images, then it's on FreshStore Publish ✓"); }
+        if(wasReview){ moveStage(it,ATTACHING,true); toast("Approved — attaching images to your FreshStore draft ⚡"); }
         else { render(); toast("Re-sending the updated images to FreshStore ✓"); }   // re-approve from FreshStore Publish: just re-upload, don't move
       }else{
         // write img_review=regen + per-slot notes (col P) → the brain re-runs generate-images.js for those slots
