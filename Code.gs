@@ -52,8 +52,11 @@ function doPost(e) {
     }
 
     // --- generic Sheet actions (used by the board) ---
-    const sh = ss.getSheetByName(b.sheet);
-    if (!sh) return json({ error: "no sheet: " + b.sheet });
+    let sh = ss.getSheetByName(b.sheet);
+    if (!sh) {
+      if (b.createIfMissing) sh = ss.insertSheet(b.sheet);   // e.g. the Calendar tab self-creates on first write
+      else return json({ error: "no sheet: " + b.sheet });
+    }
 
     if (b.action === "updateCell") {            // {row, col, value} (1-based)
       sh.getRange(b.row, b.col).setValue(b.value);
