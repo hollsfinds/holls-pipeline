@@ -155,6 +155,18 @@ button{font-family:inherit;cursor:pointer}
 .prodpill{margin:2px 0 6px}
 .prodpill a,.prodpill span{display:inline-block;max-width:100%;font-size:10.5px;font-weight:700;color:#9a5b3f;background:var(--peach);border-radius:999px;padding:3px 9px;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
 .prodpill a:hover{background:var(--coral);color:#fff}
+.cal-h{font-size:15px;font-weight:600;margin:20px 0 10px;color:var(--espresso)}
+.cal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.cal-card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff}
+.cal-card h4{margin:0 0 8px;font-size:14px;font-weight:600;color:var(--espresso)}
+.cal-card .meta{font-size:12px;color:#8a7d74;margin:0 0 8px}
+.cal-slots{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}
+.cal-slot{font-size:11px;background:var(--peach);color:#7a4a39;border-radius:6px;padding:2px 7px;white-space:nowrap}
+.cal-rule{font-size:12px;color:#5f5048;margin:8px 0 0;line-height:1.5}
+.cal-empty{font-size:13px;color:#8a7d74;border:1px dashed var(--line);border-radius:10px;padding:16px;background:#faf6f2}
+.cal-table{width:100%;border-collapse:collapse;font-size:12px}
+.cal-table th{text-align:left;color:#8a7d74;font-weight:600;border-bottom:1px solid var(--line);padding:6px 8px}
+.cal-table td{border-bottom:1px solid var(--line);padding:6px 8px}
 .empty{color:#c8bfb9;font-size:11px;text-align:center;padding:14px 4px;font-style:italic}
 /* roundup tray */
 .tray{margin-bottom:14px;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
@@ -254,6 +266,7 @@ button{font-family:inherit;cursor:pointer}
     <div class="brand"><span class="dot"></span>Holls Finds Pipeline <small>obsessed.</small></div>
     <div class="tabs">
       <button class="tab active" data-view="pipeline">Pipeline</button>
+      <button class="tab" data-view="calendar">Posting Calendar</button>
       <button class="tab" data-view="reference">Reference Tool</button>
       <button class="tab" data-view="help">Help</button>
     </div>
@@ -312,6 +325,53 @@ button{font-family:inherit;cursor:pointer}
         <li><b>Bestie voice, keywords front-loaded</b> on Pinterest. No flaw-as-feature.</li>
         <li><b>Product research uses Amazon</b> — never clicks your own affiliate links.</li>
       </ul>
+    </div>
+  </section>
+
+  <!-- POSTING CALENDAR -->
+  <section class="view" id="view-calendar">
+    <div class="toolbar">
+      <div>
+        <div class="lead">Posting calendar</div>
+        <div class="sub">Live schedule pulls from the Mac brain. The plan below is the rulebook it fills — ranked slots fire top-first up to each platform's daily cap. Times in Mountain.</div>
+      </div>
+      <div class="toolacts"><button class="btn ghost" id="calRefresh">↻ Refresh</button></div>
+    </div>
+
+    <h3 class="cal-h">Live — what's scheduled</h3>
+    <div id="calLive"></div>
+
+    <h3 class="cal-h">The plan</h3>
+    <div class="cal-grid">
+      <div class="cal-card">
+        <h4>📌 Pinterest — volume engine</h4>
+        <p class="meta">Daily cap ramps: wk 1–2 <b>5</b> · 3–4 <b>8</b> · 5–6 <b>10</b> · 7–8 <b>12</b> · 9+ <b>15/day</b></p>
+        <div class="cal-slots"><span class="cal-slot">8:13p</span><span class="cal-slot">9:07p</span><span class="cal-slot">7:18p</span><span class="cal-slot">6:24p</span><span class="cal-slot">1:11p</span><span class="cal-slot">12:09p</span><span class="cal-slot">11:32a</span><span class="cal-slot">7:14a</span><span class="cal-slot">8:41a</span><span class="cal-slot">10:06p</span><span class="cal-slot">3:22p</span><span class="cal-slot">5:47p</span><span class="cal-slot">9:38a</span><span class="cal-slot">2:16p</span><span class="cal-slot">10:29a</span></div>
+        <p class="cal-rule">Ranked — fill top-first to today's cap. 10-day same-URL spacing; A/B pairs staggered; surplus banks into future days.</p>
+      </div>
+      <div class="cal-card">
+        <h4>📷 Instagram feed — ≤5/week</h4>
+        <div class="cal-slots"><span class="cal-slot">Wed 6:12p</span><span class="cal-slot">Thu 9:08a</span><span class="cal-slot">Wed 12:14p</span><span class="cal-slot">Tue 6:21p</span><span class="cal-slot">Mon 11:07a</span></div>
+        <p class="cal-rule">Rotate oldest-first; roundups jump to front; best-performing pins feed it once there's data.</p>
+      </div>
+      <div class="cal-card">
+        <h4>👍 Facebook feed — ≤1/day</h4>
+        <div class="cal-slots"><span class="cal-slot">Wed 1:09p</span><span class="cal-slot">Thu 9:11a</span><span class="cal-slot">Tue 1:16p</span><span class="cal-slot">Wed 9:07a</span><span class="cal-slot">Mon 1:22p</span><span class="cal-slot">Fri 11:13a</span><span class="cal-slot">Sun 10:18a</span></div>
+        <p class="cal-rule">Never Saturday. Same rotate + roundups-first rules.</p>
+      </div>
+      <div class="cal-card">
+        <h4>✨ Stories (IG + FB) — 2/day each</h4>
+        <div class="cal-slots"><span class="cal-slot">8:11a</span><span class="cal-slot">8:09p</span></div>
+        <p class="cal-rule">9:16 from your pin images. Ephemeral, so no duplicate-penalty risk — free extra reach.</p>
+      </div>
+      <div class="cal-card">
+        <h4>🎬 Reels + TikTok</h4>
+        <p class="cal-rule">Out of scope — video. The pipeline makes static images. Revisit if a video step gets added.</p>
+      </div>
+      <div class="cal-card" style="border-color:var(--coral)">
+        <h4>⏱️ Fill rate</h4>
+        <p class="cal-rule"><b>Pinterest pins/day = 6 × articles/day.</b> ~2.5 published articles/day keeps the 15/day calendar full; publish more and the runway fills further ahead.</p>
+      </div>
     </div>
   </section>
 </div>
@@ -1341,10 +1401,29 @@ function maybeLoadFrame(view){
   catch(e){el.replaceWith(Object.assign(document.createElement("div"),{className:"ph",innerHTML:"<h2>Couldn't load tool</h2><p>"+esc(e.message||"")+"</p>"}));}
 }
 
+/* ---------- posting calendar (live) ---------- */
+async function renderCalendar(){
+  const el=document.getElementById("calLive"); if(!el) return;
+  if(!el.dataset.loaded) el.innerHTML='<div class="cal-empty">Loading…</div>';
+  let rows=[];
+  try{ rows = valuesOf(await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Calendar"})); }catch(e){ rows=[]; }
+  if(!rows || rows.length<2){
+    el.innerHTML='<div class="cal-empty">No live schedule yet — this fills in automatically once the Mac brain starts writing the calendar. (If it stays empty after that, the Apps Script just needs <code>Calendar</code> added to its tab list + a redeploy.)</div>';
+    return;
+  }
+  const hdr=rows[0], body=rows.slice(1);
+  let h='<table class="cal-table"><thead><tr>'+hdr.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>';
+  body.slice(0,90).forEach(r=>{ h+='<tr>'+hdr.map((_,i)=>'<td>'+esc(r[i]==null?'':String(r[i]))+'</td>').join('')+'</tr>'; });
+  h+='</tbody></table>';
+  el.innerHTML=h; el.dataset.loaded="1";
+}
+document.addEventListener("click",e=>{ if(e.target&&e.target.id==="calRefresh"){ const el=document.getElementById("calLive"); if(el)el.dataset.loaded=""; renderCalendar(); }});
+
 /* ---------- tabs + tray ---------- */
 $$(".tab").forEach(b=>b.addEventListener("click",()=>{
   $$(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");
   $$(".view").forEach(v=>v.classList.remove("active"));$("#view-"+b.dataset.view).classList.add("active");
+  if(b.dataset.view==="calendar")renderCalendar();
   maybeLoadFrame(b.dataset.view);
 }));
 /* roundup pool is now a board column, not a tray */
