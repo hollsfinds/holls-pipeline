@@ -486,6 +486,11 @@ const ZONE = {
 const AUTO = {[DRAFTCOL]:true,[PUBCOL]:true};
 /* columns that fire a scheduled (full-me) job, via window.cowork.runScheduledTask */
 const TASK_IDS = {[DRAFTCOL]:"draft-pipeline-cards",[PUBCOL]:"social-pack-cards"};
+/* ↻ "Check now" buttons in these column headers → flag the brain (requestRun) to run that detection on its NEXT sweep (~2 min) instead of waiting for the ~12-min auto-check. NEWCOL = feed-pull, FSPUB = published-article detection. */
+const REFRESH_ACTION = {
+  [NEWCOL]:{action:"pull",  msg:"Checking the feed for new products ↻"},
+  [FSPUB]: {action:"detect",msg:"Checking FreshStore for newly published articles ✓"}
+};
 /* old stage names in the Sheet → current column names (keeps existing rows in the right column) */
 const STAGE_REMAP = {"Direction":NEWCOL,"New":NEWCOL,"Review":REVIEWCOL,"Roundup Pool":POOL,"Ready":PUBCOL,"Social Pack Ready":PUBCOL,"Article Published":PUBCOL,"Published":PUBCOL,"Fully Published":PUBCOL};
 const INFO = {
@@ -681,6 +686,7 @@ function render(){
     c.innerHTML=`<div class="col-h">
         <div class="row1">${bolt}<span class="nm">${esc(LABEL[col]||col)}</span>
           <button class="info-btn" data-info="${esc(col)}">i</button>
+          ${REFRESH_ACTION[col]?`<button class="rf-btn" data-refresh="${esc(col)}" title="Check now — flag the brain to look for updates on its next sweep (~2 min), instead of waiting for the ~12-min auto-check">↻</button>`:''}
           <span class="ct">${items.length+(holds.length?1:0)}</span></div>
       </div>
       <div class="cards" data-col="${esc(col)}"></div>`;
@@ -1582,6 +1588,14 @@ async function requestRun(action,msg){
 { const db=document.getElementById("draftBtn"); if(db) db.addEventListener("click",()=>requestRun("draft","Asked the brain to draft queued cards ✍"));
   const pb=document.getElementById("pullBtn"); if(pb) pb.addEventListener("click",()=>requestRun("pull","Asked the brain to pull new products ↻"));
   const xb=document.getElementById("detectBtn"); if(xb) xb.addEventListener("click",()=>requestRun("detect","Asked the brain to check for published articles ✓")); }
+/* per-column ↻ "Check now" buttons (New Products / FreshStore Publish headers) */
+document.addEventListener("click",e=>{
+  const b=e.target.closest(".rf-btn[data-refresh]"); if(!b) return;
+  const cfg=REFRESH_ACTION[b.dataset.refresh]; if(!cfg) return;
+  b.classList.add("spin");
+  requestRun(cfg.action,cfg.msg);
+  setTimeout(()=>{ b.classList.remove("spin"); if(typeof load==="function") load(); },700);
+});
 /* hover-zoom for product thumbnails */
 const imgzoom=document.createElement("img");imgzoom.id="imgzoom";document.body.appendChild(imgzoom);
 document.addEventListener("mouseover",e=>{const t=e.target.closest("[data-zoom]");if(!t)return;imgzoom.src=t.dataset.zoom;imgzoom.classList.add("show");const r=t.getBoundingClientRect();let left=r.right+10,top=r.top-88;if(left+230>window.innerWidth)left=r.left-232;if(left<8)left=8;if(top<8)top=8;if(top+230>window.innerHeight)top=window.innerHeight-230;imgzoom.style.left=left+"px";imgzoom.style.top=top+"px";});
@@ -1629,7 +1643,7 @@ try{ if(localStorage.getItem('hf_auth')==='1') startApp(); }catch(e){}
   function mount(){
     if(document.getElementById("pausePill")) return;
     const css = document.createElement("style");
-    css.textContent = "#pausePill{position:fixed;top:10px;right:12px;z-index:99999;display:flex;align-items:center;gap:8px;font:700 12px/1 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:8px 13px;box-shadow:0 2px 10px rgba(0,0,0,.10);cursor:pointer;user-select:none;color:#2C2421}#pausePill .pp-dot{width:9px;height:9px;border-radius:50%;background:#43B3AE}#pausePill[data-state=paused]{border-color:#F88378;color:#9a3b32}#pausePill[data-state=paused] .pp-dot{background:#F88378} .genwait{display:flex;align-items:flex-start;gap:8px;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#9a6a3a;background:#FBF3EC;border:1px solid #F3E0CE;border-radius:8px;padding:8px 10px;margin-top:6px} .genwait .genspin{margin-top:1px;width:11px;height:11px;border-radius:50%;border:2px solid #E9C9A8;border-top-color:#F88378;animation:genspin .8s linear infinite;flex:0 0 auto} @keyframes genspin{to{transform:rotate(360deg)}}";
+    css.textContent = "#pausePill{position:fixed;top:10px;right:12px;z-index:99999;display:flex;align-items:center;gap:8px;font:700 12px/1 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:8px 13px;box-shadow:0 2px 10px rgba(0,0,0,.10);cursor:pointer;user-select:none;color:#2C2421}#pausePill .pp-dot{width:9px;height:9px;border-radius:50%;background:#43B3AE}#pausePill[data-state=paused]{border-color:#F88378;color:#9a3b32}#pausePill[data-state=paused] .pp-dot{background:#F88378} .genwait{display:flex;align-items:flex-start;gap:8px;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#9a6a3a;background:#FBF3EC;border:1px solid #F3E0CE;border-radius:8px;padding:8px 10px;margin-top:6px} .genwait .genspin{margin-top:1px;width:11px;height:11px;border-radius:50%;border:2px solid #E9C9A8;border-top-color:#F88378;animation:genspin .8s linear infinite;flex:0 0 auto} @keyframes genspin{to{transform:rotate(360deg)}} .rf-btn{margin-left:5px;border:1px solid #e7ded7;background:#fff;color:#7a5a44;width:20px;height:20px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto} .rf-btn:hover{background:#FBF3EC;border-color:#F3E0CE;color:#F88378} .rf-btn.spin{animation:genspin .7s linear infinite}";
     document.head.appendChild(css);
     const el = document.createElement("div");
     el.id = "pausePill";
