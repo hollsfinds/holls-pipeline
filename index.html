@@ -575,7 +575,8 @@ let inbox=[];   // {row, date, name, url, img, desc, status}
 let pipe=[];    // {row, id, type, stage, artA, discA, artUrl, notes, grp, needsImg, pubA, sched}
 let socialPacks={};  // { itemId: packObject } from the Social tab
 let ondeck=[];       // {row, asin, title, raw, img, url, cats, newcats, status, fsid, notes} from the On Deck tab
-let allCats=[];      // [{id,title,slug}] live FreshStore categories, from the Meta tab cache
+let allCats=[]
+let pinBoards=[];      // [{id,title,slug}] live FreshStore categories, from the Meta tab cache
 
 /* roundup grouping helpers — col I (Roundup Group): ""=undecided, "NONE"=not in a roundup, else the group label */
 const groupLabelOf = it => (it.grp && it.grp!=="NONE" && it.grp!=="HOLD") ? it.grp : "";
@@ -645,7 +646,7 @@ async function load(){
     const iv=valuesOf(inb), pv=valuesOf(pip), sv=soc?valuesOf(soc):[];
     inbox=iv.slice(1).map((r,i)=>({row:i+2,date:r[0]||"",name:r[1]||"",url:r[2]||"",img:r[3]||"",desc:r[4]||"",status:(r[5]||"new").trim().toLowerCase()})).filter(x=>x.name||x.url);
     pipe=pv.slice(1).map((r,i)=>{let st=(r[2]||NEWCOL).trim();if(STAGE_REMAP[st])st=STAGE_REMAP[st];return{row:i+2,id:r[0]||"",type:(r[1]||"single").trim().toLowerCase(),stage:st,
-      artA:truthy(r[3]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",grp:(r[8]||"").trim(),needsImg:truthy(r[9]),pubA:truthy(r[10]),sched:truthy(r[11]),angle:(r[12]||""),imgPreviews:safeJSON(r[13]),imgSummary:safeJSON(r[14]),imgReview:safeJSON(r[15]),imgStatus:(r[16]||"")};}).filter(x=>x.id);
+      artA:truthy(r[3]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",grp:(r[8]||"").trim(),needsImg:truthy(r[9]),pubA:truthy(r[10]),sched:truthy(r[11]),angle:(r[12]||""),imgPreviews:safeJSON(r[13]),imgSummary:safeJSON(r[14]),imgReview:safeJSON(r[15]),imgStatus:(r[16]||""),boardSel:(r[17]||"")};}).filter(x=>x.id);
     // self-heal: a card parked in Attaching Images whose review flag (col P) has cleared = the brain finished the upload → advance it to FreshStore Publish (backup for the brain's own advance)
     pipe.filter(x=>x.stage===ATTACHING && !x.imgReview).forEach(x=>{
       x.stage=FSPUB;
@@ -657,6 +658,7 @@ async function load(){
     ondeck=odv.slice(1).map((r,i)=>({row:i+2,date:r[0]||"",asin:(r[1]||"").trim(),title:r[2]||"",raw:r[3]||"",img:r[4]||"",url:r[5]||"",cats:(r[6]||""),newcats:(r[7]||""),status:(r[8]||"New").trim(),fsid:r[9]||"",notes:r[10]||""})).filter(x=>x.asin);
     const mv=mta?valuesOf(mta):[]; allCats=[];
     const mrow=mv.find(r=>(r[0]||"")==="freshstore_categories"); if(mrow){try{allCats=JSON.parse(mrow[1]||"[]");}catch(e){allCats=[];}}
+    const brow=mv.find(r=>(r[0]||"")==="pinterest_boards"); pinBoards=[]; if(brow){try{pinBoards=JSON.parse(brow[1]||"[]");}catch(e){pinBoards=[];}}
     setStatus("ok","Connected · "+inbox.filter(x=>x.status==="new").length+" new · "+pipe.length+" in pipeline");
     render();
   }catch(e){
@@ -1021,8 +1023,13 @@ function pipeCard(it){
     const prods = it.type==="roundup" ? membersOf(it.grp) : [it];
     const plist = prods.map(p=>{const u=srcUrlOf(p);const t=esc(titleOf(p));return u?`<li><a href="${esc(u)}" target="_blank" rel="noopener">${t} ↗</a></li>`:`<li><span class="mname">${t}</span></li>`;}).join("");
     const prodLinks = plist?`<div class="muted2" style="margin:8px 0 2px;font-weight:700">Live product pages</div><ul class="memlist">${plist}</ul>`:"";
-    const schedBadge = it.sched ? '<span class="badge b-ok">✓ Scheduled</span>' : '<span class="badge b-flag">⏳ Scheduling…</span>';
-    controls=`${pubLink}${discBadge}${schedBadge}${prodLinks}
+    // The brain writes col Q = "needs_board:<category>" when a product's category has no Pinterest board. Surface a picker instead of a forever-spinner.
+    const needsBoard = /^needs_board/i.test(it.imgStatus||"");
+    const nbCat = needsBoard ? (((it.imgStatus||"").split(":").slice(1).join(":")||"").trim()||"this category") : "";
+    const statusEl = needsBoard
+      ? `<div class="generr"><span>⚠ <b>No Pinterest board</b> matches the category “${esc(nbCat)}”. Pick one so it can schedule:</span><button class="btn coral sm" data-pickboard="${it.row}">Pick a board ▾</button></div>`
+      : (it.sched ? '<span class="badge b-ok">✓ Scheduled</span>' : '<span class="badge b-flag">⏳ Scheduling…</span>');
+    controls=`${pubLink}${discBadge}${statusEl}${prodLinks}
       <div class="acts"><button class="btn coral" data-social="${it.row}">📋 View social pack</button></div>`;
   }
   const im = (it.type!=="roundup" && it.stage===NEWCOL) ? imgOf(it) : "";
@@ -1612,6 +1619,39 @@ document.addEventListener("click",e=>{
   setTimeout(()=>{ b.classList.remove("spin"); if(typeof load==="function") load(); },700);
 });
 /* hover-zoom for product thumbnails */
+/* ---------- board picker: resolve an unmapped category to a Pinterest board ---------- */
+async function openBoardPicker(row){
+  const it=pipe.find(p=>p.row===row); if(!it) return;
+  const cat=(((it.imgStatus||"").split(":").slice(1).join(":")||"").trim())||"this category";
+  const modal=$("#modal"),scrim=$("#scrim");
+  const opts=(pinBoards||[]).map(b=>`<option value="${esc(String(b.id))}">${esc(b.name||b.id)}</option>`).join("");
+  const body = (pinBoards && pinBoards.length)
+    ? `<select id="bpSel" class="bp-sel">${opts}</select>
+       <div class="mfoot"><button class="btn coral" id="bpSave">Save board</button></div>
+       <p class="muted2" style="margin-top:8px">Saves this board for the article — and the brain remembers it for all “${esc(cat)}” products going forward. To use a brand-new board, create it in Pinterest, sync boards, then reopen.</p>`
+    : `<p class="muted">Your Pinterest board list isn’t synced to the board yet. Ask the brain to sync boards (or hit ↻ on a column), then reopen this.</p>`;
+  modal.innerHTML=`<button class="x" data-cc="x">×</button>
+    <div class="kicker">Pinterest board needed</div>
+    <h3>${esc(titleOf(it))}</h3>
+    <p>No board matches the category <b>“${esc(cat)}”</b>. Choose which board its pins should post to:</p>
+    ${body}`;
+  scrim.classList.add("show");
+  function close(){scrim.classList.remove("show");modal.removeEventListener("click",onClick);scrim.removeEventListener("click",onBg);}
+  async function save(){
+    const sel=document.getElementById("bpSel"); if(!sel) return;
+    const boardId=sel.value, boardName=(sel.options[sel.selectedIndex]||{}).text||boardId;
+    try{
+      await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"R"+row,data:[[boardId]]});
+      it.boardSel=boardId; it.imgStatus="";   // optimistic: clear needs_board so it shows ⏳ Scheduling…
+      toast("Board set to “"+boardName+"” — the brain schedules on its next sweep.");
+      close(); render();
+    }catch(e){ toast("Save failed: "+(e&&e.message||e)); }
+  }
+  function onClick(e){ if(e.target.closest("#bpSave")){save();return;} const b=e.target.closest("[data-cc]"); if(b&&b.dataset.cc==="x"){close();} }
+  function onBg(e){ if(e.target.id==="scrim") close(); }
+  modal.addEventListener("click",onClick); scrim.addEventListener("click",onBg);
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-pickboard]");if(!b)return;openBoardPicker(+b.dataset.pickboard);});
 const imgzoom=document.createElement("img");imgzoom.id="imgzoom";document.body.appendChild(imgzoom);
 document.addEventListener("mouseover",e=>{const t=e.target.closest("[data-zoom]");if(!t)return;imgzoom.src=t.dataset.zoom;imgzoom.classList.add("show");const r=t.getBoundingClientRect();let left=r.right+10,top=r.top-88;if(left+230>window.innerWidth)left=r.left-232;if(left<8)left=8;if(top<8)top=8;if(top+230>window.innerHeight)top=window.innerHeight-230;imgzoom.style.left=left+"px";imgzoom.style.top=top+"px";});
 document.addEventListener("mouseout",e=>{if(e.target.closest("[data-zoom]"))imgzoom.classList.remove("show");});
@@ -1658,7 +1698,7 @@ try{ if(localStorage.getItem('hf_auth')==='1') startApp(); }catch(e){}
   function mount(){
     if(document.getElementById("pausePill")) return;
     const css = document.createElement("style");
-    css.textContent = "#pausePill{position:fixed;top:10px;right:12px;z-index:99999;display:flex;align-items:center;gap:8px;font:700 12px/1 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:8px 13px;box-shadow:0 2px 10px rgba(0,0,0,.10);cursor:pointer;user-select:none;color:#2C2421}#pausePill .pp-dot{width:9px;height:9px;border-radius:50%;background:#43B3AE}#pausePill[data-state=paused]{border-color:#F88378;color:#9a3b32}#pausePill[data-state=paused] .pp-dot{background:#F88378} .genwait{display:flex;align-items:flex-start;gap:8px;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#9a6a3a;background:#FBF3EC;border:1px solid #F3E0CE;border-radius:8px;padding:8px 10px;margin-top:6px} .genwait .genspin{margin-top:1px;width:11px;height:11px;border-radius:50%;border:2px solid #E9C9A8;border-top-color:#F88378;animation:genspin .8s linear infinite;flex:0 0 auto} @keyframes genspin{to{transform:rotate(360deg)}} .rf-btn{margin-left:5px;border:1px solid #e7ded7;background:#fff;color:#7a5a44;width:20px;height:20px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto} .rf-btn:hover{background:#FBF3EC;border-color:#F3E0CE;color:#F88378} .rf-btn.spin{animation:genspin .7s linear infinite} .genwait.genwarn{color:#9a3b32;background:#FDECEA;border-color:#F6C9C2} .genwait.genwarn .genspin{border-color:#F3C0B8;border-top-color:#F88378} .generr{display:flex;flex-direction:column;gap:8px;align-items:flex-start;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#8a2f27;background:#FDE7E4;border:1px solid #EFA99E;border-radius:8px;padding:9px 11px;margin-top:6px} .generr .btn.sm{padding:5px 11px;font-size:11px;line-height:1.1;text-decoration:none}";
+    css.textContent = "#pausePill{position:fixed;top:10px;right:12px;z-index:99999;display:flex;align-items:center;gap:8px;font:700 12px/1 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:8px 13px;box-shadow:0 2px 10px rgba(0,0,0,.10);cursor:pointer;user-select:none;color:#2C2421}#pausePill .pp-dot{width:9px;height:9px;border-radius:50%;background:#43B3AE}#pausePill[data-state=paused]{border-color:#F88378;color:#9a3b32}#pausePill[data-state=paused] .pp-dot{background:#F88378} .genwait{display:flex;align-items:flex-start;gap:8px;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#9a6a3a;background:#FBF3EC;border:1px solid #F3E0CE;border-radius:8px;padding:8px 10px;margin-top:6px} .genwait .genspin{margin-top:1px;width:11px;height:11px;border-radius:50%;border:2px solid #E9C9A8;border-top-color:#F88378;animation:genspin .8s linear infinite;flex:0 0 auto} @keyframes genspin{to{transform:rotate(360deg)}} .rf-btn{margin-left:5px;border:1px solid #e7ded7;background:#fff;color:#7a5a44;width:20px;height:20px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto} .rf-btn:hover{background:#FBF3EC;border-color:#F3E0CE;color:#F88378} .rf-btn.spin{animation:genspin .7s linear infinite} .genwait.genwarn{color:#9a3b32;background:#FDECEA;border-color:#F6C9C2} .genwait.genwarn .genspin{border-color:#F3C0B8;border-top-color:#F88378} .generr{display:flex;flex-direction:column;gap:8px;align-items:flex-start;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#8a2f27;background:#FDE7E4;border:1px solid #EFA99E;border-radius:8px;padding:9px 11px;margin-top:6px} .generr .btn.sm{padding:5px 11px;font-size:11px;line-height:1.1;text-decoration:none} .bp-sel{width:100%;padding:9px 10px;border:1px solid #e7ded7;border-radius:8px;font-size:13px;background:#fff;color:#2C2421}";
     document.head.appendChild(css);
     const el = document.createElement("div");
     el.id = "pausePill";
