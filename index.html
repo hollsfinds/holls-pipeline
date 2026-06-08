@@ -1242,8 +1242,13 @@ function packGroups(pack){
       groups.push({heading:"Pinterest · Pin "+n,fields});
     });
     if(pack.hashtags)groups.push({heading:"Pinterest hashtags",fields:[{label:"",text:pack.hashtags}]});
-    if(pack.instagram)groups.push({heading:"Instagram caption",fields:[{label:"",text:pack.instagram}]});
-    if(pack.facebook)groups.push({heading:"Facebook post",fields:[{label:"",text:pack.facebook}]});
+    // IG/FB feed + Story copy: each may be a single string (old packs) or an array of distinct-angle versions (new packs). Render each version as its own copyable group.
+    const asList=v=>Array.isArray(v)?v:(v?[v]:[]);
+    const pushVers=(label,v)=>{const arr=asList(v);arr.forEach((t,i)=>{if(t)groups.push({heading:arr.length>1?label+" #"+(i+1):label,fields:[{label:"",text:t}]});});};
+    pushVers("Instagram caption",pack.instagram);
+    pushVers("Facebook post",pack.facebook);
+    pushVers("Instagram Story",pack.instagramStory);
+    pushVers("Facebook Story",pack.facebookStory);
   }else if(pack){
     (pack.blocks||[]).forEach(b=>groups.push({heading:b.label||"",fields:[{label:"",text:b.text||""}]}));
   }
