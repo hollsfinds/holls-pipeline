@@ -221,6 +221,7 @@ button{font-family:inherit;cursor:pointer}
 .cov-legend .lg.none{background:#fff;border:1px solid var(--line);color:#7a6f66}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;flex-wrap:wrap}
 .cal-nav .nav-mid{display:flex;align-items:center;gap:10px}
+.cal-nav .nav-grp{display:flex;gap:6px}
 .dc-wrap{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:0 0 10px}
 .dc{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
 .dc.today{box-shadow:0 0 0 2px var(--coral)}
@@ -1521,14 +1522,15 @@ async function renderCalendar(){
   let hist='<details class="cal-details"><summary>Full history ▾</summary><table class="cal-table"><thead><tr><th>Date</th><th>Goal</th><th>Published</th><th>Running balance</th></tr></thead><tbody>';
   artRows.slice(-60).reverse().forEach(r=>{ hist+='<tr><td>'+esc(r[0])+'</td><td>'+esc(r[2])+'</td><td>'+esc(r[3])+'</td><td>'+esc(r[4]||'')+'</td></tr>'; });
   hist+='</tbody></table></details>';
-  const nav='<div class="cal-nav"><button type="button" id="calPrev" class="strip-btn">◀ Prev</button><div class="nav-mid"><button type="button" id="calToday" class="strip-btn">Today</button><span id="calLbl" class="strip-lbl"></span></div><button type="button" id="calNext" class="strip-btn">Next ▶</button></div>';
+  const nav='<div class="cal-nav"><div class="nav-grp"><button type="button" id="calWeekPrev" class="strip-btn">◀ Week</button><button type="button" id="calDayPrev" class="strip-btn">‹ Day</button></div><div class="nav-mid"><button type="button" id="calToday" class="strip-btn">Today</button><span id="calLbl" class="strip-lbl"></span></div><div class="nav-grp"><button type="button" id="calDayNext" class="strip-btn">Day ›</button><button type="button" id="calWeekNext" class="strip-btn">Week ▶</button></div></div>';
   art.innerHTML=note+warnHtml+nav+'<div id="calCards"></div>'+legend+hist;
   art.dataset.loaded="1";
-  let offset=0;
+  // viewStart = Sunday of the current week (calendar weeks are Sun–Sat)
+  let viewStart=new Date(); viewStart.setHours(0,0,0,0); viewStart.setDate(viewStart.getDate()-viewStart.getDay());
   const renderWeek=()=>{ const box=document.getElementById('calCards'); if(!box) return;
-    const tISO=isoL(new Date()), base=new Date(); base.setDate(base.getDate()+offset);
+    const tISO=isoL(new Date());
     let h='<div class="dc-wrap">';
-    for(let i=0;i<7;i++){ const dt=new Date(base); dt.setDate(base.getDate()+i); const d=isoL(dt);
+    for(let i=0;i<7;i++){ const dt=new Date(viewStart); dt.setDate(viewStart.getDate()+i); const d=isoL(dt);
       h+='<div class="dc'+(d===tISO?' today':'')+'"><div class="dc-hd">'+wd[dt.getDay()]+'<span>'+(dt.getMonth()+1)+'/'+dt.getDate()+'</span></div>';
       lanes.forEach(L=>{ let rec;
         if(L.art){ rec=byDate[d]; }
@@ -1537,12 +1539,13 @@ async function renderCalendar(){
         h+='<div class="dc-row '+c.cls+'"><span class="dc-lbl">'+L.n+'</span><span class="dc-val">'+c.txt+'</span></div>'; });
       h+='</div>'; }
     h+='</div>'; box.innerHTML=h;
-    const end=new Date(base); end.setDate(base.getDate()+6);
-    const lbl=document.getElementById('calLbl'); if(lbl) lbl.textContent=(base.getMonth()+1)+'/'+base.getDate()+' – '+(end.getMonth()+1)+'/'+end.getDate(); };
-  const pb=document.getElementById('calPrev'), nb=document.getElementById('calNext'), tb=document.getElementById('calToday');
-  if(pb) pb.onclick=()=>{ offset-=7; renderWeek(); };
-  if(nb) nb.onclick=()=>{ offset+=7; renderWeek(); };
-  if(tb) tb.onclick=()=>{ offset=0; renderWeek(); };
+    const end=new Date(viewStart); end.setDate(viewStart.getDate()+6);
+    const lbl=document.getElementById('calLbl'); if(lbl) lbl.textContent=(viewStart.getMonth()+1)+'/'+viewStart.getDate()+' – '+(end.getMonth()+1)+'/'+end.getDate(); };
+  const shift=n=>{ viewStart.setDate(viewStart.getDate()+n); renderWeek(); };
+  const bind=(id,fn)=>{ const b=document.getElementById(id); if(b) b.onclick=fn; };
+  bind('calWeekPrev',()=>shift(-7)); bind('calWeekNext',()=>shift(7));
+  bind('calDayPrev',()=>shift(-1)); bind('calDayNext',()=>shift(1));
+  bind('calToday',()=>{ const t=new Date(); t.setHours(0,0,0,0); viewStart=new Date(t); viewStart.setDate(t.getDate()-t.getDay()); renderWeek(); });
   renderWeek();
 }
 document.addEventListener("click",e=>{ if(e.target&&e.target.id==="calRefresh"){ const el=document.getElementById("calArticles"); if(el)el.dataset.loaded=""; renderCalendar(); }});
