@@ -167,6 +167,19 @@ button{font-family:inherit;cursor:pointer}
 .cal-table{width:100%;border-collapse:collapse;font-size:12px}
 .cal-table th{text-align:left;color:#8a7d74;font-weight:600;border-bottom:1px solid var(--line);padding:6px 8px}
 .cal-table td{border-bottom:1px solid var(--line);padding:6px 8px}
+.cal-warn{background:#fdecea;border:1px solid #f3b5ad;color:#8a2c1d;border-radius:10px;padding:12px 14px;font-size:13px;margin:0 0 14px;line-height:1.5}
+.cal-today{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff;margin:0 0 14px}
+.cal-today-head{display:flex;justify-content:space-between;align-items:center;margin:0 0 8px;gap:10px}
+.cal-day{font-weight:600;font-size:14px;color:var(--espresso)}
+.cal-bal{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.cal-bal.ahead{background:var(--sage);color:#2f5e2e}
+.cal-bal.behind{background:#fbe0dc;color:#8a2c1d}
+.cal-prog{height:10px;background:var(--peach);border-radius:6px;overflow:hidden;margin:8px 0}
+.cal-prog-fill{height:100%;background:var(--coral)}
+.cal-today-nums{font-size:13px;color:#5f5048}
+.cal-details{margin:4px 0 6px}
+.cal-details summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--teal);padding:8px 0;list-style:none}
+.cal-details summary::-webkit-details-marker{display:none}
 .empty{color:#c8bfb9;font-size:11px;text-align:center;padding:14px 4px;font-style:italic}
 /* roundup tray */
 .tray{margin-bottom:14px;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
@@ -338,8 +351,10 @@ button{font-family:inherit;cursor:pointer}
       <div class="toolacts"><button class="btn ghost" id="calRefresh">↻ Refresh</button></div>
     </div>
 
-    <h3 class="cal-h">Live — what's scheduled</h3>
-    <div id="calLive"></div>
+    <div id="calWarn"></div>
+    <h3 class="cal-h">Article goal — publish to fill the runway</h3>
+    <div id="calArticles"></div>
+    <details class="cal-details"><summary>Post schedule detail (per platform) ▾</summary><div id="calLive"></div></details>
 
     <h3 class="cal-h">The plan</h3>
     <div class="cal-grid">
@@ -1403,19 +1418,43 @@ function maybeLoadFrame(view){
 
 /* ---------- posting calendar (live) ---------- */
 async function renderCalendar(){
-  const el=document.getElementById("calLive"); if(!el) return;
-  if(!el.dataset.loaded) el.innerHTML='<div class="cal-empty">Loading…</div>';
+  const det=document.getElementById("calLive"), art=document.getElementById("calArticles"), warn=document.getElementById("calWarn");
+  if(!art) return;
+  if(!art.dataset.loaded) art.innerHTML='<div class="cal-empty">Loading…</div>';
   let rows=[];
   try{ rows = valuesOf(await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Calendar"})); }catch(e){ rows=[]; }
   if(!rows || rows.length<2){
-    el.innerHTML='<div class="cal-empty">No live schedule yet — this fills in automatically once the Mac brain starts writing the calendar. (If it stays empty after that, the Apps Script just needs <code>Calendar</code> added to its tab list + a redeploy.)</div>';
-    return;
+    art.innerHTML='<div class="cal-empty">No data yet — fills automatically once the Mac brain writes the Calendar. (If it stays empty after a sweep, add <code>Calendar</code> to the Apps Script tab list + redeploy.)</div>';
+    if(det)det.innerHTML=''; if(warn)warn.innerHTML=''; return;
   }
-  const hdr=rows[0], body=rows.slice(1);
-  let h='<table class="cal-table"><thead><tr>'+hdr.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>';
-  body.slice(0,90).forEach(r=>{ h+='<tr>'+hdr.map((_,i)=>'<td>'+esc(r[i]==null?'':String(r[i]))+'</td>').join('')+'</tr>'; });
-  h+='</tbody></table>';
-  el.innerHTML=h; el.dataset.loaded="1";
+  const body=rows.slice(1), plat=r=>String(r[1]||'').toLowerCase();
+  const artRows=body.filter(r=>plat(r)==='articles');
+  const runRow=body.find(r=>plat(r)==='runway');
+  const postRows=body.filter(r=>['pinterest','instagram','facebook'].includes(plat(r)));
+  if(warn){
+    if(runRow){ const wk=parseInt(runRow[2]||'0',10)||0, far=parseInt(runRow[3]||'0',10)||0, furthest=esc(runRow[0]||'');
+      warn.innerHTML = wk>12 ? '<div class="cal-warn">⚠️ Runway extends '+wk+' weeks (to '+furthest+'). '+far+' pin'+(far===1?'':'s')+' scheduled 12+ weeks out — worth re-checking those products are still in stock before they post.</div>' : ''; }
+    else warn.innerHTML='';
+  }
+  if(!artRows.length){ art.innerHTML='<div class="cal-empty">Article goals fill in once the Mac brain logs them (per-day articles published vs your goal of 6).</div>'; }
+  else{
+    const today=new Date().toISOString().slice(0,10);
+    const t=artRows.find(r=>String(r[0])===today)||artRows[artRows.length-1];
+    const goal=parseInt(t[2]||'6',10)||6, pub=parseInt(t[3]||'0',10)||0, bal=String(t[4]||'0').trim();
+    const remain=Math.max(0,goal-pub), pct=goal?Math.min(100,Math.round(pub/goal*100)):0;
+    let h='<div class="cal-today"><div class="cal-today-head"><span class="cal-day">'+esc(t[0])+'</span><span class="cal-bal '+(bal.startsWith('-')?'behind':'ahead')+'">'+esc(bal)+' vs goal</span></div>';
+    h+='<div class="cal-prog"><div class="cal-prog-fill" style="width:'+pct+'%"></div></div>';
+    h+='<div class="cal-today-nums"><b>'+pub+'</b> of <b>'+goal+'</b> published'+(remain>0?' · <b>'+remain+'</b> to go today':' · goal met ✓')+'</div></div>';
+    h+='<table class="cal-table"><thead><tr><th>Date</th><th>Goal</th><th>Published</th><th>Running balance</th></tr></thead><tbody>';
+    artRows.slice(-30).reverse().forEach(r=>{ h+='<tr><td>'+esc(r[0])+'</td><td>'+esc(r[2])+'</td><td>'+esc(r[3])+'</td><td>'+esc(r[4]||'')+'</td></tr>'; });
+    h+='</tbody></table>'; art.innerHTML=h; art.dataset.loaded="1";
+  }
+  if(det){
+    if(!postRows.length){ det.innerHTML='<div class="cal-empty">No platform rows yet.</div>'; }
+    else{ let h='<table class="cal-table"><thead><tr><th>Date</th><th>Platform</th><th>Goal</th><th>Scheduled</th><th>Posted</th><th>% to goal</th></tr></thead><tbody>';
+      postRows.slice(0,150).forEach(r=>{ h+='<tr>'+[0,1,2,3,4,5].map(i=>'<td>'+esc(r[i]==null?'':String(r[i]))+'</td>').join('')+'</tr>'; });
+      h+='</tbody></table>'; det.innerHTML=h; }
+  }
 }
 document.addEventListener("click",e=>{ if(e.target&&e.target.id==="calRefresh"){ const el=document.getElementById("calLive"); if(el)el.dataset.loaded=""; renderCalendar(); }});
 
