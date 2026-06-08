@@ -1026,9 +1026,18 @@ function pipeCard(it){
     // The brain writes col Q = "needs_board:<category>" when a product's category has no Pinterest board. Surface a picker instead of a forever-spinner.
     const needsBoard = /^needs_board/i.test(it.imgStatus||"");
     const nbCat = needsBoard ? (((it.imgStatus||"").split(":").slice(1).join(":")||"").trim()||"this category") : "";
-    const statusEl = needsBoard
-      ? `<div class="generr"><span>⚠ <b>No Pinterest board</b> matches the category “${esc(nbCat)}”. Pick one so it can schedule:</span><button class="btn coral sm" data-pickboard="${it.row}">Pick a board ▾</button></div>`
-      : (it.sched ? '<span class="badge b-ok">✓ Scheduled</span>' : '<span class="badge b-flag">⏳ Scheduling…</span>');
+    let statusEl;
+    if(it.sched){
+      statusEl = '<span class="badge b-ok">✓ Scheduled</span>';
+    }else if(needsBoard && !it.boardSel){
+      // no board chosen yet → show the picker
+      statusEl = `<div class="generr"><span>⚠ <b>No Pinterest board</b> matches the category “${esc(nbCat)}”. Pick one so it can schedule:</span><button class="btn coral sm" data-pickboard="${it.row}">Pick a board ▾</button></div>`;
+    }else if(it.boardSel){
+      // board chosen (col R set) but not yet scheduled → waiting on the brain to pick it up. Don't re-prompt.
+      statusEl = `<span class="badge b-flag">⏳ Board set — scheduling…</span> <button class="btn ghost sm" data-pickboard="${it.row}" title="Change the board">change</button>`;
+    }else{
+      statusEl = '<span class="badge b-flag">⏳ Scheduling…</span>';
+    }
     controls=`${pubLink}${discBadge}${statusEl}${prodLinks}
       <div class="acts"><button class="btn coral" data-social="${it.row}">📋 View social pack</button></div>`;
   }
