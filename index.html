@@ -195,6 +195,19 @@ button{font-family:inherit;cursor:pointer}
 .cal-note.ahead{background:var(--sage);color:#2f5e2e}
 .cal-note.behind{background:#fbe0dc;color:#8a2c1d}
 .cal-note.even{background:var(--peach);color:#6b4a2f}
+.cov-wrap{overflow-x:auto;margin:0 0 10px}
+.cov{border-collapse:collapse;font-size:12px}
+.cov th,.cov td{border:1px solid var(--line);padding:5px 6px;text-align:center;white-space:nowrap}
+.cov th{background:#faf7f5;color:#8a7d74;font-weight:600;line-height:1.2}
+.cov th.cov-plat,.cov td.cov-plat{text-align:left;font-weight:600;color:var(--espresso);background:#faf7f5;position:sticky;left:0}
+.cov td.full{background:var(--sage);color:#2f5e2e;font-weight:600}
+.cov td.part{background:var(--peach);color:#6b4a2f}
+.cov td.gap{background:#fbe0dc;color:#8a2c1d;font-weight:700}
+.cov td.off{background:#f3efec;color:#c3b8af}
+.cov td.unk{color:#c9bfb6}
+.cov .cov-today{box-shadow:inset 0 0 0 2px var(--coral)}
+.cov-sum{font-size:12.5px;color:#5f5048;margin:0 0 14px;line-height:1.7}
+.cov-sum b.gapw{color:#8a2c1d}
 .empty{color:#c8bfb9;font-size:11px;text-align:center;padding:14px 4px;font-style:italic}
 /* roundup tray */
 .tray{margin-bottom:14px;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
@@ -368,6 +381,8 @@ button{font-family:inherit;cursor:pointer}
 
     <h3 class="cal-h">Article goal — publish to fill the runway</h3>
     <div id="calArticles"></div>
+    <h3 class="cal-h">Posting coverage — is the feed filled?</h3>
+    <div id="calCoverage"></div>
     <details class="cal-details"><summary>Post schedule detail (per platform) ▾</summary><div id="calLive"></div></details>
 
     <h3 class="cal-h">The plan</h3>
@@ -1475,6 +1490,32 @@ async function renderCalendar(){
     artRows.slice(-30).reverse().forEach(r=>{ hist+='<tr><td>'+esc(r[0])+'</td><td>'+esc(r[2])+'</td><td>'+esc(r[3])+'</td><td>'+esc(r[4]||'')+'</td></tr>'; });
     hist+='</tbody></table></details>';
     art.innerHTML=note+strip+warnHtml+hist; art.dataset.loaded="1";
+  }
+  // coverage grid: next 14 days × platform, actual/goal
+  const cov=document.getElementById("calCoverage");
+  if(cov){
+    const plats=[["pinterest","Pinterest"],["instagram","Instagram"],["facebook","Facebook"]];
+    const map={};
+    postRows.forEach(r=>{ const d=String(r[0]||'').slice(0,10), pl=plat(r); if(!d) return; (map[d]=map[d]||{})[pl]={goal:parseInt(r[2]||'0',10)||0, sched:parseInt(r[3]||'0',10)||0}; });
+    const cToday=new Date(), N=14, dts=[];
+    for(let i=0;i<N;i++){ const dt=new Date(cToday); dt.setDate(cToday.getDate()+i); dts.push(dt); }
+    const cwd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    let h='<div class="cov-wrap"><table class="cov"><thead><tr><th class="cov-plat">Platform</th>';
+    dts.forEach((dt,i)=>{ h+='<th'+(i===0?' class="cov-today"':'')+'>'+cwd[dt.getDay()]+'<br>'+(dt.getMonth()+1)+'/'+dt.getDate()+'</th>'; });
+    h+='</tr></thead><tbody>'; const sums=[];
+    plats.forEach(function(p){ const pk=p[0], pn=p[1]; h+='<tr><td class="cov-plat">'+pn+'</td>'; let firstGap=null;
+      dts.forEach(function(dt,i){ const d=isoL(dt), rec=map[d]&&map[d][pk]; let cls,txt;
+        if(!rec){ cls='unk'; txt='·'; }
+        else if(rec.goal===0){ cls='off'; txt='–'; }
+        else if(rec.sched>=rec.goal){ cls='full'; txt=rec.sched+'/'+rec.goal; }
+        else if(rec.sched>0){ cls='part'; txt=rec.sched+'/'+rec.goal; }
+        else { cls='gap'; txt='0/'+rec.goal; }
+        if(rec && rec.goal>0 && rec.sched===0 && firstGap===null) firstGap=(dt.getMonth()+1)+'/'+dt.getDate();
+        h+='<td class="'+cls+(i===0?' cov-today':'')+'">'+txt+'</td>'; });
+      h+='</tr>';
+      sums.push('<b>'+pn+':</b> '+(firstGap?('next gap <b class="gapw">'+firstGap+'</b>'):'covered ✓')); });
+    h+='</tbody></table></div><div class="cov-sum">'+sums.join(' &nbsp;·&nbsp; ')+'</div>';
+    cov.innerHTML=h;
   }
   if(det){
     if(!postRows.length){ det.innerHTML='<div class="cal-empty">No platform rows yet.</div>'; }
