@@ -645,7 +645,7 @@ async function load(){
     const iv=valuesOf(inb), pv=valuesOf(pip), sv=soc?valuesOf(soc):[];
     inbox=iv.slice(1).map((r,i)=>({row:i+2,date:r[0]||"",name:r[1]||"",url:r[2]||"",img:r[3]||"",desc:r[4]||"",status:(r[5]||"new").trim().toLowerCase()})).filter(x=>x.name||x.url);
     pipe=pv.slice(1).map((r,i)=>{let st=(r[2]||NEWCOL).trim();if(STAGE_REMAP[st])st=STAGE_REMAP[st];return{row:i+2,id:r[0]||"",type:(r[1]||"single").trim().toLowerCase(),stage:st,
-      artA:truthy(r[3]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",grp:(r[8]||"").trim(),needsImg:truthy(r[9]),pubA:truthy(r[10]),sched:truthy(r[11]),angle:(r[12]||""),imgPreviews:safeJSON(r[13]),imgSummary:safeJSON(r[14]),imgReview:safeJSON(r[15])};}).filter(x=>x.id);
+      artA:truthy(r[3]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",grp:(r[8]||"").trim(),needsImg:truthy(r[9]),pubA:truthy(r[10]),sched:truthy(r[11]),angle:(r[12]||""),imgPreviews:safeJSON(r[13]),imgSummary:safeJSON(r[14]),imgReview:safeJSON(r[15]),imgStatus:(r[16]||"")};}).filter(x=>x.id);
     // self-heal: a card parked in Attaching Images whose review flag (col P) has cleared = the brain finished the upload → advance it to FreshStore Publish (backup for the brain's own advance)
     pipe.filter(x=>x.stage===ATTACHING && !x.imgReview).forEach(x=>{
       x.stage=FSPUB;
@@ -996,6 +996,15 @@ function pipeCard(it){
       controls=`${draftLinkHTML(it)}<div class="acts"><button class="btn coral" data-imgreview="${it.row}">🖼 Review images</button></div>${rg}`;
     }else if(!hasSummary){
       controls=`${draftLinkHTML(it)}<div class="genwait genwarn"><span class="genspin"></span><span>⚠ Finishing the draft… this card's article summary is still being written. Image generation starts automatically once it lands — hang tight.</span></div>${rg}`;
+    }else if(it.imgStatus){
+      // The brain writes col Q (img_status) when image generation fails. Billing depletion gets a top-up link; other errors show the reason.
+      const st=String(it.imgStatus).toLowerCase();
+      const billing = st.includes("billing")||st.includes("credit")||st.includes("429")||st.includes("resource_exhausted")||st.includes("exhausted");
+      if(billing){
+        controls=`${draftLinkHTML(it)}<div class="generr"><span>⛔ <b>Image generation paused — Gemini credits are depleted.</b> Top up to resume; the next sweep generates automatically.</span><a class="btn coral sm" href="https://aistudio.google.com/billing" target="_blank" rel="noopener">Top up Gemini credits ↗</a></div>${rg}`;
+      }else{
+        controls=`${draftLinkHTML(it)}<div class="generr"><span>⚠ <b>Image generation error:</b> ${esc(it.imgStatus)} — auto-retrying each sweep.</span></div>${rg}`;
+      }
     }else{
       controls=`${draftLinkHTML(it)}<div class="genwait"><span class="genspin"></span><span>Generating images… the brain is creating 7 images for this card. This takes a few minutes — they'll show up here to review. Hang tight!</span></div>${rg}`;
     }
@@ -1649,7 +1658,7 @@ try{ if(localStorage.getItem('hf_auth')==='1') startApp(); }catch(e){}
   function mount(){
     if(document.getElementById("pausePill")) return;
     const css = document.createElement("style");
-    css.textContent = "#pausePill{position:fixed;top:10px;right:12px;z-index:99999;display:flex;align-items:center;gap:8px;font:700 12px/1 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:8px 13px;box-shadow:0 2px 10px rgba(0,0,0,.10);cursor:pointer;user-select:none;color:#2C2421}#pausePill .pp-dot{width:9px;height:9px;border-radius:50%;background:#43B3AE}#pausePill[data-state=paused]{border-color:#F88378;color:#9a3b32}#pausePill[data-state=paused] .pp-dot{background:#F88378} .genwait{display:flex;align-items:flex-start;gap:8px;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#9a6a3a;background:#FBF3EC;border:1px solid #F3E0CE;border-radius:8px;padding:8px 10px;margin-top:6px} .genwait .genspin{margin-top:1px;width:11px;height:11px;border-radius:50%;border:2px solid #E9C9A8;border-top-color:#F88378;animation:genspin .8s linear infinite;flex:0 0 auto} @keyframes genspin{to{transform:rotate(360deg)}} .rf-btn{margin-left:5px;border:1px solid #e7ded7;background:#fff;color:#7a5a44;width:20px;height:20px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto} .rf-btn:hover{background:#FBF3EC;border-color:#F3E0CE;color:#F88378} .rf-btn.spin{animation:genspin .7s linear infinite} .genwait.genwarn{color:#9a3b32;background:#FDECEA;border-color:#F6C9C2} .genwait.genwarn .genspin{border-color:#F3C0B8;border-top-color:#F88378}";
+    css.textContent = "#pausePill{position:fixed;top:10px;right:12px;z-index:99999;display:flex;align-items:center;gap:8px;font:700 12px/1 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:8px 13px;box-shadow:0 2px 10px rgba(0,0,0,.10);cursor:pointer;user-select:none;color:#2C2421}#pausePill .pp-dot{width:9px;height:9px;border-radius:50%;background:#43B3AE}#pausePill[data-state=paused]{border-color:#F88378;color:#9a3b32}#pausePill[data-state=paused] .pp-dot{background:#F88378} .genwait{display:flex;align-items:flex-start;gap:8px;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#9a6a3a;background:#FBF3EC;border:1px solid #F3E0CE;border-radius:8px;padding:8px 10px;margin-top:6px} .genwait .genspin{margin-top:1px;width:11px;height:11px;border-radius:50%;border:2px solid #E9C9A8;border-top-color:#F88378;animation:genspin .8s linear infinite;flex:0 0 auto} @keyframes genspin{to{transform:rotate(360deg)}} .rf-btn{margin-left:5px;border:1px solid #e7ded7;background:#fff;color:#7a5a44;width:20px;height:20px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto} .rf-btn:hover{background:#FBF3EC;border-color:#F3E0CE;color:#F88378} .rf-btn.spin{animation:genspin .7s linear infinite} .genwait.genwarn{color:#9a3b32;background:#FDECEA;border-color:#F6C9C2} .genwait.genwarn .genspin{border-color:#F3C0B8;border-top-color:#F88378} .generr{display:flex;flex-direction:column;gap:8px;align-items:flex-start;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#8a2f27;background:#FDE7E4;border:1px solid #EFA99E;border-radius:8px;padding:9px 11px;margin-top:6px} .generr .btn.sm{padding:5px 11px;font-size:11px;line-height:1.1;text-decoration:none}";
     document.head.appendChild(css);
     const el = document.createElement("div");
     el.id = "pausePill";
