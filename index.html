@@ -218,6 +218,21 @@ button{font-family:inherit;cursor:pointer}
 .cov-legend .lg.part{background:var(--peach);color:#6b4a2f}
 .cov-legend .lg.gap{background:#fbe0dc;color:#8a2c1d}
 .cov-legend .lg.off{background:#f3efec;color:#7a6f66}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;flex-wrap:wrap}
+.cal-nav .nav-mid{display:flex;align-items:center;gap:10px}
+.dc-wrap{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:0 0 10px}
+.dc{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.dc.today{box-shadow:0 0 0 2px var(--coral)}
+.dc-hd{text-align:center;padding:6px 4px;background:#faf7f5;font-size:11px;font-weight:700;color:var(--espresso);text-transform:uppercase;letter-spacing:.03em}
+.dc-hd span{display:block;font-weight:500;color:#b3a89f;font-size:11px}
+.dc-row{display:flex;justify-content:space-between;align-items:center;gap:4px;padding:4px 7px;font-size:11px;border-top:1px solid var(--line)}
+.dc-lbl{color:#7a6f66}
+.dc-val{font-weight:700;font-variant-numeric:tabular-nums}
+.dc-row.full{background:var(--sage)} .dc-row.full .dc-val{color:#2f5e2e}
+.dc-row.part{background:var(--peach)} .dc-row.part .dc-val{color:#6b4a2f}
+.dc-row.gap{background:#fbe0dc} .dc-row.gap .dc-val{color:#8a2c1d}
+.dc-row.off{background:#f3efec} .dc-row.off .dc-val{color:#c3b8af}
+.dc-row.unk .dc-val{color:#c3b8af}
 .empty{color:#c8bfb9;font-size:11px;text-align:center;padding:14px 4px;font-style:italic}
 /* roundup tray */
 .tray{margin-bottom:14px;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
@@ -389,11 +404,8 @@ button{font-family:inherit;cursor:pointer}
       <div class="toolacts"><button class="btn ghost" id="calRefresh">↻ Refresh</button></div>
     </div>
 
-    <h3 class="cal-h">Article goal — publish to fill the runway</h3>
+    <h3 class="cal-h">Calendar — goal + coverage</h3>
     <div id="calArticles"></div>
-    <h3 class="cal-h">Posting coverage — is the feed filled?</h3>
-    <div id="calCoverage"></div>
-    <details class="cal-details"><summary>Post schedule detail (per platform) ▾</summary><div id="calLive"></div></details>
 
     <h3 class="cal-h">The plan</h3>
     <div class="cal-grid">
@@ -1457,105 +1469,82 @@ function maybeLoadFrame(view){
 
 /* ---------- posting calendar (live) ---------- */
 async function renderCalendar(){
-  const det=document.getElementById("calLive"), art=document.getElementById("calArticles");
+  const art=document.getElementById("calArticles");
   if(!art) return;
   if(!art.dataset.loaded) art.innerHTML='<div class="cal-empty">Loading…</div>';
   let rows=[];
   try{ rows = valuesOf(await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Calendar"})); }catch(e){ rows=[]; }
   if(!rows || rows.length<2){
     art.innerHTML='<div class="cal-empty">No data yet — fills automatically once the Mac brain writes the Calendar. (If it stays empty after a sweep, add <code>Calendar</code> to the Apps Script tab list + redeploy.)</div>';
-    if(det)det.innerHTML=''; return;
+    return;
   }
   const body=rows.slice(1), plat=r=>String(r[1]||'').toLowerCase();
   const artRows=body.filter(r=>plat(r)==='articles');
   const runRow=body.find(r=>plat(r)==='runway');
   const postRows=body.filter(r=>{const p=plat(r);return p!=='articles'&&p!=='runway'&&p!=='';});
   const lz=n=>String(n).padStart(2,'0'), isoL=dt=>dt.getFullYear()+'-'+lz(dt.getMonth()+1)+'-'+lz(dt.getDate());
-  if(!artRows.length){ art.innerHTML='<div class="cal-empty">Article goals fill in once the Mac brain logs them (per-day articles published vs your goal of 6).</div>'; }
-  else{
-    let goal=6, latestBal=0, latestDate=''; const byDate={};
-    artRows.forEach(r=>{ const d=String(r[0]||'').slice(0,10); if(!d) return;
-      const g=parseInt(r[2]||'6',10)||6; goal=g;
-      byDate[d]={goal:g, pub:parseInt(r[3]||'0',10)||0};
-      if(d>=latestDate){ latestDate=d; latestBal=parseInt(String(r[4]||'0').replace('+',''),10)||0; } });
-    const wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    // ahead/behind note
-    const aheadDays=goal?(latestBal/goal):0; let note;
-    if(latestBal>0) note='<div class="cal-note ahead">🎉 You\'re <b>+'+latestBal+' article'+(latestBal===1?'':'s')+' ahead</b> of goal — about <b>'+aheadDays.toFixed(1)+' days</b> of runway banked.</div>';
-    else if(latestBal<0) note='<div class="cal-note behind">You\'re <b>'+Math.abs(latestBal)+' behind</b> goal — publish '+Math.abs(latestBal)+' extra to catch back up.</div>';
-    else note='<div class="cal-note even">On goal pace — nothing banked ahead yet. 👌</div>';
-    // runway warning (inline, in the goal section)
-    let warnHtml='';
-    if(runRow){ const wk=parseInt(runRow[2]||'0',10)||0, far=parseInt(runRow[3]||'0',10)||0, furthest=esc(runRow[0]||'');
-      if(wk>12) warnHtml='<div class="cal-warn">⚠️ Runway extends '+wk+' weeks (to '+furthest+'). '+far+' pin'+(far===1?'':'s')+' scheduled 12+ weeks out — worth re-checking those products are still in stock before they post.</div>'; }
-    // full history (collapsed)
-    let hist='<details class="cal-details"><summary>Full history ▾</summary><table class="cal-table"><thead><tr><th>Date</th><th>Goal</th><th>Published</th><th>Running balance</th></tr></thead><tbody>';
-    artRows.slice(-60).reverse().forEach(r=>{ hist+='<tr><td>'+esc(r[0])+'</td><td>'+esc(r[2])+'</td><td>'+esc(r[3])+'</td><td>'+esc(r[4]||'')+'</td></tr>'; });
-    hist+='</tbody></table></details>';
-    // scrollable rolling 7-day strip
-    const navHTML='<div class="strip-nav"><button type="button" id="calStripPrev" class="strip-btn">◀ Prev</button><span id="calStripLbl" class="strip-lbl"></span><button type="button" id="calStripNext" class="strip-btn">Next ▶</button></div>';
-    art.innerHTML=note+navHTML+'<div class="cal-week" id="calStripBox"></div>'+warnHtml+hist; art.dataset.loaded="1";
-    let stripOffset=0;
-    const renderStrip=()=>{ const box=document.getElementById('calStripBox'); if(!box) return;
-      const tISO=isoL(new Date()), base=new Date(); base.setDate(base.getDate()+stripOffset); let sh='';
-      for(let i=6;i>=0;i--){ const dt=new Date(base); dt.setDate(base.getDate()-i); const d=isoL(dt);
-        const rec=byDate[d], g=rec?rec.goal:goal, p=rec?rec.pub:0;
-        const cls=(!rec||p===0)?'zero':(p>=g?'met':'partial');
-        sh+='<div class="cal-d '+cls+(d===tISO?' today':'')+'"><div class="cal-d-wd">'+wd[dt.getDay()]+'</div><div class="cal-d-dt">'+(dt.getMonth()+1)+'/'+dt.getDate()+'</div><div class="cal-d-n">'+p+'<span>/'+g+'</span></div></div>'; }
-      box.innerHTML=sh;
-      const st=new Date(base); st.setDate(base.getDate()-6);
-      const lbl=document.getElementById('calStripLbl'); if(lbl) lbl.textContent=(st.getMonth()+1)+'/'+st.getDate()+' – '+(base.getMonth()+1)+'/'+base.getDate(); };
-    const pb=document.getElementById('calStripPrev'), nb=document.getElementById('calStripNext');
-    if(pb) pb.onclick=()=>{ stripOffset-=7; renderStrip(); };
-    if(nb) nb.onclick=()=>{ stripOffset+=7; renderStrip(); };
-    renderStrip();
-  }
-  // coverage grid: next 14 days × platform, actual/goal (forward-looking)
-  const cov=document.getElementById("calCoverage");
-  if(cov){
-    const lanes=[
-      {k:"pinterest",n:"Pinterest"},
-      {k:"facebook-posts",n:"Facebook · Posts",fb:"facebook"},
-      {k:"facebook-stories",n:"Facebook · Stories",dg:2},
-      {k:"instagram-posts",n:"Instagram · Posts",fb:"instagram"},
-      {k:"instagram-stories",n:"Instagram · Stories",dg:2}
-    ];
-    const map={}, furthest={}, fmtd=s=>{const p=String(s).split('-');return p.length===3?(+p[1])+'/'+(+p[2]):s;};
-    postRows.forEach(r=>{ const d=String(r[0]||'').slice(0,10), pl=plat(r), s=parseInt(r[3]||'0',10)||0; if(!d) return;
-      (map[d]=map[d]||{})[pl]={goal:parseInt(r[2]||'0',10)||0, sched:s};
-      if(s>0 && (!furthest[pl]||d>furthest[pl])) furthest[pl]=d; });
-    const cToday=new Date(), N=14, dts=[];
-    for(let i=0;i<N;i++){ const dt=new Date(cToday); dt.setDate(cToday.getDate()+i); dts.push(dt); }
-    const cwd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    let h='<div class="cov-wrap"><table class="cov"><thead><tr><th class="cov-plat">Platform</th>';
-    dts.forEach((dt,i)=>{ h+='<th'+(i===0?' class="cov-today"':'')+'>'+cwd[dt.getDay()]+'<br>'+(dt.getMonth()+1)+'/'+dt.getDate()+'</th>'; });
-    h+='</tr></thead><tbody>'; const sums=[];
-    lanes.forEach(function(L){ h+='<tr><td class="cov-plat">'+L.n+'</td>'; let firstGap=null; const fz=furthest[L.k]||(L.fb?furthest[L.fb]:null);
-      dts.forEach(function(dt,i){ const d=isoL(dt); let rec=map[d]&&(map[d][L.k]||(L.fb&&map[d][L.fb])); if(!rec&&L.dg!=null) rec={goal:L.dg,sched:0}; let cls,txt;
-        if(!rec){ cls='unk'; txt='·'; }
-        else if(rec.goal===0){ cls='off'; txt='–'; }
-        else if(rec.sched>=rec.goal){ cls='full'; txt=rec.sched+'/'+rec.goal; }
-        else if(rec.sched>0){ cls='part'; txt=rec.sched+'/'+rec.goal; }
-        else { cls='gap'; txt='0/'+rec.goal; }
-        if(rec && rec.goal>0 && rec.sched===0 && firstGap===null) firstGap=(dt.getMonth()+1)+'/'+dt.getDate();
-        h+='<td class="'+cls+(i===0?' cov-today':'')+'">'+txt+'</td>'; });
-      h+='</tr>';
-      let s='<b>'+L.n+':</b> '+(firstGap?('next gap <b class="gapw">'+firstGap+'</b>'):'no gaps in next 14d ✓');
-      s+=fz?(' · posted ahead to <b>'+fmtd(fz)+'</b>'):' · nothing scheduled yet';
-      sums.push(s); });
-    h+='</tbody></table></div>';
-    h+='<div class="cov-legend"><span class="lg full">filled</span><span class="lg part">partial</span><span class="lg gap">gap (post more)</span><span class="lg off">off-day</span></div>';
-    h+='<div class="cov-sum">'+sums.join('<br>')+'</div>';
-    cov.innerHTML=h;
-  }
-  if(det){
-    if(!postRows.length){ det.innerHTML='<div class="cal-empty">No platform rows yet.</div>'; }
-    else{ let h='<table class="cal-table"><thead><tr><th>Date</th><th>Platform</th><th>Goal</th><th>Scheduled</th><th>Posted</th><th>% to goal</th></tr></thead><tbody>';
-      postRows.slice(0,150).forEach(r=>{ h+='<tr>'+[0,1,2,3,4,5].map(i=>'<td>'+esc(r[i]==null?'':String(r[i]))+'</td>').join('')+'</tr>'; });
-      h+='</tbody></table>'; det.innerHTML=h; }
-  }
+  const wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  // articles by date + banked balance
+  let agoal=6, latestBal=0, latestDate=''; const byDate={};
+  artRows.forEach(r=>{ const d=String(r[0]||'').slice(0,10); if(!d) return;
+    const g=parseInt(r[2]||'6',10)||6; agoal=g;
+    byDate[d]={goal:g, pub:parseInt(r[3]||'0',10)||0};
+    if(d>=latestDate){ latestDate=d; latestBal=parseInt(String(r[4]||'0').replace('+',''),10)||0; } });
+  // coverage map + furthest scheduled per platform
+  const map={}, furthest={};
+  postRows.forEach(r=>{ const d=String(r[0]||'').slice(0,10), pl=plat(r), s=parseInt(r[3]||'0',10)||0; if(!d) return;
+    (map[d]=map[d]||{})[pl]={goal:parseInt(r[2]||'0',10)||0, sched:s};
+    if(s>0 && (!furthest[pl]||d>furthest[pl])) furthest[pl]=d; });
+  const lanes=[
+    {key:"articles",n:"Articles",art:true},
+    {key:"pinterest",n:"Pinterest"},
+    {key:"facebook-posts",n:"FB Posts",fb:"facebook"},
+    {key:"facebook-stories",n:"FB Story",dg:2},
+    {key:"instagram-posts",n:"IG Posts",fb:"instagram"},
+    {key:"instagram-stories",n:"IG Story",dg:2}
+  ];
+  const cellFor=rec=>{ if(!rec) return {cls:'unk',txt:'·'};
+    if(rec.goal===0) return {cls:'off',txt:'–'};
+    if(rec.sched>=rec.goal) return {cls:'full',txt:rec.sched+'/'+rec.goal};
+    if(rec.sched>0) return {cls:'part',txt:rec.sched+'/'+rec.goal};
+    return {cls:'gap',txt:'0/'+rec.goal}; };
+  // banked note
+  const aheadDays=agoal?(latestBal/agoal):0; let note;
+  if(latestBal>0) note='<div class="cal-note ahead">🎉 You\'re <b>+'+latestBal+' article'+(latestBal===1?'':'s')+' ahead</b> of goal — about <b>'+aheadDays.toFixed(1)+' days</b> of runway banked.</div>';
+  else if(latestBal<0) note='<div class="cal-note behind">You\'re <b>'+Math.abs(latestBal)+' behind</b> goal — publish '+Math.abs(latestBal)+' extra to catch back up.</div>';
+  else note='<div class="cal-note even">On goal pace — nothing banked ahead yet. 👌</div>';
+  let warnHtml='';
+  if(runRow){ const wk=parseInt(runRow[2]||'0',10)||0, far=parseInt(runRow[3]||'0',10)||0, furthestD=esc(runRow[0]||'');
+    if(wk>12) warnHtml='<div class="cal-warn">⚠️ Runway extends '+wk+' weeks (to '+furthestD+'). '+far+' pin'+(far===1?'':'s')+' scheduled 12+ weeks out — worth re-checking those products are still in stock before they post.</div>'; }
+  const legend='<div class="cov-legend"><span class="lg full">filled</span><span class="lg part">partial</span><span class="lg gap">gap (post more)</span><span class="lg off">off-day</span></div>';
+  let hist='<details class="cal-details"><summary>Full history ▾</summary><table class="cal-table"><thead><tr><th>Date</th><th>Goal</th><th>Published</th><th>Running balance</th></tr></thead><tbody>';
+  artRows.slice(-60).reverse().forEach(r=>{ hist+='<tr><td>'+esc(r[0])+'</td><td>'+esc(r[2])+'</td><td>'+esc(r[3])+'</td><td>'+esc(r[4]||'')+'</td></tr>'; });
+  hist+='</tbody></table></details>';
+  const nav='<div class="cal-nav"><button type="button" id="calPrev" class="strip-btn">◀ Prev</button><div class="nav-mid"><button type="button" id="calToday" class="strip-btn">Today</button><span id="calLbl" class="strip-lbl"></span></div><button type="button" id="calNext" class="strip-btn">Next ▶</button></div>';
+  art.innerHTML=note+warnHtml+nav+'<div id="calCards"></div>'+legend+hist;
+  art.dataset.loaded="1";
+  let offset=0;
+  const renderWeek=()=>{ const box=document.getElementById('calCards'); if(!box) return;
+    const tISO=isoL(new Date()), base=new Date(); base.setDate(base.getDate()+offset);
+    let h='<div class="dc-wrap">';
+    for(let i=0;i<7;i++){ const dt=new Date(base); dt.setDate(base.getDate()+i); const d=isoL(dt);
+      h+='<div class="dc'+(d===tISO?' today':'')+'"><div class="dc-hd">'+wd[dt.getDay()]+'<span>'+(dt.getMonth()+1)+'/'+dt.getDate()+'</span></div>';
+      lanes.forEach(L=>{ let rec;
+        if(L.art){ rec=byDate[d]; }
+        else { rec=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb])); if(!rec&&L.dg!=null) rec={goal:L.dg,sched:0}; }
+        const c=cellFor(rec);
+        h+='<div class="dc-row '+c.cls+'"><span class="dc-lbl">'+L.n+'</span><span class="dc-val">'+c.txt+'</span></div>'; });
+      h+='</div>'; }
+    h+='</div>'; box.innerHTML=h;
+    const end=new Date(base); end.setDate(base.getDate()+6);
+    const lbl=document.getElementById('calLbl'); if(lbl) lbl.textContent=(base.getMonth()+1)+'/'+base.getDate()+' – '+(end.getMonth()+1)+'/'+end.getDate(); };
+  const pb=document.getElementById('calPrev'), nb=document.getElementById('calNext'), tb=document.getElementById('calToday');
+  if(pb) pb.onclick=()=>{ offset-=7; renderWeek(); };
+  if(nb) nb.onclick=()=>{ offset+=7; renderWeek(); };
+  if(tb) tb.onclick=()=>{ offset=0; renderWeek(); };
+  renderWeek();
 }
-document.addEventListener("click",e=>{ if(e.target&&e.target.id==="calRefresh"){ const el=document.getElementById("calLive"); if(el)el.dataset.loaded=""; renderCalendar(); }});
+document.addEventListener("click",e=>{ if(e.target&&e.target.id==="calRefresh"){ const el=document.getElementById("calArticles"); if(el)el.dataset.loaded=""; renderCalendar(); }});
 
 /* ---------- tabs + tray ---------- */
 $$(".tab").forEach(b=>b.addEventListener("click",()=>{
