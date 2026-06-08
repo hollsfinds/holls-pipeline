@@ -1491,12 +1491,14 @@ async function renderCalendar(){
     hist+='</tbody></table></details>';
     art.innerHTML=note+strip+warnHtml+hist; art.dataset.loaded="1";
   }
-  // coverage grid: next 14 days × platform, actual/goal
+  // coverage grid: next 14 days × platform, actual/goal (forward-looking)
   const cov=document.getElementById("calCoverage");
   if(cov){
     const plats=[["pinterest","Pinterest"],["instagram","Instagram"],["facebook","Facebook"]];
-    const map={};
-    postRows.forEach(r=>{ const d=String(r[0]||'').slice(0,10), pl=plat(r); if(!d) return; (map[d]=map[d]||{})[pl]={goal:parseInt(r[2]||'0',10)||0, sched:parseInt(r[3]||'0',10)||0}; });
+    const map={}, furthest={}, fmtd=s=>{const p=String(s).split('-');return p.length===3?(+p[1])+'/'+(+p[2]):s;};
+    postRows.forEach(r=>{ const d=String(r[0]||'').slice(0,10), pl=plat(r), s=parseInt(r[3]||'0',10)||0; if(!d) return;
+      (map[d]=map[d]||{})[pl]={goal:parseInt(r[2]||'0',10)||0, sched:s};
+      if(s>0 && (!furthest[pl]||d>furthest[pl])) furthest[pl]=d; });
     const cToday=new Date(), N=14, dts=[];
     for(let i=0;i<N;i++){ const dt=new Date(cToday); dt.setDate(cToday.getDate()+i); dts.push(dt); }
     const cwd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -1513,8 +1515,11 @@ async function renderCalendar(){
         if(rec && rec.goal>0 && rec.sched===0 && firstGap===null) firstGap=(dt.getMonth()+1)+'/'+dt.getDate();
         h+='<td class="'+cls+(i===0?' cov-today':'')+'">'+txt+'</td>'; });
       h+='</tr>';
-      sums.push('<b>'+pn+':</b> '+(firstGap?('next gap <b class="gapw">'+firstGap+'</b>'):'covered ✓')); });
-    h+='</tbody></table></div><div class="cov-sum">'+sums.join(' &nbsp;·&nbsp; ')+'</div>';
+      const fz=furthest[pk];
+      let s='<b>'+pn+':</b> '+(firstGap?('next gap <b class="gapw">'+firstGap+'</b>'):'no gaps in next 14d ✓');
+      s+=fz?(' · posted ahead to <b>'+fmtd(fz)+'</b>'):' · nothing scheduled';
+      sums.push(s); });
+    h+='</tbody></table></div><div class="cov-sum">'+sums.join('<br>')+'</div>';
     cov.innerHTML=h;
   }
   if(det){
