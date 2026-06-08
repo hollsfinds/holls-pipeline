@@ -1597,6 +1597,50 @@ function tryAuth(){
 document.getElementById('hfgo').addEventListener('click',tryAuth);
 document.getElementById('hfpw').addEventListener('keydown',function(e){ if(e.key==='Enter') tryAuth(); });
 try{ if(localStorage.getItem('hf_auth')==='1') startApp(); }catch(e){}
+
+/* ===== Pipeline Pause/Resume switch (token-saver) =====
+   Writes Stats!X1 (flag) + Stats!X2 (ISO timestamp). The Mac brain's run.sh reads X1
+   via a cheap curl BEFORE launching Claude and skips the sweep when paused — so a pause
+   costs ~0 Claude usage. X2 lets run.sh auto-resume after a safety window. Self-contained
+   (uses the existing apiGet/apiPost adapter); does not touch the board's other handlers. */
+(function(){
+  const PAUSE_COL = 23; /* 0-based index of column X in the Stats tab */
+  async function isPaused(){
+    try{ const d = await apiGet(); const s = d.Stats || [];
+      return ((s[0] && s[0][PAUSE_COL]) ? String(s[0][PAUSE_COL]).trim().toLowerCase() : "") === "paused";
+    }catch(e){ return false; }
+  }
+  async function setPaused(p){
+    await apiPost({ sheet:"Stats", action:"updateRange", range:"X1:X2",
+      values:[[ p ? "paused" : "" ], [ p ? new Date().toISOString() : "" ]] });
+  }
+  async function paint(){
+    const el = document.getElementById("pausePill"); if(!el) return;
+    const p = await isPaused();
+    el.dataset.state = p ? "paused" : "live";
+    el.innerHTML = '<span class="pp-dot"></span>' + (p ? "Pipeline paused — tap to resume" : "Pipeline live — tap to pause");
+  }
+  function mount(){
+    if(document.getElementById("pausePill")) return;
+    const css = document.createElement("style");
+    css.textContent = "#pausePill{position:fixed;top:10px;right:12px;z-index:99999;display:flex;align-items:center;gap:8px;font:700 12px/1 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:8px 13px;box-shadow:0 2px 10px rgba(0,0,0,.10);cursor:pointer;user-select:none;color:#2C2421}#pausePill .pp-dot{width:9px;height:9px;border-radius:50%;background:#43B3AE}#pausePill[data-state=paused]{border-color:#F88378;color:#9a3b32}#pausePill[data-state=paused] .pp-dot{background:#F88378}";
+    document.head.appendChild(css);
+    const el = document.createElement("div");
+    el.id = "pausePill";
+    el.title = "Pause stops the Mac brain from spending Claude usage on sweeps. Auto-resumes after 4h as a safety.";
+    document.body.appendChild(el);
+    let busy = false;
+    el.addEventListener("click", async () => {
+      if(busy) return; busy = true; el.style.opacity = .5;
+      try{ const p = await isPaused(); await setPaused(!p); await paint(); }
+      catch(e){ if(window.toast) toast("Couldn't reach the Sheet — try again"); }
+      el.style.opacity = ""; busy = false;
+    });
+    paint();
+    setInterval(paint, 60000); /* reflect the brain's auto-resume without a full reload */
+  }
+  if(document.readyState !== "loading") mount(); else document.addEventListener("DOMContentLoaded", mount);
+})();
 </script>
 </body>
 </html>
