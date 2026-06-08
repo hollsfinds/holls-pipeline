@@ -980,7 +980,13 @@ function pipeCard(it){
     controls=`<div class="muted2">Writing your draft…</div>`;
   }else if(it.stage===REVIEWCOL){
     const rg=(it.imgReview&&it.imgReview.status==="regen")?'<div class="muted2">↻ Regenerating flagged images…</div>':'';
-    controls=`${draftLinkHTML(it)}<div class="acts"><button class="btn coral" data-imgreview="${it.row}">🖼 Review images</button></div>${rg}`;
+    // Images are written to col N (imgPreviews) by the brain. Empty = still generating → show a patience indicator instead of the Review button.
+    const imgsReady = it.imgPreviews && (it.imgPreviews.hero || it.imgPreviews.listing || it.imgPreviews.social);
+    if(imgsReady){
+      controls=`${draftLinkHTML(it)}<div class="acts"><button class="btn coral" data-imgreview="${it.row}">🖼 Review images</button></div>${rg}`;
+    }else{
+      controls=`${draftLinkHTML(it)}<div class="genwait"><span class="genspin"></span><span>Generating images… the brain is creating 7 images for this card. This takes a few minutes — they'll show up here to review. Hang tight!</span></div>${rg}`;
+    }
   }else if(it.stage===ATTACHING){
     const waiting=(it.imgReview&&it.imgReview.status==="approved");
     controls=`${draftLinkHTML(it)}<div class="muted2">${waiting?'⚡ Attaching your approved images to the FreshStore draft… clears on the next brain sweep.':'✓ Images attached — moving to FreshStore Publish…'}</div>`;
@@ -1623,7 +1629,7 @@ try{ if(localStorage.getItem('hf_auth')==='1') startApp(); }catch(e){}
   function mount(){
     if(document.getElementById("pausePill")) return;
     const css = document.createElement("style");
-    css.textContent = "#pausePill{position:fixed;top:10px;right:12px;z-index:99999;display:flex;align-items:center;gap:8px;font:700 12px/1 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:8px 13px;box-shadow:0 2px 10px rgba(0,0,0,.10);cursor:pointer;user-select:none;color:#2C2421}#pausePill .pp-dot{width:9px;height:9px;border-radius:50%;background:#43B3AE}#pausePill[data-state=paused]{border-color:#F88378;color:#9a3b32}#pausePill[data-state=paused] .pp-dot{background:#F88378}";
+    css.textContent = "#pausePill{position:fixed;top:10px;right:12px;z-index:99999;display:flex;align-items:center;gap:8px;font:700 12px/1 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:8px 13px;box-shadow:0 2px 10px rgba(0,0,0,.10);cursor:pointer;user-select:none;color:#2C2421}#pausePill .pp-dot{width:9px;height:9px;border-radius:50%;background:#43B3AE}#pausePill[data-state=paused]{border-color:#F88378;color:#9a3b32}#pausePill[data-state=paused] .pp-dot{background:#F88378} .genwait{display:flex;align-items:flex-start;gap:8px;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#9a6a3a;background:#FBF3EC;border:1px solid #F3E0CE;border-radius:8px;padding:8px 10px;margin-top:6px} .genwait .genspin{margin-top:1px;width:11px;height:11px;border-radius:50%;border:2px solid #E9C9A8;border-top-color:#F88378;animation:genspin .8s linear infinite;flex:0 0 auto} @keyframes genspin{to{transform:rotate(360deg)}}";
     document.head.appendChild(css);
     const el = document.createElement("div");
     el.id = "pausePill";
