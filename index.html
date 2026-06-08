@@ -461,7 +461,7 @@ const PUBCOL = "Article Published/Social Pack Ready";
 const MISSING = "Missing Images";   // a parallel flag column, NOT a stage cards move into
 const FULLCOL = "Fully Published";
 const ONDECK = "On Deck";
-const COLS = [ONDECK,NEWCOL,POOL,DRAFTCOL,REVIEWCOL,ATTACHING,FSPUB,PUBCOL,FULLCOL];   /* MISSING column retired — image generation makes it a non-issue */
+const COLS = [ONDECK,NEWCOL,POOL,DRAFTCOL,REVIEWCOL,ATTACHING,FSPUB,PUBCOL];   /* MISSING + FULLCOL retired — FULLCOL merged into PUBCOL ("Fully Live"); social auto-schedules so no manual "mark scheduled" gate */
 /* display labels (the stored stage VALUES stay the same so existing cards don't break) */
 const LABEL = {
   [ONDECK]:"Products: On Deck",
@@ -472,14 +472,14 @@ const LABEL = {
   [ATTACHING]:"Articles: Attaching Images",
   [FSPUB]:"Articles: FreshStore Publish",
   [MISSING]:"Articles: Missing Images",
-  [PUBCOL]:"Socials: Ready",
-  [FULLCOL]:"Published & Scheduled"
+  [PUBCOL]:"Fully Live",
+  [FULLCOL]:"Fully Live"
 };
 /* zone color stripes — Products (coral) / Articles (sage) / Socials (teal) / Published (espresso) */
 const ZONE = {
   [ONDECK]:"#F88378",[NEWCOL]:"#F88378",[POOL]:"#F88378",
   [DRAFTCOL]:"#AFD9AE",[REVIEWCOL]:"#AFD9AE",[ATTACHING]:"#AFD9AE",[FSPUB]:"#AFD9AE",[MISSING]:"#AFD9AE",
-  [PUBCOL]:"#43B3AE",
+  [PUBCOL]:"#FBCEB1",
   [FULLCOL]:"#FBCEB1"
 };
 /* ⚡ columns auto-fire a full-me job when a card lands there */
@@ -487,7 +487,7 @@ const AUTO = {[DRAFTCOL]:true,[PUBCOL]:true};
 /* columns that fire a scheduled (full-me) job, via window.cowork.runScheduledTask */
 const TASK_IDS = {[DRAFTCOL]:"draft-pipeline-cards",[PUBCOL]:"social-pack-cards"};
 /* old stage names in the Sheet → current column names (keeps existing rows in the right column) */
-const STAGE_REMAP = {"Direction":NEWCOL,"New":NEWCOL,"Review":REVIEWCOL,"Roundup Pool":POOL,"Ready":PUBCOL,"Social Pack Ready":PUBCOL,"Article Published":PUBCOL,"Published":PUBCOL};
+const STAGE_REMAP = {"Direction":NEWCOL,"New":NEWCOL,"Review":REVIEWCOL,"Roundup Pool":POOL,"Ready":PUBCOL,"Social Pack Ready":PUBCOL,"Article Published":PUBCOL,"Published":PUBCOL,"Fully Published":PUBCOL};
 const INFO = {
   "On Deck":{kicker:"Product intake",auto:null,space:["ch","This app + your Mac brain"],
     body:"Bookmarked Amazon finds land here with a <b>cleaned title</b> you can edit right on the card. Hit <b>Send to FreshStore</b> and it imports <b>live</b> — tagged affiliate link + images pulled automatically — then I patch in the clean title + SEO. Sending runs on your Mac brain (computer on)."},
@@ -502,11 +502,11 @@ const INFO = {
   "Attaching Images":{kicker:"Uploading to the draft",auto:true,space:["ch","Your Mac brain"],
     body:"A holding lane: the brain is <b>attaching your approved images</b> to the FreshStore draft. The card sits here until the upload finishes, then <b>auto-advances to FreshStore Publish</b> — so a card in FreshStore Publish always truly has its images. Needs your computer on."},
   "FreshStore Publish":{kicker:"Final read + go live",auto:null,space:["ch","FreshStore"],
-    body:"Images are on the draft. Open it in FreshStore for a final read, tweak any words if needed, then <b>publish in FreshStore</b>. When it goes live, the published-detection moves the card on to <b>Social Pack Ready</b> and the social pack auto-generates — that flow is unchanged."},
-  "Article Published/Social Pack Ready":{kicker:"Live + social pack",auto:true,space:["cw","Cowork"],
-    body:"When the article goes live the card lands here and its <b>social pack auto-generates</b> (with disclosures). <b>Click the card</b> to open the pack, then mark it <b>Scheduled</b> to finish. No Tailwind — you queue it yourself."},
-  "Fully Published":{kicker:"Done",auto:null,space:["ch","This app"],
-    body:"Article live, images confirmed, social pack scheduled — the finish line. Each card lists <b>live links to its product pages</b> so you can jump straight to any product. Cards land here when you mark the social pack <b>Scheduled</b>."}
+    body:"Images are on the draft. Open it in FreshStore for a final read, tweak any words if needed, then <b>publish in FreshStore</b>. When it goes live, the published-detection moves the card on to <b>Fully Live</b> and the social pack auto-generates — that flow is unchanged."},
+  "Article Published/Social Pack Ready":{kicker:"Live + auto-scheduled — the finish line",auto:true,space:["cw","Cowork + your Mac brain"],
+    body:"The terminal lane. When the article goes live the card lands here, its <b>social pack auto-generates</b> (with disclosures), and the Mac brain <b>auto-schedules all the posts to Metricool</b> (Pinterest, IG, FB — feed + stories, auto-publish). The card shows <b>⏳ Scheduling…</b> until the brain confirms every post is queued, then flips to <b>✓ Scheduled</b>. <b>Click the card</b> anytime to read the pack; each card also lists <b>live links to its product pages</b>. No manual queueing."},
+  "Fully Published":{kicker:"Live + auto-scheduled — the finish line",auto:true,space:["cw","Cowork + your Mac brain"],
+    body:"Merged into <b>Fully Live</b> — article live, images confirmed, social pack auto-scheduled. Each card lists <b>live links to its product pages</b>."}
 };
 
 /* ---------- tiny helpers ---------- */
@@ -988,15 +988,15 @@ function pipeCard(it){
     const pub=it.artA?`<div class="acts"><button class="btn coral" data-markpub="${it.row}">Published in FreshStore ▸</button></div>`:"";
     controls=`${draftLinkHTML(it)}<div class="muted2">Images sent. Final read on FreshStore, then publish.</div><div class="acts"><button class="btn ghost" data-imgreview="${it.row}">🖼 Redo images</button></div><div class="gates">${gate(it.artA,"Article",'art')}</div>${discBadge}${pub}`;
   }else if(it.stage===PUBCOL){
-    controls=`${draftLinkHTML(it)}<div class="gates">${gate(it.pubA,"Published",'pub')}</div>${discBadge}
-      <div class="acts"><button class="btn coral" data-social="${it.row}">📋 View social pack</button></div>`;
-  }else if(it.stage===FULLCOL){
-    const pubLink = it.artUrl && /^https?:\/\//i.test(it.artUrl) ? `<a class="alink" href="${esc(it.artUrl)}" target="_blank" rel="noopener">Open Published Article ↗</a>` : "";
+    // Terminal "Fully Live" lane (merged former Socials: Ready + Published & Scheduled).
+    // Social auto-schedules via the Mac brain → status badge replaces the old manual "Mark Scheduled".
+    const pubLink = it.artUrl && /^https?:\/\//i.test(it.artUrl) ? `<a class="alink" href="${esc(it.artUrl)}" target="_blank" rel="noopener">Open Published Article ↗</a>` : draftLinkHTML(it);
     const prods = it.type==="roundup" ? membersOf(it.grp) : [it];
     const plist = prods.map(p=>{const u=srcUrlOf(p);const t=esc(titleOf(p));return u?`<li><a href="${esc(u)}" target="_blank" rel="noopener">${t} ↗</a></li>`:`<li><span class="mname">${t}</span></li>`;}).join("");
     const prodLinks = plist?`<div class="muted2" style="margin:8px 0 2px;font-weight:700">Live product pages</div><ul class="memlist">${plist}</ul>`:"";
-    controls=`${pubLink}<span class="badge b-ok">Scheduled ✓</span>${prodLinks}
-      <div class="acts"><button class="btn ghost" data-social="${it.row}">📋 Social pack</button></div>`;
+    const schedBadge = it.sched ? '<span class="badge b-ok">✓ Scheduled</span>' : '<span class="badge b-flag">⏳ Scheduling…</span>';
+    controls=`${pubLink}${discBadge}${schedBadge}${prodLinks}
+      <div class="acts"><button class="btn coral" data-social="${it.row}">📋 View social pack</button></div>`;
   }
   const im = (it.type!=="roundup" && it.stage===NEWCOL) ? imgOf(it) : "";
   const thumb = im ? `<img class="thumb-sm" src="${esc(im)}" data-zoom="${esc(im)}" onerror="this.style.display='none'">` : "";
@@ -1293,8 +1293,8 @@ async function openSocialPack(row){
       <h3>${esc(titleOf(it))}</h3>
       ${body}
       <div class="mfoot">
-        ${it.sched?'<span class="badge b-ok">Scheduled ✓</span>'
-          :`<button class="btn coral" data-schedule="${it.row}"${canSchedule?'':' disabled title="Clear the Missing Images flag first"'}>Mark Scheduled → Fully Published</button>`}
+        ${it.sched?'<span class="badge b-ok">✓ Scheduled</span>'
+          :`<span class="badge b-flag">⏳ Auto-scheduling to Metricool…</span> <button class="btn ghost sm" data-schedule="${it.row}" title="Override: flag as scheduled without moving columns">Mark scheduled manually</button>`}
       </div>`;
   }
   draw();
@@ -1314,11 +1314,10 @@ async function openSocialPack(row){
 }
 async function markScheduled(row){
   const it=pipe.find(p=>p.row===row);if(!it)return;
-  it.sched=1;it.stage=FULLCOL;render();
+  it.sched=1;render();   // stay in "Fully Live"; just flip the status flag (col L). Social auto-schedules; this is a manual override.
   try{
     await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"L"+row,data:[["yes"]]});
-    await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"C"+row,data:[[FULLCOL]]});
-    toast("Scheduled → Fully Published 🎉");
+    toast("Marked scheduled ✓");
   }catch(e){toast("Save failed: "+(e.message||""));load();}
 }
 /* ---------- roundup grouping ---------- */
