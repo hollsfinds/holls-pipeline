@@ -1291,6 +1291,10 @@ function packGroups(pack){
     pushVers("Facebook post",pack.facebook);
     pushVers("Instagram Story",pack.instagramStory);
     pushVers("Facebook Story",pack.facebookStory);
+    // TikTok Photo Mode carousel (article-tied). pack.tiktok = [{caption,frames}] (or string); pack.tiktokFrames = ordered image URLs.
+    const tkList=Array.isArray(pack.tiktok)?pack.tiktok:(pack.tiktok?[pack.tiktok]:[]);
+    tkList.forEach((t,i)=>{const cap=(t&&t.caption)?t.caption:(typeof t==="string"?t:"");if(cap)groups.push({heading:tkList.length>1?"TikTok carousel #"+(i+1):"TikTok carousel",fields:[{label:"Caption",text:cap}]});});
+    if(Array.isArray(pack.tiktokFrames)&&pack.tiktokFrames.length)groups.push({heading:"TikTok frames ("+pack.tiktokFrames.length+")",fields:pack.tiktokFrames.map((u,i)=>({label:"Frame "+(i+1),text:u}))});
   }else if(pack){
     (pack.blocks||[]).forEach(b=>groups.push({heading:b.label||"",fields:[{label:"",text:b.text||""}]}));
   }
