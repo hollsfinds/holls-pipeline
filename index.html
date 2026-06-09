@@ -356,6 +356,9 @@ button{font-family:inherit;cursor:pointer}
       </div>
     </div>
 
+    <h3 class="cal-h" style="margin:2px 0 8px">Goal &amp; coverage <button class="btn ghost sm" id="calTopRefresh" title="Refresh coverage" style="margin-left:6px">↻</button></h3>
+    <div id="calArticlesTop"></div>
+
     <div class="boardwrap"><div class="board" id="board"></div></div>
   </section>
 
@@ -1518,8 +1521,8 @@ function maybeLoadFrame(view){
 }
 
 /* ---------- posting calendar (live) ---------- */
-async function renderCalendar(){
-  const art=document.getElementById("calArticles");
+async function renderCalendar(targetId,compact){
+  const art=document.getElementById(targetId||"calArticles");
   if(!art) return;
   if(!art.dataset.loaded) art.innerHTML='<div class="cal-empty">Loading…</div>';
   let rows=[];
@@ -1570,12 +1573,12 @@ async function renderCalendar(){
   let hist='<details class="cal-details"><summary>Full history ▾</summary><table class="cal-table"><thead><tr><th>Date</th><th>Goal</th><th>Published</th><th>Running balance</th></tr></thead><tbody>';
   artRows.slice(-60).reverse().forEach(r=>{ hist+='<tr><td>'+esc(r[0])+'</td><td>'+esc(r[2])+'</td><td>'+esc(r[3])+'</td><td>'+esc(r[4]||'')+'</td></tr>'; });
   hist+='</tbody></table></details>';
-  const nav='<div class="cal-nav"><div class="nav-grp"><button type="button" id="calWeekPrev" class="strip-btn">◀ Week</button><button type="button" id="calDayPrev" class="strip-btn">‹ Day</button></div><div class="nav-mid"><button type="button" id="calToday" class="strip-btn">Today</button><span id="calLbl" class="strip-lbl"></span></div><div class="nav-grp"><button type="button" id="calDayNext" class="strip-btn">Day ›</button><button type="button" id="calWeekNext" class="strip-btn">Week ▶</button></div></div>';
-  art.innerHTML=note+warnHtml+nav+'<div id="calCards"></div>'+legend+hist;
+  const nav='<div class="cal-nav"><div class="nav-grp"><button type="button" class="strip-btn cal-wp">◀ Week</button><button type="button" class="strip-btn cal-dp">‹ Day</button></div><div class="nav-mid"><button type="button" class="strip-btn cal-td">Today</button><span class="strip-lbl cal-lbl"></span></div><div class="nav-grp"><button type="button" class="strip-btn cal-dn">Day ›</button><button type="button" class="strip-btn cal-wn">Week ▶</button></div></div>';
+  art.innerHTML=note+warnHtml+nav+'<div class="cal-cards"></div>'+legend+(compact?'':hist);
   art.dataset.loaded="1";
   // viewStart = Sunday of the current week (calendar weeks are Sun–Sat)
   let viewStart=new Date(); viewStart.setHours(0,0,0,0); viewStart.setDate(viewStart.getDate()-viewStart.getDay());
-  const renderWeek=()=>{ const box=document.getElementById('calCards'); if(!box) return;
+  const renderWeek=()=>{ const box=art.querySelector('.cal-cards'); if(!box) return;
     const tISO=isoL(new Date());
     let h='<div class="dc-wrap">';
     for(let i=0;i<7;i++){ const dt=new Date(viewStart); dt.setDate(viewStart.getDate()+i); const d=isoL(dt);
@@ -1588,21 +1591,25 @@ async function renderCalendar(){
       h+='</div>'; }
     h+='</div>'; box.innerHTML=h;
     const end=new Date(viewStart); end.setDate(viewStart.getDate()+6);
-    const lbl=document.getElementById('calLbl'); if(lbl) lbl.textContent=(viewStart.getMonth()+1)+'/'+viewStart.getDate()+' – '+(end.getMonth()+1)+'/'+end.getDate(); };
+    const lbl=art.querySelector('.cal-lbl'); if(lbl) lbl.textContent=(viewStart.getMonth()+1)+'/'+viewStart.getDate()+' – '+(end.getMonth()+1)+'/'+end.getDate(); };
   const shift=n=>{ viewStart.setDate(viewStart.getDate()+n); renderWeek(); };
-  const bind=(id,fn)=>{ const b=document.getElementById(id); if(b) b.onclick=fn; };
-  bind('calWeekPrev',()=>shift(-7)); bind('calWeekNext',()=>shift(7));
-  bind('calDayPrev',()=>shift(-1)); bind('calDayNext',()=>shift(1));
-  bind('calToday',()=>{ const t=new Date(); t.setHours(0,0,0,0); viewStart=new Date(t); viewStart.setDate(t.getDate()-t.getDay()); renderWeek(); });
+  const bind=(sel,fn)=>{ const b=art.querySelector(sel); if(b) b.onclick=fn; };
+  bind('.cal-wp',()=>shift(-7)); bind('.cal-wn',()=>shift(7));
+  bind('.cal-dp',()=>shift(-1)); bind('.cal-dn',()=>shift(1));
+  bind('.cal-td',()=>{ const t=new Date(); t.setHours(0,0,0,0); viewStart=new Date(t); viewStart.setDate(t.getDate()-t.getDay()); renderWeek(); });
   renderWeek();
 }
-document.addEventListener("click",e=>{ if(e.target&&e.target.id==="calRefresh"){ const el=document.getElementById("calArticles"); if(el)el.dataset.loaded=""; renderCalendar(); }});
+document.addEventListener("click",e=>{
+  if(e.target&&e.target.id==="calRefresh"){ const el=document.getElementById("calArticles"); if(el)el.dataset.loaded=""; renderCalendar("calArticles"); }
+  if(e.target&&e.target.id==="calTopRefresh"){ renderCalendar("calArticlesTop",true); }
+});
 
 /* ---------- tabs + tray ---------- */
 $$(".tab").forEach(b=>b.addEventListener("click",()=>{
   $$(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");
   $$(".view").forEach(v=>v.classList.remove("active"));$("#view-"+b.dataset.view).classList.add("active");
-  if(b.dataset.view==="calendar")renderCalendar();
+  if(b.dataset.view==="calendar")renderCalendar("calArticles");
+  if(b.dataset.view==="pipeline")renderCalendar("calArticlesTop",true);
   maybeLoadFrame(b.dataset.view);
 }));
 /* roundup pool is now a board column, not a tray */
@@ -1668,7 +1675,7 @@ document.addEventListener("mouseout",e=>{if(e.target.closest("[data-zoom]"))imgz
 buildHelp();
 /* ===== password gate ===== */
 const APP_PASSWORD = "2424";
-function startApp(){ document.getElementById('hfgate').classList.add('hide'); load();
+function startApp(){ document.getElementById('hfgate').classList.add('hide'); load(); renderCalendar("calArticlesTop",true);
   /* gentle auto-refresh: re-pull the Sheet every 45s, but NEVER while a modal is open (so it can't interrupt an image review) */
   if(window.__hfAuto) clearInterval(window.__hfAuto);
   window.__hfAuto = setInterval(()=>{ if(!$("#scrim").classList.contains("show")) load(); }, 45000);
