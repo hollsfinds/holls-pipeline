@@ -344,19 +344,7 @@ button{font-family:inherit;cursor:pointer}
 
   <!-- PIPELINE -->
   <section class="view active" id="view-pipeline">
-    <div class="toolbar">
-      <div>
-        <div class="lead">Your pipeline</div>
-        <div class="sub">Drag cards across stages. <b style="color:var(--coral)">⚡</b> columns auto-fire a job when you drop a card (needs Cowork open + computer on). Tap any <b>ⓘ</b> to see what happens and where.</div>
-      </div>
-      <div class="toolacts">
-        <button class="btn ghost" id="pullBtn">↻ Pull new products</button>
-        <button class="btn ghost" id="detectBtn">✓ Check published</button>
-        <button class="btn ghost" id="draftBtn">✍ Draft queued cards</button>
-      </div>
-    </div>
-
-    <h3 class="cal-h" style="margin:2px 0 8px">Goal &amp; coverage <button class="btn ghost sm" id="calTopRefresh" title="Refresh coverage" style="margin-left:6px">↻</button></h3>
+    <h3 class="cal-h" style="margin:8px 0 8px">Goal &amp; coverage <button class="btn ghost sm" id="calTopRefresh" title="Refresh coverage" style="margin-left:6px">↻</button></h3>
     <div id="calArticlesTop"></div>
 
     <div class="boardwrap"><div class="board" id="board"></div></div>
@@ -492,6 +480,7 @@ const TASK_IDS = {[DRAFTCOL]:"draft-pipeline-cards",[PUBCOL]:"social-pack-cards"
 /* ↻ "Check now" buttons in these column headers → flag the brain (requestRun) to run that detection on its NEXT sweep (~2 min) instead of waiting for the ~12-min auto-check. NEWCOL = feed-pull, FSPUB = published-article detection. */
 const REFRESH_ACTION = {
   [NEWCOL]:{action:"pull",  msg:"Checking the feed for new products ↻"},
+  [DRAFTCOL]:{action:"draft",msg:"Asked the brain to draft queued cards ✍"},
   [FSPUB]: {action:"detect",msg:"Checking FreshStore for newly published articles ✓"}
 };
 /* old stage names in the Sheet → current column names (keeps existing rows in the right column) */
