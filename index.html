@@ -589,6 +589,16 @@ button{font-family:inherit;cursor:pointer}
       .rv-approve{background:var(--teal,#2E6E6A);color:#fff;border:none}
       .rv-status{font-size:12px;opacity:.6}
       .rv-empty{padding:26px;text-align:center;background:#F7F2EC;border-radius:12px;color:#6b5d52;margin-top:6px}
+      .ns-card{border:1px solid var(--line,#E0D8CF);border-left:4px solid var(--teal,#2E6E6A);border-radius:12px;padding:14px 16px;background:#fff;margin:6px 0 18px}
+      .ns-head{font-weight:800;font-size:15px;color:var(--esp,#4A3B33)}
+      .ns-sub{font-size:12.5px;opacity:.7;margin:2px 0 10px}
+      .ns-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+      .ns-chip{font-size:12px;background:#F3EEE7;border:1px solid #E0D8CF;border-radius:14px;padding:4px 10px;cursor:pointer}
+      .ns-chip:hover{background:#FBEFE4}
+      .ns-input{width:100%;border:1px solid #E0D8CF;border-radius:8px;padding:8px;font:inherit;font-size:13px;margin-bottom:8px;box-sizing:border-box}
+      .ns-acts{display:flex;gap:10px;align-items:center;margin-top:4px}
+      .ns-submit{background:var(--teal,#2E6E6A);color:#fff;border:none}
+      .ns-status{font-size:12px;opacity:.75}
     </style>
     <div class="toolbar">
       <div>
@@ -596,6 +606,24 @@ button{font-family:inherit;cursor:pointer}
         <div class="sub">Non-promo + personal posts the pipeline queued for your OK. Edit the copy if you want, then Approve (→ scheduling) or Skip (drop it). Temporary tab — we'll fold this into the Pipeline page later.</div>
       </div>
       <div class="toolacts"><button class="btn ghost" id="reviewRefresh">↻ Refresh</button></div>
+    </div>
+    <div class="ns-card">
+      <div class="ns-head">✍️ New personal story</div>
+      <div class="ns-sub">Pick or type a topic, answer a few quick things, and submit. The brain drafts it in your voice (IG + FB + TikTok) and it drops into the queue below to approve — usually within a few minutes.</div>
+      <div class="ns-chips">
+        <span class="ns-chip">Empty-nest room reclaim</span>
+        <span class="ns-chip">A decorating fail I learned from</span>
+        <span class="ns-chip">Looks expensive, wasn't</span>
+        <span class="ns-chip">How my style evolved</span>
+        <span class="ns-chip">Behind the scenes of a find</span>
+        <span class="ns-chip">What I almost bought</span>
+      </div>
+      <input id="nsTopic" class="ns-input" placeholder="Topic (tap a chip above or type your own)">
+      <textarea id="nsStory" class="rv-cap" style="margin-bottom:8px" placeholder="What's the story? (the situation / what's happening)"></textarea>
+      <textarea id="nsFeel" class="rv-cap" style="margin-bottom:8px" placeholder="Your honest feeling or take on it"></textarea>
+      <textarea id="nsDetail" class="rv-cap" style="margin-bottom:8px" placeholder="Specific details — a room, a find, a price, a moment (the more real, the better)"></textarea>
+      <textarea id="nsNotes" class="rv-cap" style="margin-bottom:8px" placeholder="Anything that must be IN, or off-limits? (optional)"></textarea>
+      <div class="ns-acts"><button class="btn ns-submit" id="nsSubmit">Submit for drafting</button><span class="ns-status" id="nsStatus"></span></div>
     </div>
     <div id="reviewLane"></div>
   </section>
@@ -1816,6 +1844,25 @@ async function renderReview(){
       toast(ap?"Approved — queued for scheduling.":"Skipped.");
     }catch(err){ st.textContent=""; btn.disabled=false; toast("Save failed: "+(err&&err.message||err)); }
   };
+}
+/* New personal story form (writes an intake row; the Mac brain drafts it) */
+{
+  document.querySelectorAll('#view-review .ns-chip').forEach(c=>c.addEventListener('click',()=>{ const t=$('#nsTopic'); if(t){ t.value=c.textContent; t.focus(); } }));
+  const sb=$('#nsSubmit');
+  if(sb) sb.addEventListener('click', async ()=>{
+    const val=id=>{const el=$(id); return el?(el.value||'').trim():'';};
+    const topic=val('#nsTopic'), story=val('#nsStory');
+    if(!topic||!story){ toast('Add at least a topic and the story.'); return; }
+    const blob='TOPIC: '+topic+'\nSTORY: '+story+'\nFEELING: '+val('#nsFeel')+'\nDETAILS: '+val('#nsDetail')+'\nNOTES: '+val('#nsNotes');
+    const st=$('#nsStatus'); sb.disabled=true; st.textContent='Submitting…';
+    try{
+      const today=new Date().toISOString().slice(0,10);
+      await apiPost({ sheet:'NonPromo', action:'appendRow', values:[today,'(intake)','personal-intake',blob,'','interview_pending',''] });
+      st.textContent='Sent ✓ The brain will draft it shortly — check the queue below in a few minutes.';
+      ['#nsTopic','#nsStory','#nsFeel','#nsDetail','#nsNotes'].forEach(id=>{const el=$(id); if(el) el.value='';});
+    }catch(e){ st.textContent=''; toast('Submit failed: '+(e&&e.message||e)); }
+    finally{ sb.disabled=false; }
+  });
 }
 /* roundup pool is now a board column, not a tray */
 
