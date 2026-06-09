@@ -220,6 +220,8 @@ button{font-family:inherit;cursor:pointer}
 .cov-legend .lg.off{background:#f3efec;color:#7a6f66}
 .cov-legend .lg.none{background:#fff;border:1px solid var(--line);color:#7a6f66}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;flex-wrap:wrap}
+#calArticlesTop{position:sticky;top:0;z-index:50;background:#FBEFE4;padding:10px 12px 3px;margin:0 0 12px;border:1px solid #EFD9C7;border-radius:10px;box-shadow:0 7px 14px -9px rgba(0,0,0,.22)}
+#calArticlesTop .cal-rf{padding:6px 9px}
 .cal-nav .nav-mid{display:flex;align-items:center;gap:10px}
 .cal-nav .nav-grp{display:flex;gap:6px}
 .dc-wrap{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:0 0 10px}
@@ -344,7 +346,6 @@ button{font-family:inherit;cursor:pointer}
 
   <!-- PIPELINE -->
   <section class="view active" id="view-pipeline">
-    <h3 class="cal-h" style="margin:8px 0 8px">Goal &amp; coverage <button class="btn ghost sm" id="calTopRefresh" title="Refresh coverage" style="margin-left:6px">↻</button></h3>
     <div id="calArticlesTop"></div>
 
     <div class="boardwrap"><div class="board" id="board"></div></div>
@@ -1562,7 +1563,8 @@ async function renderCalendar(targetId,compact){
   let hist='<details class="cal-details"><summary>Full history ▾</summary><table class="cal-table"><thead><tr><th>Date</th><th>Goal</th><th>Published</th><th>Running balance</th></tr></thead><tbody>';
   artRows.slice(-60).reverse().forEach(r=>{ hist+='<tr><td>'+esc(r[0])+'</td><td>'+esc(r[2])+'</td><td>'+esc(r[3])+'</td><td>'+esc(r[4]||'')+'</td></tr>'; });
   hist+='</tbody></table></details>';
-  const nav='<div class="cal-nav"><div class="nav-grp"><button type="button" class="strip-btn cal-wp">◀ Week</button><button type="button" class="strip-btn cal-dp">‹ Day</button></div><div class="nav-mid"><button type="button" class="strip-btn cal-td">Today</button><span class="strip-lbl cal-lbl"></span></div><div class="nav-grp"><button type="button" class="strip-btn cal-dn">Day ›</button><button type="button" class="strip-btn cal-wn">Week ▶</button></div></div>';
+  const rfBtn = compact ? '<button type="button" class="strip-btn cal-rf" title="Refresh coverage">↻</button>' : '';
+  const nav='<div class="cal-nav"><div class="nav-grp"><button type="button" class="strip-btn cal-wp">◀ Week</button><button type="button" class="strip-btn cal-dp">‹ Day</button></div><div class="nav-mid">'+rfBtn+'<button type="button" class="strip-btn cal-td">Today</button><span class="strip-lbl cal-lbl"></span></div><div class="nav-grp"><button type="button" class="strip-btn cal-dn">Day ›</button><button type="button" class="strip-btn cal-wn">Week ▶</button></div></div>';
   art.innerHTML=(compact?'':(note+warnHtml))+nav+'<div class="cal-cards"></div>'+(compact?'':(legend+hist));
   art.dataset.loaded="1";
   // viewStart = Sunday of the current week (calendar weeks are Sun–Sat)
@@ -1585,12 +1587,12 @@ async function renderCalendar(targetId,compact){
   const bind=(sel,fn)=>{ const b=art.querySelector(sel); if(b) b.onclick=fn; };
   bind('.cal-wp',()=>shift(-7)); bind('.cal-wn',()=>shift(7));
   bind('.cal-dp',()=>shift(-1)); bind('.cal-dn',()=>shift(1));
+  bind('.cal-rf',()=>renderCalendar(targetId,compact));
   bind('.cal-td',()=>{ const t=new Date(); t.setHours(0,0,0,0); viewStart=new Date(t); viewStart.setDate(t.getDate()-t.getDay()); renderWeek(); });
   renderWeek();
 }
 document.addEventListener("click",e=>{
   if(e.target&&e.target.id==="calRefresh"){ const el=document.getElementById("calArticles"); if(el)el.dataset.loaded=""; renderCalendar("calArticles"); }
-  if(e.target&&e.target.id==="calTopRefresh"){ renderCalendar("calArticlesTop",true); }
 });
 
 /* ---------- tabs + tray ---------- */
