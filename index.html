@@ -222,6 +222,11 @@ button{font-family:inherit;cursor:pointer}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;flex-wrap:wrap}
 #calArticlesTop{position:sticky;top:56px;z-index:50;background:#FBEFE4;padding:10px 12px 3px;margin:0 0 12px;border:1px solid #EFD9C7;border-radius:10px;box-shadow:0 7px 14px -9px rgba(0,0,0,.22)}
 #calArticlesTop .cal-rf{padding:6px 9px}
+.cal-collapsed-lbl{display:none;font:700 13px/1 -apple-system,system-ui,sans-serif;color:var(--espresso);cursor:pointer}
+#calArticlesTop.collapsed .cal-collapsed-lbl{display:inline-flex;align-items:center}
+#calArticlesTop.collapsed .cal-nav{justify-content:flex-start;margin-bottom:0}
+#calArticlesTop.collapsed .cal-nav .nav-grp,#calArticlesTop.collapsed .cal-nav .nav-mid,#calArticlesTop.collapsed .cal-cards{display:none}
+#calArticlesTop.collapsed{padding-bottom:8px}
 .cal-nav .nav-mid{display:flex;align-items:center;gap:10px}
 .cal-nav .nav-grp{display:flex;gap:6px}
 .dc-wrap{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:0 0 10px}
@@ -1564,8 +1569,11 @@ async function renderCalendar(targetId,compact){
   artRows.slice(-60).reverse().forEach(r=>{ hist+='<tr><td>'+esc(r[0])+'</td><td>'+esc(r[2])+'</td><td>'+esc(r[3])+'</td><td>'+esc(r[4]||'')+'</td></tr>'; });
   hist+='</tbody></table></details>';
   const rfBtn = compact ? '<button type="button" class="strip-btn cal-rf" title="Refresh coverage">↻</button>' : '';
-  const nav='<div class="cal-nav"><div class="nav-grp"><button type="button" class="strip-btn cal-wp">◀ Week</button><button type="button" class="strip-btn cal-dp">‹ Day</button></div><div class="nav-mid">'+rfBtn+'<button type="button" class="strip-btn cal-td">Today</button><span class="strip-lbl cal-lbl"></span></div><div class="nav-grp"><button type="button" class="strip-btn cal-dn">Day ›</button><button type="button" class="strip-btn cal-wn">Week ▶</button></div></div>';
+  const collapsed = compact && (()=>{try{return localStorage.getItem('hf_cal_collapsed')==='1';}catch(e){return false;}})();
+  const collapseBtn = compact ? '<button type="button" class="strip-btn cal-collapse" title="Collapse / expand">'+(collapsed?'▸':'▾')+'</button><span class="cal-collapsed-lbl">Goal &amp; coverage</span>' : '';
+  const nav='<div class="cal-nav">'+collapseBtn+'<div class="nav-grp"><button type="button" class="strip-btn cal-wp">◀ Week</button><button type="button" class="strip-btn cal-dp">‹ Day</button></div><div class="nav-mid">'+rfBtn+'<button type="button" class="strip-btn cal-td">Today</button><span class="strip-lbl cal-lbl"></span></div><div class="nav-grp"><button type="button" class="strip-btn cal-dn">Day ›</button><button type="button" class="strip-btn cal-wn">Week ▶</button></div></div>';
   art.innerHTML=(compact?'':(note+warnHtml))+nav+'<div class="cal-cards"></div>'+(compact?'':(legend+hist));
+  if(compact) art.classList.toggle('collapsed', !!collapsed);
   art.dataset.loaded="1";
   // viewStart = Sunday of the current week (calendar weeks are Sun–Sat)
   let viewStart=new Date(); viewStart.setHours(0,0,0,0); viewStart.setDate(viewStart.getDate()-viewStart.getDay());
@@ -1588,6 +1596,8 @@ async function renderCalendar(targetId,compact){
   bind('.cal-wp',()=>shift(-7)); bind('.cal-wn',()=>shift(7));
   bind('.cal-dp',()=>shift(-1)); bind('.cal-dn',()=>shift(1));
   bind('.cal-rf',()=>renderCalendar(targetId,compact));
+  const toggleCol=()=>{const now=art.classList.toggle('collapsed');try{localStorage.setItem('hf_cal_collapsed',now?'1':'');}catch(e){}const cb=art.querySelector('.cal-collapse');if(cb)cb.textContent=now?'▸':'▾';};
+  bind('.cal-collapse',toggleCol); bind('.cal-collapsed-lbl',toggleCol);
   bind('.cal-td',()=>{ const t=new Date(); t.setHours(0,0,0,0); viewStart=new Date(t); viewStart.setDate(t.getDate()-t.getDay()); renderWeek(); });
   renderWeek();
 }
