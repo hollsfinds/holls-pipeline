@@ -342,6 +342,7 @@ button{font-family:inherit;cursor:pointer}
     <div class="tabs">
       <button class="tab active" data-view="pipeline">Pipeline</button>
       <button class="tab" data-view="calendar">Posting Calendar</button>
+      <button class="tab" data-view="review">Review</button>
       <button class="tab" data-view="reference">Reference Tool</button>
       <button class="tab" data-view="help">Help</button>
     </div>
@@ -571,6 +572,32 @@ button{font-family:inherit;cursor:pointer}
         <p class="cal-rule"><b>Pinterest pins/day = 6 × articles/day.</b> ~2.5 published articles/day keeps the 15/day calendar full; publish more and the runway fills further ahead.</p>
       </div>
     </div>
+  </section>
+
+  <section class="view" id="view-review">
+    <style>
+      .rv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:6px}
+      .rv-card{border:1px solid var(--line,#E0D8CF);border-radius:12px;overflow:hidden;background:#fff;display:flex;flex-direction:column}
+      .rv-thumb{aspect-ratio:4/5;background:#F7F2EC;overflow:hidden}
+      .rv-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+      .rv-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+      .rv-meta{display:flex;gap:8px;align-items:center;font-size:12px;flex-wrap:wrap}
+      .rv-tag{font-weight:700;border-radius:5px;padding:2px 8px;text-transform:capitalize}
+      .rv-plat{font-weight:600;text-transform:capitalize}.rv-date{opacity:.55;margin-left:auto}
+      .rv-cap{width:100%;min-height:78px;resize:vertical;border:1px solid #E0D8CF;border-radius:8px;padding:8px;font:inherit;font-size:13px;line-height:1.45;box-sizing:border-box}
+      .rv-acts{display:flex;gap:8px;align-items:center}
+      .rv-approve{background:var(--teal,#2E6E6A);color:#fff;border:none}
+      .rv-status{font-size:12px;opacity:.6}
+      .rv-empty{padding:26px;text-align:center;background:#F7F2EC;border-radius:12px;color:#6b5d52;margin-top:6px}
+    </style>
+    <div class="toolbar">
+      <div>
+        <div class="lead">Post review</div>
+        <div class="sub">Non-promo + personal posts the pipeline queued for your OK. Edit the copy if you want, then Approve (→ scheduling) or Skip (drop it). Temporary tab — we'll fold this into the Pipeline page later.</div>
+      </div>
+      <div class="toolacts"><button class="btn ghost" id="reviewRefresh">↻ Refresh</button></div>
+    </div>
+    <div id="reviewLane"></div>
   </section>
 </div>
 
@@ -1749,8 +1776,47 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
   $$(".view").forEach(v=>v.classList.remove("active"));$("#view-"+b.dataset.view).classList.add("active");
   if(b.dataset.view==="calendar")renderCalendar("calArticles");
   if(b.dataset.view==="pipeline")renderCalendar("calArticlesTop",true);
+  if(b.dataset.view==="review")renderReview();
   maybeLoadFrame(b.dataset.view);
 }));
+{ const rb=$("#reviewRefresh"); if(rb) rb.addEventListener("click",renderReview); }
+/* ---------- NonPromo review lane (separate tab for now) ---------- */
+async function renderReview(){
+  const host=$("#reviewLane"); if(!host) return;
+  host.innerHTML='<p class="muted">Loading…</p>';
+  let rows=[];
+  try{ const data=await apiGet(); rows=data["NonPromo"]||[]; }
+  catch(e){ host.innerHTML='<p class="muted">Couldn’t reach the Sheet: '+esc(e&&e.message||String(e))+'</p>'; return; }
+  const body=rows.slice(1); // cols: 0 Date,1 Platform,2 Type,3 Caption,4 ImageRef,5 Status,6 ScheduledId
+  const pending=body.map((r,i)=>({r,sheetRow:i+2})).filter(o=>String(o.r[5]||"").trim().toLowerCase()==="needs_review");
+  if(!pending.length){ host.innerHTML='<div class="rv-empty">🎉 Nothing waiting for review. New non-promo + personal posts show up here as the pipeline queues them.</div>'; return; }
+  const tcol=t=>({personal:["#FAD9D3","#B0392B"],value:["#EBEFE6","#5E6E50"],engagement:["#FFE7D6","#B5702F"],trending:["#E7E0F0","#6B5B95"]})[String(t||"").toLowerCase()]||["#eee","#555"];
+  const isImg=s=>/^https?:\/\//i.test(String(s||""));
+  let html='<div class="rv-grid">';
+  pending.forEach(o=>{ const dt=o.r[0],pl=o.r[1],ty=o.r[2],cap=o.r[3],img=o.r[4]; const tc=tcol(ty);
+    html+='<div class="rv-card" data-row="'+o.sheetRow+'">';
+    if(isImg(img)) html+='<div class="rv-thumb"><img src="'+esc(img)+'" alt="" loading="lazy"></div>';
+    html+='<div class="rv-body"><div class="rv-meta"><span class="rv-tag" style="background:'+tc[0]+';color:'+tc[1]+'">'+esc(ty||"post")+'</span><span class="rv-plat">'+esc(pl||"")+'</span><span class="rv-date">'+esc(String(dt||"").slice(0,10))+'</span></div>';
+    html+='<textarea class="rv-cap">'+esc(cap||"")+'</textarea>';
+    html+='<div class="rv-acts"><button class="btn rv-approve" data-row="'+o.sheetRow+'">✓ Approve</button><button class="btn ghost rv-skip" data-row="'+o.sheetRow+'">Skip</button><span class="rv-status"></span></div></div></div>';
+  });
+  html+='</div>';
+  host.innerHTML=html;
+  host.onclick=async e=>{
+    const ap=e.target.closest(".rv-approve"), sk=e.target.closest(".rv-skip"); const btn=ap||sk; if(!btn) return;
+    const card=btn.closest(".rv-card"), row=parseInt(card.dataset.row,10), st=card.querySelector(".rv-status");
+    const cap=card.querySelector(".rv-cap").value;
+    btn.disabled=true; st.textContent="Saving…";
+    try{
+      if(ap){ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:cap});
+              await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"queued"}); }
+      else  { await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"}); }
+      card.style.transition="opacity .3s"; card.style.opacity="0";
+      setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")) renderReview(); },320);
+      toast(ap?"Approved — queued for scheduling.":"Skipped.");
+    }catch(err){ st.textContent=""; btn.disabled=false; toast("Save failed: "+(err&&err.message||err)); }
+  };
+}
 /* roundup pool is now a board column, not a tray */
 
 /* ---------- manual run buttons (flag-trigger the Mac brain) ----------
