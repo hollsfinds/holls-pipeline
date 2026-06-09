@@ -252,9 +252,10 @@ button{font-family:inherit;cursor:pointer}
 .side-cal{flex:0 0 auto;background:#FBEFE4;border:1px solid #EFD9C7;border-radius:12px;padding:10px;box-shadow:0 7px 14px -9px rgba(0,0,0,.18)}
 .cal-side-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
 .cal-side-title{font-weight:800;font-size:13px;color:var(--espresso)}
-.cal-daylist{overflow-y:auto;max-height:210px;scroll-snap-type:y mandatory;display:flex;flex-direction:column;gap:8px;padding-right:2px}
-.cal-daylist .dc{scroll-snap-align:start;flex:0 0 auto}
-.cal-daylist .dc-hd{display:flex;justify-content:center;gap:6px;text-transform:none;letter-spacing:0}
+.cal-oneday{display:flex;flex-direction:column;gap:6px}
+.day-arrow{border:1px solid var(--line);background:#fff;color:var(--muted);width:100%;padding:3px 0;border-radius:8px;cursor:pointer;font-size:12px;line-height:1}
+.day-arrow:hover{background:var(--peach);color:var(--espresso)}
+.cal-daybox .dc-hd{display:flex;justify-content:center;gap:6px;text-transform:none;letter-spacing:0}
 .cal-nav .nav-mid{display:flex;align-items:center;gap:10px}
 .cal-nav .nav-grp{display:flex;gap:6px}
 .dc-wrap{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:0 0 10px}
@@ -1860,25 +1861,25 @@ async function renderCalendar(targetId,compact){
   // ---- Pipeline sidebar calendar: one day at a time, vertically scrollable (compact only).
   //      Posting Calendar page (compact=false) keeps the full week grid below — untouched.
   if(compact){
-    art.innerHTML='<div class="cal-side-h"><span class="cal-side-title">📅 Calendar</span><button type="button" class="strip-btn cal-td">Today</button></div><div class="cal-daylist"></div>';
+    art.innerHTML='<div class="cal-side-h"><span class="cal-side-title">📅 Calendar</span><button type="button" class="strip-btn cal-td">Today</button></div>'
+      +'<div class="cal-oneday"><button type="button" class="day-arrow cal-up" title="Previous day">▲</button><div class="cal-daybox"></div><button type="button" class="day-arrow cal-dn" title="Next day">▼</button></div>';
     art.dataset.loaded="1";
-    const box=art.querySelector('.cal-daylist');
-    const today=new Date(); today.setHours(0,0,0,0); const tISO=isoL(today);
-    const start=new Date(today); start.setDate(today.getDate()-45);   // window: 45 days back … 90 days ahead
-    let h='';
-    for(let i=0;i<136;i++){ const dt=new Date(start); dt.setDate(start.getDate()+i); const d=isoL(dt);
-      const isT=(d===tISO);
-      h+='<div class="dc'+(isT?' today':'')+'" data-d="'+d+'"><div class="dc-hd">'+wd[dt.getDay()]+' '+(dt.getMonth()+1)+'/'+dt.getDate()+(isT?' • Today':'')+'</div>';
+    const dayBox=art.querySelector('.cal-daybox');
+    const today=new Date(); today.setHours(0,0,0,0);
+    let off=0;   // days from today; ▲ goes back, ▼ goes forward
+    const drawDay=()=>{ const dt=new Date(today); dt.setDate(today.getDate()+off); const d=isoL(dt); const isT=(off===0);
+      let h='<div class="dc'+(isT?' today':'')+'"><div class="dc-hd">'+wd[dt.getDay()]+' '+(dt.getMonth()+1)+'/'+dt.getDate()+(isT?' • Today':'')+'</div>';
       lanes.forEach(L=>{ let rec;
         if(L.art){ rec=byDate[d]; }
         else { rec=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb])); if(!rec&&L.dg!=null) rec={goal:L.dg,sched:0}; }
         const c=cellFor(rec);
         h+='<div class="dc-row '+c.cls+'"><span class="dc-lbl">'+L.n+'</span><span class="dc-val">'+c.txt+'</span></div>'; });
-      h+='</div>'; }
-    box.innerHTML=h;
-    const snapToday=()=>{ const el=box.querySelector('.dc.today'); if(el) box.scrollTop=el.offsetTop-box.offsetTop; };
-    snapToday();
-    const tb=art.querySelector('.cal-td'); if(tb) tb.onclick=snapToday;
+      h+='</div>'; dayBox.innerHTML=h; };
+    drawDay();
+    const bindC=(sel,fn)=>{ const b=art.querySelector(sel); if(b) b.onclick=fn; };
+    bindC('.cal-up',()=>{ off--; drawDay(); });
+    bindC('.cal-dn',()=>{ off++; drawDay(); });
+    bindC('.cal-td',()=>{ off=0; drawDay(); });
     return;
   }
   // banked note
