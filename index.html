@@ -71,7 +71,7 @@ button{font-family:inherit;cursor:pointer}
 .rhint{font-size:11px;color:var(--teal);font-weight:700;margin-top:6px;min-height:14px}
 
 /* board */
-.boardwrap{overflow-x:auto;padding-bottom:10px}
+.boardwrap{overflow-x:auto;padding-bottom:10px;flex:1 1 auto;min-width:0}
 .board{display:flex;gap:13px;min-width:max-content;align-items:flex-start}
 .col{background:#fff;border:1px solid var(--line);border-radius:14px;width:248px;flex:0 0 248px;
   display:flex;flex-direction:column;max-height:calc(100vh - 190px)}
@@ -236,13 +236,25 @@ button{font-family:inherit;cursor:pointer}
 .cov-legend .lg.off{background:#f3efec;color:#7a6f66}
 .cov-legend .lg.none{background:#fff;border:1px solid var(--line);color:#7a6f66}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;flex-wrap:wrap}
-#calArticlesTop{position:sticky;top:56px;z-index:50;background:#FBEFE4;padding:10px 12px 3px;margin:0 0 12px;border:1px solid #EFD9C7;border-radius:10px;box-shadow:0 7px 14px -9px rgba(0,0,0,.22)}
-#calArticlesTop .cal-rf{padding:6px 9px}
-.cal-collapsed-lbl{display:none;font:700 13px/1 -apple-system,system-ui,sans-serif;color:var(--espresso);cursor:pointer}
-#calArticlesTop.collapsed .cal-collapsed-lbl{display:inline-flex;align-items:center}
-#calArticlesTop.collapsed .cal-nav{justify-content:flex-start;margin-bottom:0}
-#calArticlesTop.collapsed .cal-nav .nav-grp,#calArticlesTop.collapsed .cal-nav .nav-mid,#calArticlesTop.collapsed .cal-cards{display:none}
-#calArticlesTop.collapsed{padding-bottom:8px}
+.cal-collapsed-lbl{display:none}
+/* ---- Pipeline page: left sidebar (To-Do + single-day calendar) beside the board ---- */
+.pipe-layout{display:flex;gap:12px;align-items:flex-start}
+.pipe-side{flex:0 0 300px;width:300px;position:sticky;top:56px;align-self:flex-start;max-height:calc(100vh - 74px);display:flex;flex-direction:column;gap:10px}
+.pipe-side.collapsed{flex:0 0 auto;width:auto}
+.pipe-side.collapsed .side-inner{display:none}
+.side-toggle{align-self:flex-start;border:1px solid var(--line);background:#fff;color:var(--muted);font-weight:700;font-size:11px;padding:5px 10px;border-radius:8px;cursor:pointer}
+.side-toggle:hover{background:var(--peach)}
+.side-inner{display:flex;flex-direction:column;gap:12px;min-height:0;flex:1 1 auto}
+.todo-box{flex:1 1 auto;min-height:90px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.todo-box .side-h{padding:10px 12px;font-weight:800;font-size:13px;color:var(--espresso);border-bottom:1px solid var(--line);background:#faf7f5}
+.todo-box .todo-body{padding:12px;overflow-y:auto;flex:1 1 auto}
+.todo-empty{color:#c8bfb9;font-size:12px;font-style:italic;margin:0}
+.side-cal{flex:0 0 auto;background:#FBEFE4;border:1px solid #EFD9C7;border-radius:12px;padding:10px;box-shadow:0 7px 14px -9px rgba(0,0,0,.18)}
+.cal-side-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
+.cal-side-title{font-weight:800;font-size:13px;color:var(--espresso)}
+.cal-daylist{overflow-y:auto;max-height:210px;scroll-snap-type:y mandatory;display:flex;flex-direction:column;gap:8px;padding-right:2px}
+.cal-daylist .dc{scroll-snap-align:start;flex:0 0 auto}
+.cal-daylist .dc-hd{display:flex;justify-content:center;gap:6px;text-transform:none;letter-spacing:0}
 .cal-nav .nav-mid{display:flex;align-items:center;gap:10px}
 .cal-nav .nav-grp{display:flex;gap:6px}
 .dc-wrap{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:0 0 10px}
@@ -368,9 +380,19 @@ button{font-family:inherit;cursor:pointer}
 
   <!-- PIPELINE -->
   <section class="view active" id="view-pipeline">
-    <div id="calArticlesTop"></div>
-
-    <div class="boardwrap"><div class="board" id="board"></div></div>
+    <div class="pipe-layout">
+      <aside class="pipe-side" id="pipeSide">
+        <button class="side-toggle" id="sideToggle" title="Hide / show this panel">◀ Hide</button>
+        <div class="side-inner">
+          <section class="todo-box">
+            <div class="side-h">📝 To-Do</div>
+            <div class="todo-body"><p class="todo-empty">Your to-do list will live here — coming soon.</p></div>
+          </section>
+          <section class="side-cal" id="calArticlesTop"></section>
+        </div>
+      </aside>
+      <div class="boardwrap"><div class="board" id="board"></div></div>
+    </div>
   </section>
 
   <!-- REFERENCE -->
@@ -1835,6 +1857,30 @@ async function renderCalendar(targetId,compact){
     if(rec.sched>=rec.goal) return {cls:'full',txt:rec.sched+'/'+rec.goal};
     if(rec.sched>0) return {cls:'part',txt:rec.sched+'/'+rec.goal};
     return {cls:'gap',txt:'0/'+rec.goal}; };
+  // ---- Pipeline sidebar calendar: one day at a time, vertically scrollable (compact only).
+  //      Posting Calendar page (compact=false) keeps the full week grid below — untouched.
+  if(compact){
+    art.innerHTML='<div class="cal-side-h"><span class="cal-side-title">📅 Calendar</span><button type="button" class="strip-btn cal-td">Today</button></div><div class="cal-daylist"></div>';
+    art.dataset.loaded="1";
+    const box=art.querySelector('.cal-daylist');
+    const today=new Date(); today.setHours(0,0,0,0); const tISO=isoL(today);
+    const start=new Date(today); start.setDate(today.getDate()-45);   // window: 45 days back … 90 days ahead
+    let h='';
+    for(let i=0;i<136;i++){ const dt=new Date(start); dt.setDate(start.getDate()+i); const d=isoL(dt);
+      const isT=(d===tISO);
+      h+='<div class="dc'+(isT?' today':'')+'" data-d="'+d+'"><div class="dc-hd">'+wd[dt.getDay()]+' '+(dt.getMonth()+1)+'/'+dt.getDate()+(isT?' • Today':'')+'</div>';
+      lanes.forEach(L=>{ let rec;
+        if(L.art){ rec=byDate[d]; }
+        else { rec=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb])); if(!rec&&L.dg!=null) rec={goal:L.dg,sched:0}; }
+        const c=cellFor(rec);
+        h+='<div class="dc-row '+c.cls+'"><span class="dc-lbl">'+L.n+'</span><span class="dc-val">'+c.txt+'</span></div>'; });
+      h+='</div>'; }
+    box.innerHTML=h;
+    const snapToday=()=>{ const el=box.querySelector('.dc.today'); if(el) box.scrollTop=el.offsetTop-box.offsetTop; };
+    snapToday();
+    const tb=art.querySelector('.cal-td'); if(tb) tb.onclick=snapToday;
+    return;
+  }
   // banked note
   const aheadDays=agoal?(latestBal/agoal):0; let note;
   if(latestBal>0) note='<div class="cal-note ahead">🎉 You\'re <b>+'+latestBal+' article'+(latestBal===1?'':'s')+' ahead</b> of goal — about <b>'+aheadDays.toFixed(1)+' days</b> of runway banked.</div>';
@@ -1883,6 +1929,15 @@ async function renderCalendar(targetId,compact){
 document.addEventListener("click",e=>{
   if(e.target&&e.target.id==="calRefresh"){ const el=document.getElementById("calArticles"); if(el)el.dataset.loaded=""; renderCalendar("calArticles"); }
 });
+/* Pipeline left sidebar — collapse toggle (persisted) */
+(function(){
+  const side=document.getElementById("pipeSide"), btn=document.getElementById("sideToggle");
+  if(!side||!btn) return;
+  const apply=c=>{ side.classList.toggle("collapsed",c); btn.textContent=c?"▶ Show":"◀ Hide"; };
+  let collapsed=false; try{ collapsed=localStorage.getItem("hf_side_collapsed")==="1"; }catch(_){}
+  apply(collapsed);
+  btn.addEventListener("click",()=>{ collapsed=!collapsed; apply(collapsed); try{localStorage.setItem("hf_side_collapsed",collapsed?"1":"");}catch(_){}});
+})();
 
 /* ---------- tabs + tray ---------- */
 $$(".tab").forEach(b=>b.addEventListener("click",()=>{
