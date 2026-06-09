@@ -226,7 +226,7 @@ button{font-family:inherit;cursor:pointer}
 .dc{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
 .dc.today{box-shadow:0 0 0 2px var(--coral)}
 .dc-hd{text-align:center;padding:6px 4px;background:#faf7f5;font-size:11px;font-weight:700;color:var(--espresso);text-transform:uppercase;letter-spacing:.03em}
-.dc-hd span{display:block;font-weight:500;color:#b3a89f;font-size:11px}
+.dc-hd span{display:inline;margin-left:5px;font-weight:500;color:#b3a89f;font-size:11px}
 .dc-row{display:flex;justify-content:space-between;align-items:center;gap:4px;padding:4px 7px;font-size:11px;border-top:1px solid var(--line)}
 .dc-lbl{color:#7a6f66}
 .dc-val{font-weight:700;font-variant-numeric:tabular-nums}
@@ -1541,7 +1541,7 @@ async function renderCalendar(targetId,compact){
   let agoal=6, latestBal=0, latestDate=''; const byDate={};
   artRows.forEach(r=>{ const d=String(r[0]||'').slice(0,10); if(!d) return;
     const g=parseInt(r[2]||'6',10)||6; agoal=g;
-    byDate[d]={goal:g, pub:parseInt(r[3]||'0',10)||0};
+    byDate[d]={goal:g, sched:parseInt(r[3]||'0',10)||0};   // articles use col D ("Scheduled" = published count); cellFor reads .sched
     if(d>=latestDate){ latestDate=d; latestBal=parseInt(String(r[4]||'0').replace('+',''),10)||0; } });
   // coverage map + furthest scheduled per platform
   const map={}, furthest={};
