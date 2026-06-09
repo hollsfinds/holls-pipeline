@@ -588,6 +588,7 @@ button{font-family:inherit;cursor:pointer}
       .rv-acts{display:flex;gap:8px;align-items:center}
       .rv-approve{background:var(--teal,#2E6E6A);color:#fff;border:none}
       .rv-status{font-size:12px;opacity:.6}
+      .rv-cardbadge{font-size:11px;background:#EFE7F0;color:#6B5B95;border-radius:5px;padding:2px 7px;font-weight:600;white-space:nowrap}
       .rv-empty{padding:26px;text-align:center;background:#F7F2EC;border-radius:12px;color:#6b5d52;margin-top:6px}
       .ns-card{border:1px solid var(--line,#E0D8CF);border-left:4px solid var(--teal,#2E6E6A);border-radius:12px;padding:14px 16px;background:#fff;margin:6px 0 18px}
       .ns-head{font-weight:800;font-size:15px;color:var(--esp,#4A3B33)}
@@ -1821,7 +1822,7 @@ async function renderReview(){
   pending.forEach(o=>{ const dt=o.r[0],pl=o.r[1],ty=o.r[2],cap=o.r[3],img=o.r[4]; const tc=tcol(ty);
     html+='<div class="rv-card" data-row="'+o.sheetRow+'">';
     if(isImg(img)) html+='<div class="rv-thumb"><img src="'+esc(img)+'" alt="" loading="lazy"></div>';
-    html+='<div class="rv-body"><div class="rv-meta"><span class="rv-tag" style="background:'+tc[0]+';color:'+tc[1]+'">'+esc(ty||"post")+'</span><span class="rv-plat">'+esc(pl||"")+'</span><span class="rv-date">'+esc(String(dt||"").slice(0,10))+'</span></div>';
+    html+='<div class="rv-body"><div class="rv-meta"><span class="rv-tag" style="background:'+tc[0]+';color:'+tc[1]+'">'+esc(ty||"post")+'</span><span class="rv-plat">'+esc(pl||"")+'</span>'+(isImg(img)?'':'<span class="rv-cardbadge">🖼 branded card</span>')+'<span class="rv-date">'+esc(String(dt||"").slice(0,10))+'</span></div>';
     html+='<textarea class="rv-cap">'+esc(cap||"")+'</textarea>';
     html+='<div class="rv-acts"><button class="btn rv-approve" data-row="'+o.sheetRow+'">✓ Approve</button><button class="btn ghost rv-skip" data-row="'+o.sheetRow+'">Skip</button><span class="rv-status"></span></div></div></div>';
   });
