@@ -405,6 +405,7 @@ button{font-family:inherit;cursor:pointer}
 
     <h3 class="cal-h">Calendar — goal + coverage</h3>
     <div id="calArticles"></div>
+    <div id="seasonFocusBar" style="margin:2px 0 16px;padding:7px 12px;border:1px solid #EFD9C7;border-left:4px solid var(--coral,#F88378);border-radius:8px;background:#FBEFE4;font-size:12.5px;line-height:1.6"></div>
 
     <h3 class="cal-h">Seasonal ramp plan</h3>
     <div id="seasonalRamp"></div>
@@ -502,6 +503,39 @@ button{font-family:inherit;cursor:pointer}
       });
       out+='</div>';
       el.innerHTML=out;
+    })();</script>
+
+    <script>(function(){
+      var bar=document.getElementById("seasonFocusBar"); if(!bar) return;
+      var MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      // [emoji, name, eventMonth 0-based] — prep starts 3 mo before the event
+      var SE=[
+        ["🎆","July 4th",6],["☀️","Summer patio",6],["✏️","Back-to-school",7],
+        ["🍂","Fall decor",9],["🎃","Halloween",9],["🦃","Thanksgiving",10],
+        ["🎄","Christmas",11],["🎁","Gift guides",11],["🧣","Winter cozy",0],
+        ["🗂️","New Year org",0],["💐","Valentine’s",1],["🌷","Spring refresh",2],
+        ["🐰","Easter",3],["💝","Mother’s Day",4],["🪴","Late-spring patio",5]
+      ];
+      function render(m){
+        var heavy=[],ramp=[],prep=[];
+        SE.forEach(function(s){var u=(s[2]-m+12)%12; var c=s[0]+" "+s[1];
+          if(u===0||u===1)heavy.push(c); else if(u===2)ramp.push(c); else if(u===3)prep.push(c);});
+        var seg=[];
+        if(heavy.length)seg.push('<b style="color:#B0392B">🔴 Heavy:</b> '+heavy.join(", "));
+        if(ramp.length)seg.push('<b style="color:#B5702F">🟠 Ramp:</b> '+ramp.join(", "));
+        if(prep.length)seg.push('<b style="color:#5E6E50">🟢 Prep:</b> '+prep.join(", "));
+        var body=seg.length?seg.join(' &nbsp;<span style="opacity:.35">|</span>&nbsp; '):"No seasonal pushes due this week.";
+        bar.innerHTML='<b style="white-space:nowrap">📌 Seasonal focus — '+MN[m]+':</b> '+body;
+      }
+      function curMonth(){
+        var lbl=document.querySelector("#calArticles .cal-lbl");
+        if(lbl){var mm=(lbl.textContent||"").match(/(\d+)\/\d+/); if(mm){var mi=parseInt(mm[1],10)-1; if(mi>=0&&mi<12) return mi;}}
+        return new Date().getMonth();
+      }
+      function upd(){ render(curMonth()); }
+      upd();
+      var host=document.getElementById("calArticles");
+      if(host && window.MutationObserver){ new MutationObserver(upd).observe(host,{childList:true,subtree:true,characterData:true}); }
     })();</script>
 
     <h3 class="cal-h">The plan</h3>
