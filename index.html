@@ -1880,6 +1880,14 @@ async function renderCalendar(targetId,compact){
     bindC('.cal-up',()=>{ off--; drawDay(); });
     bindC('.cal-dn',()=>{ off++; drawDay(); });
     bindC('.cal-td',()=>{ off=0; drawDay(); });
+    // scroll over the calendar to step one full day per flick (throttled so trackpad momentum = one day)
+    const oneday=art.querySelector('.cal-oneday'); let wheelLock=false;
+    if(oneday) oneday.addEventListener('wheel',e=>{
+      e.preventDefault();
+      if(wheelLock || Math.abs(e.deltaY)<2) return;
+      off += (e.deltaY>0?1:-1); drawDay();
+      wheelLock=true; setTimeout(()=>{wheelLock=false;},220);
+    },{passive:false});
     return;
   }
   // banked note
