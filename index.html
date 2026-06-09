@@ -32,7 +32,7 @@ h1,h2,h3{margin:0}
 button{font-family:inherit;cursor:pointer}
 .app{max-width:100%;padding:0 0 40px}
 /* top bar */
-.topbar{position:sticky;top:0;z-index:30;background:var(--white);border-bottom:1px solid var(--line);
+.topbar{position:sticky;top:0;z-index:60;background:var(--white);border-bottom:1px solid var(--line);
   padding:12px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:.2px}
 .brand .dot{width:13px;height:13px;border-radius:50%;background:var(--coral);box-shadow:0 0 0 3px #f8837822}
@@ -220,7 +220,7 @@ button{font-family:inherit;cursor:pointer}
 .cov-legend .lg.off{background:#f3efec;color:#7a6f66}
 .cov-legend .lg.none{background:#fff;border:1px solid var(--line);color:#7a6f66}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;flex-wrap:wrap}
-#calArticlesTop{position:sticky;top:0;z-index:50;background:#FBEFE4;padding:10px 12px 3px;margin:0 0 12px;border:1px solid #EFD9C7;border-radius:10px;box-shadow:0 7px 14px -9px rgba(0,0,0,.22)}
+#calArticlesTop{position:sticky;top:56px;z-index:50;background:#FBEFE4;padding:10px 12px 3px;margin:0 0 12px;border:1px solid #EFD9C7;border-radius:10px;box-shadow:0 7px 14px -9px rgba(0,0,0,.22)}
 #calArticlesTop .cal-rf{padding:6px 9px}
 .cal-nav .nav-mid{display:flex;align-items:center;gap:10px}
 .cal-nav .nav-grp{display:flex;gap:6px}
@@ -1701,17 +1701,17 @@ try{ if(localStorage.getItem('hf_auth')==='1') startApp(); }catch(e){}
     const el = document.getElementById("pausePill"); if(!el) return;
     const p = await isPaused();
     el.dataset.state = p ? "paused" : "live";
-    el.innerHTML = '<span class="pp-dot"></span>' + (p ? "Pipeline paused — tap to resume" : "Pipeline live — tap to pause");
+    el.innerHTML = '<span class="pp-dot"></span>' + (p ? "Paused" : "Live");
   }
   function mount(){
     if(document.getElementById("pausePill")) return;
     const css = document.createElement("style");
-    css.textContent = "#pausePill{position:fixed;top:10px;right:12px;z-index:99999;display:flex;align-items:center;gap:8px;font:700 12px/1 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:8px 13px;box-shadow:0 2px 10px rgba(0,0,0,.10);cursor:pointer;user-select:none;color:#2C2421}#pausePill .pp-dot{width:9px;height:9px;border-radius:50%;background:#43B3AE}#pausePill[data-state=paused]{border-color:#F88378;color:#9a3b32}#pausePill[data-state=paused] .pp-dot{background:#F88378} .genwait{display:flex;align-items:flex-start;gap:8px;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#9a6a3a;background:#FBF3EC;border:1px solid #F3E0CE;border-radius:8px;padding:8px 10px;margin-top:6px} .genwait .genspin{margin-top:1px;width:11px;height:11px;border-radius:50%;border:2px solid #E9C9A8;border-top-color:#F88378;animation:genspin .8s linear infinite;flex:0 0 auto} @keyframes genspin{to{transform:rotate(360deg)}} .rf-btn{margin-left:5px;border:1px solid #e7ded7;background:#fff;color:#7a5a44;width:20px;height:20px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto} .rf-btn:hover{background:#FBF3EC;border-color:#F3E0CE;color:#F88378} .rf-btn.spin{animation:genspin .7s linear infinite} .genwait.genwarn{color:#9a3b32;background:#FDECEA;border-color:#F6C9C2} .genwait.genwarn .genspin{border-color:#F3C0B8;border-top-color:#F88378} .generr{display:flex;flex-direction:column;gap:8px;align-items:flex-start;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#8a2f27;background:#FDE7E4;border:1px solid #EFA99E;border-radius:8px;padding:9px 11px;margin-top:6px} .generr .btn.sm{padding:5px 11px;font-size:11px;line-height:1.1;text-decoration:none} .bp-sel{width:100%;padding:9px 10px;border:1px solid #e7ded7;border-radius:8px;font-size:13px;background:#fff;color:#2C2421}";
+    css.textContent = "#pausePill{display:flex;align-items:center;gap:7px;margin-left:10px;flex:0 0 auto;font:700 12px/1 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:7px 12px;cursor:pointer;user-select:none;color:#2C2421}#pausePill .pp-dot{width:9px;height:9px;border-radius:50%;background:#43B3AE}#pausePill[data-state=paused]{border-color:#F88378;color:#9a3b32}#pausePill[data-state=paused] .pp-dot{background:#F88378} .genwait{display:flex;align-items:flex-start;gap:8px;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#9a6a3a;background:#FBF3EC;border:1px solid #F3E0CE;border-radius:8px;padding:8px 10px;margin-top:6px} .genwait .genspin{margin-top:1px;width:11px;height:11px;border-radius:50%;border:2px solid #E9C9A8;border-top-color:#F88378;animation:genspin .8s linear infinite;flex:0 0 auto} @keyframes genspin{to{transform:rotate(360deg)}} .rf-btn{margin-left:5px;border:1px solid #e7ded7;background:#fff;color:#7a5a44;width:20px;height:20px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto} .rf-btn:hover{background:#FBF3EC;border-color:#F3E0CE;color:#F88378} .rf-btn.spin{animation:genspin .7s linear infinite} .genwait.genwarn{color:#9a3b32;background:#FDECEA;border-color:#F6C9C2} .genwait.genwarn .genspin{border-color:#F3C0B8;border-top-color:#F88378} .generr{display:flex;flex-direction:column;gap:8px;align-items:flex-start;font:600 11.5px/1.45 -apple-system,system-ui,sans-serif;color:#8a2f27;background:#FDE7E4;border:1px solid #EFA99E;border-radius:8px;padding:9px 11px;margin-top:6px} .generr .btn.sm{padding:5px 11px;font-size:11px;line-height:1.1;text-decoration:none} .bp-sel{width:100%;padding:9px 10px;border:1px solid #e7ded7;border-radius:8px;font-size:13px;background:#fff;color:#2C2421}";
     document.head.appendChild(css);
     const el = document.createElement("div");
     el.id = "pausePill";
-    el.title = "Pause stops the Mac brain from spending Claude usage on sweeps. Auto-resumes after 4h as a safety.";
-    document.body.appendChild(el);
+    el.title = "Tap to pause/resume the brain's sweeps (saves Claude usage). Auto-resumes after 4h.";
+    (document.querySelector(".topbar")||document.body).appendChild(el);
     let busy = false;
     el.addEventListener("click", async () => {
       if(busy) return; busy = true; el.style.opacity = .5;
