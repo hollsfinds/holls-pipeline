@@ -1624,7 +1624,8 @@ async function markScheduled(row){
 }
 /* ---------- roundup grouping ---------- */
 function suggestLabels(it){
-  const existing=[...new Set(pipe.filter(p=>p.type==="roundup").map(p=>p.grp).filter(Boolean))];
+  // only roundups still in Roundup Prep — once a roundup is sent to draft (stage advances past POOL) its name drops off this list
+  const existing=[...new Set(pipe.filter(p=>p.type==="roundup" && p.stage===POOL).map(p=>p.grp).filter(Boolean))];
   const stop=new Set(["the","and","for","with","set","from","your","large","small","boho","wood","beads","woven","modern","home","decor","chic","leaf","feather","black","tapestry","decoration"]);
   const tc=s=>s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();
   let words=(titleOf(it)||"").split(/[^a-z0-9]+/i).filter(Boolean);
