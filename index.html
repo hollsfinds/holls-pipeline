@@ -1166,6 +1166,22 @@ function draftLinkHTML(it){
     ? `<a class="alink" href="${esc(it.artUrl)}" target="_blank" rel="noopener">Open draft in FreshStore ↗</a>`
     : `<span class="alink dry" title="${esc(it.artUrl)}">Draft saved (dry-run)</span>`;
 }
+/* Scheduled-posts list for Fully Live cards. Reads pack.scheduled (written by the Mac brain
+   after it queues each post to Metricool): [{platform, type, at}]. Empty/absent → renders nothing. */
+function scheduledDatesHTML(it){
+  const pack=socialPacks[it.id];
+  const arr=(pack && Array.isArray(pack.scheduled)) ? pack.scheduled : [];
+  if(!arr.length) return "";
+  const whenOf=p=>p.at||p.datetime||p.scheduledAt||p.dueAt||"";
+  const fmt=v=>{const d=new Date(v);if(isNaN(d))return String(v);
+    const day=d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    return /T\d\d:\d\d/.test(String(v))?day+' · '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):day;};
+  const rows=arr.slice().sort((a,b)=>new Date(whenOf(a))-new Date(whenOf(b))).map(p=>{
+    const plat=p.platform||p.network||"";const typ=p.type?(' '+p.type):'';
+    return `<li><span class="sd-plat">${esc(plat)}${esc(typ)}</span><span class="sd-when">${esc(fmt(whenOf(p)))}</span></li>`;
+  }).join("");
+  return `<div class="muted2" style="margin:9px 0 2px;font-weight:700">📅 Scheduled posts</div><ul class="schedlist">${rows}</ul>`;
+}
 function pipeCard(it){
   const d=document.createElement("div");d.className="card";d.draggable=true;d.dataset.id=it.id;d.dataset.row=it.row;
   const nonaff=it.type.includes("non");
@@ -1260,6 +1276,7 @@ function pipeCard(it){
         <div class="badges">${tb}${memTag}${rdz}${flagTag}${spinTag}${dupTag}</div>
         ${prodPillHTML(it)}
         ${controls}
+        ${scheduledDatesHTML(it)}
       </div>`;
     return d;
   }
