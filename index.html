@@ -1574,7 +1574,7 @@ async function renderCalendar(targetId,compact){
   artRows.slice(-60).reverse().forEach(r=>{ hist+='<tr><td>'+esc(r[0])+'</td><td>'+esc(r[2])+'</td><td>'+esc(r[3])+'</td><td>'+esc(r[4]||'')+'</td></tr>'; });
   hist+='</tbody></table></details>';
   const nav='<div class="cal-nav"><div class="nav-grp"><button type="button" class="strip-btn cal-wp">◀ Week</button><button type="button" class="strip-btn cal-dp">‹ Day</button></div><div class="nav-mid"><button type="button" class="strip-btn cal-td">Today</button><span class="strip-lbl cal-lbl"></span></div><div class="nav-grp"><button type="button" class="strip-btn cal-dn">Day ›</button><button type="button" class="strip-btn cal-wn">Week ▶</button></div></div>';
-  art.innerHTML=note+warnHtml+nav+'<div class="cal-cards"></div>'+legend+(compact?'':hist);
+  art.innerHTML=(compact?'':(note+warnHtml))+nav+'<div class="cal-cards"></div>'+(compact?'':(legend+hist));
   art.dataset.loaded="1";
   // viewStart = Sunday of the current week (calendar weeks are Sun–Sat)
   let viewStart=new Date(); viewStart.setHours(0,0,0,0); viewStart.setDate(viewStart.getDate()-viewStart.getDay());
