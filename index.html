@@ -406,6 +406,47 @@ button{font-family:inherit;cursor:pointer}
     <h3 class="cal-h">Calendar — goal + coverage</h3>
     <div id="calArticles"></div>
 
+    <h3 class="cal-h">Seasonal timeline</h3>
+    <div id="seasonalTimeline"></div>
+    <p class="cal-rule">Teal = start posting (add products to <b>On Deck</b> ~2–6 wks before that). Coral = active window. Perpetual — repeats every year. Current month is outlined.</p>
+    <script>(function(){
+      var months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      // [name, kickoffMonth, activeMonths[], addToOnDeckMonth]
+      var S=[
+        ["July 4th / Americana",5,[5,6],5],
+        ["Summer entertaining / patio",5,[5,6,7],5],
+        ["Back-to-school / teen room",6,[6,7],5],
+        ["Fall / harvest decor",7,[7,8,9],6],
+        ["Halloween",8,[8,9],7],
+        ["Thanksgiving / hosting",9,[9,10],8],
+        ["Christmas / holiday decor",9,[9,10,11],8],
+        ["Holiday gift guides",9,[9,10,11],9],
+        ["Winter cozy / hygge",10,[10,11,0,1],10],
+        ["New Year refresh / org",11,[11,0],10],
+        ["Valentine’s Day",0,[0,1],11],
+        ["Spring refresh / cleaning",1,[1,2,3],0],
+        ["Easter / spring table",2,[2,3],1],
+        ["Mother’s Day",3,[3,4],2],
+        ["Late spring / patio",3,[3,4,5],3]
+      ];
+      var el=document.getElementById("seasonalTimeline"); if(!el) return;
+      var now=new Date().getMonth(), nextM=(now+1)%12;
+      var nowList=S.filter(function(s){return s[3]===now;}).map(function(s){return s[0];});
+      var nextList=S.filter(function(s){return s[3]===nextM;}).map(function(s){return s[0];});
+      var h='<div style="background:rgba(248,131,120,.12);border:1px solid var(--coral,#F88378);border-radius:8px;padding:10px 12px;margin:6px 0 12px;font-size:13px">';
+      h+='<b>📥 Add to On Deck now ('+months[now]+'):</b> '+(nowList.length?nowList.join(", "):"— nothing due —");
+      if(nextList.length) h+='<br><span style="opacity:.7">Coming next ('+months[nextM]+'): '+nextList.join(", ")+'</span>';
+      h+='</div>';
+      function cells(active,kick){var o='<div style="display:flex;gap:2px;flex:1">';for(var i=0;i<12;i++){var bg="transparent";if(i===kick)bg="var(--teal,#2E6E6A)";else if(active.indexOf(i)>-1)bg="var(--coral,#F88378)";var ring=(i===now)?";outline:2px solid var(--esp,#4A3B33);outline-offset:-1px":"";o+='<div title="'+months[i]+'" style="flex:1;height:16px;border-radius:3px;background:'+bg+ring+'"></div>';}return o+"</div>";}
+      var g='<div style="font-size:12px;overflow-x:auto">';
+      g+='<div style="display:flex;align-items:center;margin-bottom:4px"><div style="width:175px;flex:none"></div><div style="display:flex;gap:2px;flex:1;min-width:360px">';
+      for(var m=0;m<12;m++){g+='<div style="flex:1;text-align:center;font-weight:700;opacity:'+(m===now?"1":".55")+'">'+months[m]+'</div>';}
+      g+='</div></div>';
+      S.forEach(function(s){g+='<div style="display:flex;align-items:center;margin:3px 0"><div style="width:175px;flex:none;padding-right:8px">'+s[0]+'</div><div style="display:flex;flex:1;min-width:360px">'+cells(s[2],s[1])+'</div></div>';});
+      g+='</div>';
+      el.innerHTML=h+g;
+    })();</script>
+
     <h3 class="cal-h">The plan</h3>
     <div class="cal-grid">
       <div class="cal-card">
@@ -430,8 +471,9 @@ button{font-family:inherit;cursor:pointer}
         <p class="cal-rule">9:16 from your pin images. Ephemeral, so no duplicate-penalty risk — free extra reach.</p>
       </div>
       <div class="cal-card">
-        <h4>🎬 Reels + TikTok</h4>
-        <p class="cal-rule">Out of scope — video. The pipeline makes static images. Revisit if a video step gets added.</p>
+        <h4>🎬 TikTok — Photo Mode</h4>
+        <p class="meta">Ramp: wk 1–2 <b>1/day</b> · 3–4 <b>1–2</b> · then <b>2/day</b> ceiling</p>
+        <p class="cal-rule">Swipeable carousels built from pin images (no video), scheduled via Metricool. Vary covers + alternate with non-promo (anti-shadowban). Reels still out of scope until a video step exists.</p>
       </div>
       <div class="cal-card" style="border-color:var(--coral)">
         <h4>⏱️ Fill rate</h4>
