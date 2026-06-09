@@ -680,6 +680,7 @@ function render(){
     else items=pipe.filter(x=>x.stage===col);
     let holds = (col===POOL) ? pipe.filter(x=>x.type!=="roundup" && x.grp==="HOLD") : [];
     if(searchQ){items=items.filter(matchesSearch);holds=holds.filter(matchesSearch);}
+    if(col===PUBCOL) items.sort((a,b)=>b.row-a.row);   // Fully Live: newest (highest sheet row) on top
     const has = items.length || holds.length;
     const c=document.createElement("div");c.className="col"+(has?"":" collapsed");c.dataset.col=col;
     c.style.borderTop="3px solid "+(ZONE[col]||"var(--line)");
