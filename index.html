@@ -406,45 +406,102 @@ button{font-family:inherit;cursor:pointer}
     <h3 class="cal-h">Calendar — goal + coverage</h3>
     <div id="calArticles"></div>
 
-    <h3 class="cal-h">Seasonal timeline</h3>
-    <div id="seasonalTimeline"></div>
-    <p class="cal-rule">Teal = start posting (add products to <b>On Deck</b> ~2–6 wks before that). Coral = active window. Perpetual — repeats every year. Current month is outlined.</p>
+    <h3 class="cal-h">Seasonal ramp plan</h3>
+    <div id="seasonalRamp"></div>
+    <p class="cal-rule">Each holiday shows its date + how posting ramps toward it: <b>Foundation</b> (seed early, light) → <b>Build</b> (ramp volume) → <b>Peak</b> (heavy, last-minute + urgency). “Add to On Deck by” = when products must enter the pipeline. Repeats yearly; current-month items are flagged ADD NOW.</p>
     <script>(function(){
       var months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      // [name, kickoffMonth, activeMonths[], addToOnDeckMonth]
+      // [name, emoji, dateLabel, onDeckLabel, onDeckMonth, [[phase,when,focus]...]]
       var S=[
-        ["July 4th / Americana",5,[5,6],5],
-        ["Summer entertaining / patio",5,[5,6,7],5],
-        ["Back-to-school / teen room",6,[6,7],5],
-        ["Fall / harvest decor",7,[7,8,9],6],
-        ["Halloween",8,[8,9],7],
-        ["Thanksgiving / hosting",9,[9,10],8],
-        ["Christmas / holiday decor",9,[9,10,11],8],
-        ["Holiday gift guides",9,[9,10,11],9],
-        ["Winter cozy / hygge",10,[10,11,0,1],10],
-        ["New Year refresh / org",11,[11,0],10],
-        ["Valentine’s Day",0,[0,1],11],
-        ["Spring refresh / cleaning",1,[1,2,3],0],
-        ["Easter / spring table",2,[2,3],1],
-        ["Mother’s Day",3,[3,4],2],
-        ["Late spring / patio",3,[3,4,5],3]
+        ["July 4th / Americana","🎆","Jul 4","now",5,[
+          ["Foundation","4–3 wks · mid-Jun","Patio refresh + outdoor entertaining basics (light)"],
+          ["Build","2 wks · late Jun","Americana decor, red/white/blue tablescapes"],
+          ["Peak","final wk","Last-minute party finds, drinkware, quick decor (daily)"]]],
+        ["Summer entertaining / patio","☀️","Jun–Aug","now",5,[
+          ["Foundation","early Jun","Patio setup, outdoor rugs + lighting"],
+          ["Build","Jun–Jul","Hosting, serveware, cooling finds"],
+          ["Peak","Jul–Aug","Cookout, pool + bug-season must-haves"]]],
+        ["Back-to-school / teen room","✏️","peak mid-Aug","Jun 17",5,[
+          ["Foundation","8–6 wks · Jul","Dorm + teen-room inspo, storage basics"],
+          ["Build","5–3 wks · late Jul","Desk setups, lighting, organization"],
+          ["Peak","2 wks · early–mid Aug","Last-minute dorm checklists + deals"]]],
+        ["Fall / harvest decor","🍂","peak Sep–Oct","Jul 18",6,[
+          ["Foundation","Aug","Early-fall transition, neutral textiles"],
+          ["Build","early Sep","Pumpkins, wreaths, candles"],
+          ["Peak","late Sep–Oct","Full harvest decor + cozy layering"]]],
+        ["Halloween","🎃","Oct 31","Aug 18",7,[
+          ["Foundation","8 wks · Sep","Chic (not cheesy) Halloween inspo"],
+          ["Build","5–3 wks · late Sep–mid Oct","Porch + entry decor, lighting"],
+          ["Peak","final 2 wks · late Oct","Last-minute + party + doormats (daily)"]]],
+        ["Thanksgiving / hosting","🦃","Nov 26 (4th Thu)","Sep 17",8,[
+          ["Foundation","8 wks · Oct","Tablescape inspo + hosting basics"],
+          ["Build","Nov","Linens, serveware, centerpieces"],
+          ["Peak","final wk · ~Nov 19–26","Last-minute table + host gifts"]]],
+        ["Christmas / holiday decor","🎄","Dec 25","Sep 17",8,[
+          ["Foundation","10–7 wks · early Oct","Gift guides, holiday recipes, budgeting pins (light)"],
+          ["Build","6–3 wks · late Oct–Nov","Tree + decor, stockings, hosting, gift roundups"],
+          ["Peak","final 2 wks · Dec","Last-minute gifts, quick DIYs, wrapping tips, holiday outfit inspo (daily)"]]],
+        ["Holiday gift guides","🎁","Black Fri (Nov 27) → Dec 24","Oct 1",9,[
+          ["Foundation","Oct","Gifts-for-X guides by recipient + price"],
+          ["Build","early–mid Nov","Bundle + under-$50 roundups"],
+          ["Peak","Black Fri–mid Dec","Deal alerts + ship-by-date urgency"]]],
+        ["Winter cozy / hygge","🧣","Dec–Feb","Nov 1",10,[
+          ["Foundation","Nov","Cozy textiles + ambiance basics"],
+          ["Build","Dec–Jan","Layering, candles, warm-drink setups"],
+          ["Peak","Jan–Feb","Hibernation + cozy-night content (post-holiday filler)"]]],
+        ["New Year refresh / org","🗂️","Jan 1","Nov 17",10,[
+          ["Foundation","Dec","Organization inspo + reset mindset"],
+          ["Build","late Dec","Storage, closet, pantry finds"],
+          ["Peak","Jan 1–15","New-year reset checklists + declutter"]]],
+        ["Valentine’s Day","💐","Feb 14","Dec 22",11,[
+          ["Foundation","5 wks · Jan 5","Cozy + romantic decor inspo"],
+          ["Build","3 wks · late Jan","Pink/red accents + gift ideas"],
+          ["Peak","final wk · early Feb","Last-minute gifts + at-home date setups"]]],
+        ["Spring refresh / cleaning","🌷","Mar–Apr","Jan 18",0,[
+          ["Foundation","Feb","Lighten-up inspo + declutter"],
+          ["Build","Feb–Mar","Faux florals, light textiles, organization"],
+          ["Peak","Mar–Apr","Full spring-refresh roundups"]]],
+        ["Easter / spring table","🐰","Apr 5 (’26)","Feb 15",1,[
+          ["Foundation","6 wks · Mar","Pastel + spring-table inspo"],
+          ["Build","4–2 wks · mid-Mar","Tablescape + decor finds"],
+          ["Peak","final wk · late Mar–early Apr","Last-minute table + basket finds"]]],
+        ["Mother’s Day","💝","May 10 (2nd Sun ’26)","Mar 18",2,[
+          ["Foundation","6 wks · Apr","Gift-for-Mom guides"],
+          ["Build","4–2 wks · mid–late Apr","Self-care, home gifts, jewelry"],
+          ["Peak","final wk · early May","Last-minute + ship-by urgency"]]],
+        ["Late spring / patio prep","🪴","May–Jun","Apr 1",3,[
+          ["Foundation","Apr","Patio-prep inspo"],
+          ["Build","late Apr–May","Outdoor furniture refresh, planters"],
+          ["Peak","May–Jun","Full summer-ready (loops into July 4th)"]]]
       ];
-      var el=document.getElementById("seasonalTimeline"); if(!el) return;
+      var el=document.getElementById("seasonalRamp"); if(!el) return;
       var now=new Date().getMonth(), nextM=(now+1)%12;
-      var nowList=S.filter(function(s){return s[3]===now;}).map(function(s){return s[0];});
-      var nextList=S.filter(function(s){return s[3]===nextM;}).map(function(s){return s[0];});
-      var h='<div style="background:rgba(248,131,120,.12);border:1px solid var(--coral,#F88378);border-radius:8px;padding:10px 12px;margin:6px 0 12px;font-size:13px">';
-      h+='<b>📥 Add to On Deck now ('+months[now]+'):</b> '+(nowList.length?nowList.join(", "):"— nothing due —");
-      if(nextList.length) h+='<br><span style="opacity:.7">Coming next ('+months[nextM]+'): '+nextList.join(", ")+'</span>';
-      h+='</div>';
-      function cells(active,kick){var o='<div style="display:flex;gap:2px;flex:1">';for(var i=0;i<12;i++){var bg="transparent";if(i===kick)bg="var(--teal,#2E6E6A)";else if(active.indexOf(i)>-1)bg="var(--coral,#F88378)";var ring=(i===now)?";outline:2px solid var(--esp,#4A3B33);outline-offset:-1px":"";o+='<div title="'+months[i]+'" style="flex:1;height:16px;border-radius:3px;background:'+bg+ring+'"></div>';}return o+"</div>";}
-      var g='<div style="font-size:12px;overflow-x:auto">';
-      g+='<div style="display:flex;align-items:center;margin-bottom:4px"><div style="width:175px;flex:none"></div><div style="display:flex;gap:2px;flex:1;min-width:360px">';
-      for(var m=0;m<12;m++){g+='<div style="flex:1;text-align:center;font-weight:700;opacity:'+(m===now?"1":".55")+'">'+months[m]+'</div>';}
-      g+='</div></div>';
-      S.forEach(function(s){g+='<div style="display:flex;align-items:center;margin:3px 0"><div style="width:175px;flex:none;padding-right:8px">'+s[0]+'</div><div style="display:flex;flex:1;min-width:360px">'+cells(s[2],s[1])+'</div></div>';});
-      g+='</div>';
-      el.innerHTML=h+g;
+      var nowList=S.filter(function(s){return s[4]===now;}).map(function(s){return s[0];});
+      var nextList=S.filter(function(s){return s[4]===nextM;}).map(function(s){return s[0];});
+      var out='<div style="background:rgba(248,131,120,.12);border:1px solid var(--coral,#F88378);border-radius:8px;padding:10px 12px;margin:6px 0 14px;font-size:13px">';
+      out+='<b>📥 Add to On Deck now ('+months[now]+'):</b> '+(nowList.length?nowList.join(", "):"— nothing due —");
+      if(nextList.length) out+='<br><span style="opacity:.7">Coming next ('+months[nextM]+'): '+nextList.join(", ")+'</span>';
+      out+='</div>';
+      var col={Foundation:["#EBEFE6","#5E6E50"],Build:["#FFE7D6","#B5702F"],Peak:["#FAD9D3","#B0392B"]};
+      out+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px">';
+      S.forEach(function(s){
+        var actNow=(s[4]===now);
+        out+='<div style="border:1px solid '+(actNow?"var(--coral,#F88378)":"#E0D8CF")+';border-radius:10px;padding:10px 12px;background:#fff">';
+        out+='<div style="font-size:14px;margin-bottom:7px"><b>'+s[1]+' '+s[0]+'</b> · <span style="color:var(--teal,#2E6E6A);font-weight:700">'+s[2]+'</span> <span style="opacity:.6">· On Deck by '+s[3]+'</span>';
+        if(actNow) out+=' <span style="background:var(--coral,#F88378);color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px">ADD NOW</span>';
+        out+='</div>';
+        s[5].forEach(function(p){
+          var c=col[p[0]]||["#eee","#555"];
+          out+='<div style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;font-size:12px">';
+          out+='<span style="flex:none;background:'+c[0]+';color:'+c[1]+';font-weight:700;border-radius:4px;padding:2px 0;width:80px;text-align:center">'+p[0]+'</span>';
+          out+='<span style="flex:none;width:118px;opacity:.7">'+p[1]+'</span>';
+          out+='<span style="flex:1">'+p[2]+'</span>';
+          out+='</div>';
+        });
+        out+='</div>';
+      });
+      out+='</div>';
+      el.innerHTML=out;
     })();</script>
 
     <h3 class="cal-h">The plan</h3>
