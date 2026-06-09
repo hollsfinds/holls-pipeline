@@ -599,6 +599,9 @@ button{font-family:inherit;cursor:pointer}
       .ns-acts{display:flex;gap:10px;align-items:center;margin-top:4px}
       .ns-submit{background:var(--teal,#2E6E6A);color:#fff;border:none}
       .ns-status{font-size:12px;opacity:.75}
+      .ns-ideahead{font-size:12px;font-weight:700;color:var(--esp,#4A3B33);opacity:.85;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+      .ns-refresh{font-size:12px;background:none;border:none;color:var(--teal,#2E6E6A);cursor:pointer;font-weight:700;padding:0}
+      .ns-refresh:hover{text-decoration:underline}
     </style>
     <div class="toolbar">
       <div>
@@ -610,14 +613,8 @@ button{font-family:inherit;cursor:pointer}
     <div class="ns-card">
       <div class="ns-head">✍️ New personal story</div>
       <div class="ns-sub">Pick or type a topic, answer a few quick things, and submit. The brain drafts it in your voice (IG + FB + TikTok) and it drops into the queue below to approve — usually within a few minutes.</div>
-      <div class="ns-chips">
-        <span class="ns-chip">Empty-nest room reclaim</span>
-        <span class="ns-chip">A decorating fail I learned from</span>
-        <span class="ns-chip">Looks expensive, wasn't</span>
-        <span class="ns-chip">How my style evolved</span>
-        <span class="ns-chip">Behind the scenes of a find</span>
-        <span class="ns-chip">What I almost bought</span>
-      </div>
+      <div class="ns-ideahead">Idea starters <button type="button" class="ns-refresh" id="nsIdeasRefresh">🔄 New ideas</button></div>
+      <div class="ns-chips" id="nsChips"></div>
       <input id="nsTopic" class="ns-input" placeholder="Topic (tap a chip above or type your own)">
       <textarea id="nsStory" class="rv-cap" style="margin-bottom:8px" placeholder="What's the story? (the situation / what's happening)"></textarea>
       <textarea id="nsFeel" class="rv-cap" style="margin-bottom:8px" placeholder="Your honest feeling or take on it"></textarea>
@@ -1804,7 +1801,7 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
   $$(".view").forEach(v=>v.classList.remove("active"));$("#view-"+b.dataset.view).classList.add("active");
   if(b.dataset.view==="calendar")renderCalendar("calArticles");
   if(b.dataset.view==="pipeline")renderCalendar("calArticlesTop",true);
-  if(b.dataset.view==="review")renderReview();
+  if(b.dataset.view==="review"){renderReview();renderIdeaChips();}
   maybeLoadFrame(b.dataset.view);
 }));
 { const rb=$("#reviewRefresh"); if(rb) rb.addEventListener("click",renderReview); }
@@ -1845,9 +1842,31 @@ async function renderReview(){
     }catch(err){ st.textContent=""; btn.disabled=false; toast("Save failed: "+(err&&err.message||err)); }
   };
 }
-/* New personal story form (writes an intake row; the Mac brain drafts it) */
+/* New personal story form — rotating idea chips (life + decor) + submit (writes intake; brain drafts) */
+var IDEA_POOL=[
+  // home / decor
+  "Empty-nest room reclaim","Looks expensive, wasn't","A decorating fail I learned from",
+  "How my style evolved","Behind the scenes of a find","What I almost bought",
+  "The room that finally feels like me","A splurge I don't regret",
+  // life in general
+  "Empty-nest real talk","What nobody tells you about kids leaving","Reinventing myself at this stage",
+  "A small thing that made my week","Something I'm learning to let go of","A hobby I picked back up",
+  "Treating myself without the guilt","A win I'm proud of this week","Slowing down on purpose",
+  "What home means to me now","A lesson from my mom I still use","Friendships in your 40s",
+  "Saying yes to me for once","The mess I'm making peace with","A morning that actually felt good",
+  "A tradition I'm keeping (or ditching)","Something I'd tell my younger self","A change I was scared of but love now"
+];
+function renderIdeaChips(){
+  var box=document.getElementById('nsChips'); if(!box) return;
+  var pool=IDEA_POOL.slice();
+  for(var i=pool.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=pool[i];pool[i]=pool[j];pool[j]=t;}
+  box.innerHTML=pool.slice(0,6).map(function(x){return '<span class="ns-chip">'+esc(x)+'</span>';}).join('');
+}
 {
-  document.querySelectorAll('#view-review .ns-chip').forEach(c=>c.addEventListener('click',()=>{ const t=$('#nsTopic'); if(t){ t.value=c.textContent; t.focus(); } }));
+  const chipBox=$('#nsChips');
+  if(chipBox) chipBox.addEventListener('click',e=>{ const c=e.target.closest('.ns-chip'); if(!c) return; const t=$('#nsTopic'); if(t){ t.value=c.textContent; t.focus(); } });
+  const ir=$('#nsIdeasRefresh'); if(ir) ir.addEventListener('click',renderIdeaChips);
+  renderIdeaChips();
   const sb=$('#nsSubmit');
   if(sb) sb.addEventListener('click', async ()=>{
     const val=id=>{const el=$(id); return el?(el.value||'').trim():'';};
