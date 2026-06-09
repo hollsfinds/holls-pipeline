@@ -99,6 +99,20 @@ button{font-family:inherit;cursor:pointer}
 .board.dragging .col.collapsed .nm{writing-mode:horizontal-tb;transform:none}
 .board.dragging .col.collapsed .info-btn{display:inline-flex}
 .board.dragging .col.collapsed .cards{display:flex}
+/* Fully Live: user-collapsible column — header is a click target, twirl shows state */
+.col-h.toggle{cursor:pointer}
+.col-h .twirl{font-size:11px;color:var(--muted);margin-left:5px}
+.col.collapsed .twirl{display:none}
+/* Fully Live: collapsible cards — show only the title until clicked open */
+.card.collapsible .chead{cursor:pointer;margin-bottom:0}
+.card.collapsible.open .chead{margin-bottom:6px}
+.card.collapsible .ccaret{margin-left:auto;font-size:11px;color:var(--muted);flex:0 0 auto}
+.card.collapsible .cbody{display:none}
+.card.collapsible.open .cbody{display:block}
+.schedlist{list-style:none;margin:4px 0 0;padding:0;font-size:11px}
+.schedlist li{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px dashed var(--line)}
+.schedlist .sd-plat{color:var(--muted)}
+.schedlist .sd-when{font-weight:700;white-space:nowrap}
 .alink.dry{color:var(--muted);text-decoration:none;cursor:default;font-style:italic}
 /* hover info popover */
 .infopop{position:fixed;z-index:60;background:#fff;border:1px solid var(--line);border-radius:13px;max-width:320px;padding:14px 16px;box-shadow:0 14px 36px #2c242130;font-size:13px;pointer-events:none;opacity:0;transition:opacity .12s;display:none}
@@ -761,6 +775,9 @@ let socialPacks={};  // { itemId: packObject } from the Social tab
 let ondeck=[];       // {row, asin, title, raw, img, url, cats, newcats, status, fsid, notes} from the On Deck tab
 let allCats=[]
 let pinBoards=[];      // [{id,title,slug}] live FreshStore categories, from the Meta tab cache
+/* Fully Live collapse state — column defaults collapsed (persisted); cards default collapsed each session */
+let fullLiveCollapsed = (()=>{try{return localStorage.getItem("fullLiveCollapsed")!=="0";}catch(_){return true;}})();
+let expandedCards = new Set();   // ids of Fully Live cards the user has opened this session
 
 /* roundup grouping helpers — col I (Roundup Group): ""=undecided, "NONE"=not in a roundup, else the group label */
 const groupLabelOf = it => (it.grp && it.grp!=="NONE" && it.grp!=="HOLD") ? it.grp : "";
@@ -866,12 +883,17 @@ function render(){
     if(searchQ){items=items.filter(matchesSearch);holds=holds.filter(matchesSearch);}
     if(col===PUBCOL) items.sort((a,b)=>b.row-a.row);   // Fully Live: newest (highest sheet row) on top
     const has = items.length || holds.length;
-    const c=document.createElement("div");c.className="col"+(has?"":" collapsed");c.dataset.col=col;
+    // empty cols auto-collapse; Fully Live (PUBCOL) is user-collapsible and defaults collapsed
+    let collapsed = !has;
+    if(col===PUBCOL) collapsed = fullLiveCollapsed;
+    const c=document.createElement("div");c.className="col"+(collapsed?" collapsed":"");c.dataset.col=col;
     c.style.borderTop="3px solid "+(ZONE[col]||"var(--line)");
     if(col===ONDECK) c.style.background="#F8DCC9";   // On Deck = tinted "inbox" entry column
     const bolt = AUTO[col]===true?'<span class="bolt" title="auto-fires">⚡</span>':'';
-    c.innerHTML=`<div class="col-h">
-        <div class="row1">${bolt}<span class="nm">${esc(LABEL[col]||col)}</span>
+    const isPub = col===PUBCOL;
+    const twirl = isPub?`<span class="twirl" title="Collapse this column">▾</span>`:'';
+    c.innerHTML=`<div class="col-h${isPub?' toggle':''}">
+        <div class="row1">${bolt}<span class="nm">${esc(LABEL[col]||col)}</span>${twirl}
           <button class="info-btn" data-info="${esc(col)}">i</button>
           ${REFRESH_ACTION[col]?`<button class="rf-btn" data-refresh="${esc(col)}" title="Check now — flag the brain to look for updates on its next sweep (~2 min), instead of waiting for the ~12-min auto-check">↻</button>`:''}
           <span class="ct">${items.length+(holds.length?1:0)}</span></div>
@@ -1229,6 +1251,18 @@ function pipeCard(it){
   const im = (it.type!=="roundup" && it.stage===NEWCOL) ? imgOf(it) : "";
   const thumb = im ? `<img class="thumb-sm" src="${esc(im)}" data-zoom="${esc(im)}" onerror="this.style.display='none'">` : "";
   const dupTag = (it.type!=="roundup" && it.stage===NEWCOL && articleExistsFor(srcUrlOf(it),it.row)) ? '<span class="badge b-dup" title="Another card already has an article for this product">⚠ Already drafted</span>' : "";
+  // Fully Live cards collapse to title-only (default closed); click the title bar to open.
+  if(it.stage===PUBCOL){
+    const open = expandedCards.has(it.id);
+    d.className = "card collapsible"+(open?" open":"");
+    d.innerHTML=`<div class="chead">${thumb}<div class="ttl">${esc(cardTitleOf(it))}</div><span class="ccaret">${open?'▾':'▸'}</span></div>
+      <div class="cbody">
+        <div class="badges">${tb}${memTag}${rdz}${flagTag}${spinTag}${dupTag}</div>
+        ${prodPillHTML(it)}
+        ${controls}
+      </div>`;
+    return d;
+  }
   d.innerHTML=`<div class="chead">${thumb}<div class="ttl">${esc(cardTitleOf(it))}</div></div>
     <div class="badges">${tb}${memTag}${rdz}${flagTag}${spinTag}${dupTag}</div>
     ${prodPillHTML(it)}
@@ -1669,6 +1703,23 @@ function infoHTML(col){
   return `<div class="kicker">${esc(d.kicker)}</div><h3>${esc(LABEL[col]||col)}</h3>${autoTag}<p>${d.body}</p>
     <div class="where">Where you do this: <b>${esc(d.space[1])}</b></div>`;
 }
+/* Fully Live collapse toggles — column header (▾) and per-card title bar */
+document.addEventListener("click",e=>{
+  // card-level: click a Fully Live card's title bar to open/close it
+  const head=e.target.closest(".card.collapsible .chead");
+  if(head){
+    const card=head.closest(".card"), id=card.dataset.id;
+    if(id){ expandedCards.has(id)?expandedCards.delete(id):expandedCards.add(id); render(); }
+    return;
+  }
+  // column-level: click the Fully Live header (or its collapsed rail) to toggle the whole column
+  const ch=e.target.closest(".col-h.toggle");
+  if(ch && !e.target.closest(".info-btn,.rf-btn")){
+    fullLiveCollapsed=!fullLiveCollapsed;
+    try{localStorage.setItem("fullLiveCollapsed",fullLiveCollapsed?"1":"0");}catch(_){}
+    render();
+  }
+});
 const infopop=document.createElement("div");infopop.className="infopop";document.body.appendChild(infopop);
 function showInfo(btn){
   const col=btn.dataset.info;if(!INFO[col])return;
