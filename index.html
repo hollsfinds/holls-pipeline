@@ -164,6 +164,8 @@ button{font-family:inherit;cursor:pointer}
 .btn:hover{border-color:var(--coral)}
 .btn.coral{background:var(--coral);color:#fff;border-color:transparent}
 .btn.ghost{color:var(--muted)}
+.btn.danger{color:#B0392B;border-color:#E8C4BE}
+.btn.danger:hover{background:#FAD9D3}
 .btn.star.on{background:var(--peach);border-color:transparent;color:#9a5b3f}
 .alink{font-size:11px;color:var(--teal);font-weight:700;text-decoration:none}
 .prodpill{margin:2px 0 6px}
@@ -1306,6 +1308,7 @@ function groupCard(it){
     <div class="acts">
       <button class="btn coral" data-draftroundup="${it.row}"${mem.length<2?' disabled title="Add at least 2 products first"':''}>Draft roundup ⚡</button>
       <button class="btn ghost" data-angle="${it.row}">${it.angle?'💬 Edit spin':'💬 Your spin'}</button>
+      ${mem.length===0?`<button class="btn ghost danger" data-delgroup="${it.row}" title="Delete this empty roundup">🗑 Delete</button>`:''}
     </div>`;
   return d;
 }
@@ -1398,7 +1401,7 @@ function confirmModal({kicker="Confirm",title="",body="",okLabel="Yes"}){
 
 /* ---------- actions ---------- */
 document.addEventListener("click",async e=>{
-  const t=e.target.closest("[data-add],[data-exclude],[data-gate],[data-assign],[data-draftroundup],[data-social],[data-imgdone],[data-imgskip],[data-markpub],[data-imgreview],[data-angle],[data-send],[data-remove]");
+  const t=e.target.closest("[data-add],[data-exclude],[data-gate],[data-assign],[data-draftroundup],[data-social],[data-imgdone],[data-imgskip],[data-markpub],[data-imgreview],[data-angle],[data-send],[data-remove],[data-delgroup]");
   if(!t)return;
   if(t.dataset.imgreview!==undefined){
     const it=pipe.find(p=>p.row===+t.dataset.imgreview);if(!it)return;
@@ -1432,7 +1435,23 @@ document.addEventListener("click",async e=>{
   if(t.dataset.imgdone!==undefined)return clearImages(+t.dataset.imgdone,"added");
   if(t.dataset.imgskip!==undefined)return clearImages(+t.dataset.imgskip,"skip");
   if(t.dataset.markpub!==undefined){const it=pipe.find(p=>p.row===+t.dataset.markpub);if(it)moveStage(it,PUBCOL);return;}
+  if(t.dataset.delgroup!==undefined)return deleteRoundup(+t.dataset.delgroup);
 });
+/* Delete an EMPTY roundup card. Soft-archive (stage→"Archived"): leaves the board but the row
+   stays in the Sheet, mirroring On Deck's Remove. Guarded so a roundup with products can't vanish. */
+async function deleteRoundup(row){
+  const it=pipe.find(p=>p.row===row);if(!it||it.type!=="roundup")return;
+  if(membersOf(it.grp).length){ toast("This roundup still has products — move them out first."); render(); return; }
+  const ok=await confirmModal({kicker:"Delete roundup",
+    title:"Delete the empty roundup “"+esc(it.grp||it.id)+"”?",
+    body:"No products are linked to it, so nothing else is affected. The row is <b>archived</b> in your Sheet (not hard-deleted), so you can still recover it there if needed.",
+    okLabel:"Delete it"});
+  if(!ok)return;
+  const idx=pipe.indexOf(it);
+  pipe.splice(idx,1);render();   // optimistic removal
+  try{ await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"C"+row,data:[["Archived"]]}); toast("Roundup deleted"); }
+  catch(e){ pipe.splice(idx,0,it); render(); toast("Delete failed: "+(e.message||"")); }
+}
 /* On Deck — save an edited cleaned title on blur/change */
 document.addEventListener("change",e=>{const ta=e.target.closest(".odtitle");if(ta)saveOnDeckTitle(+ta.dataset.row,ta.value);});
 
