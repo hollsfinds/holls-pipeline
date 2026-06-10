@@ -837,8 +837,14 @@ let ondeck=[];       // {row, asin, title, raw, img, url, cats, newcats, status,
 let allCats=[]
 let pinBoards=[];      // [{id,title,slug}] live FreshStore categories, from the Meta tab cache
 let nonpromo=[];       // NonPromo tab rows {row,date,platform,type,caption,imgRef,status,schedId}
-/* Fully Live collapse state — column defaults collapsed (persisted); cards default collapsed each session */
-let fullLiveCollapsed = (()=>{try{return localStorage.getItem("fullLiveCollapsed")!=="0";}catch(_){return true;}})();
+/* Column collapse — any column can be collapsed by clicking its header (persisted).
+   Defaults unchanged: empty cols + Fully Live start collapsed, everything else expanded. */
+let colCollapse = (()=>{try{return JSON.parse(localStorage.getItem("colCollapse")||"{}");}catch(_){return {};}})();
+function colIsCollapsed(col,has){
+  if(Object.prototype.hasOwnProperty.call(colCollapse,col)) return !!colCollapse[col];   // explicit user choice wins
+  if(col===PUBCOL) return true;   // Fully Live defaults collapsed
+  return !has;                    // empty columns default collapsed
+}
 let expandedCards = new Set();   // ids of Fully Live cards the user has opened this session
 
 /* roundup grouping helpers — col I (Roundup Group): ""=undecided, "NONE"=not in a roundup, else the group label */
@@ -950,16 +956,14 @@ function render(){
     const pubNps = (col===PUBCOL) ? nonpromo.filter(n=>(n.status==="queued"||n.status==="scheduled") && (!searchQ||matchesSearchNP(n))) : [];
     if(col===PUBCOL) items.sort((a,b)=>b.row-a.row);   // articles: newest (highest sheet row) on top
     const has = items.length || holds.length || pubNps.length;
-    // empty cols auto-collapse; Fully Live (PUBCOL) is user-collapsible and defaults collapsed
-    let collapsed = !has;
-    if(col===PUBCOL) collapsed = fullLiveCollapsed;
+    // any column is collapsible via its header; defaults preserved (empty + Fully Live start collapsed)
+    let collapsed = colIsCollapsed(col, has);
     const c=document.createElement("div");c.className="col"+(collapsed?" collapsed":"");c.dataset.col=col;
     c.style.borderTop="3px solid "+(ZONE[col]||"var(--line)");
     if(col===ONDECK) c.style.background="#F8DCC9";   // On Deck = tinted "inbox" entry column
     const bolt = AUTO[col]===true?'<span class="bolt" title="auto-fires">⚡</span>':'';
-    const isPub = col===PUBCOL;
-    const twirl = isPub?`<span class="twirl" title="Collapse this column">▾</span>`:'';
-    c.innerHTML=`<div class="col-h${isPub?' toggle':''}">
+    const twirl = `<span class="twirl" title="Collapse / expand this column">▾</span>`;
+    c.innerHTML=`<div class="col-h toggle">
         <div class="row1">${bolt}<span class="nm">${esc(LABEL[col]||col)}</span>${twirl}
           <button class="info-btn" data-info="${esc(col)}">i</button>
           ${REFRESH_ACTION[col]?`<button class="rf-btn" data-refresh="${esc(col)}" title="Check now — flag the brain to look for updates on its next sweep (~2 min), instead of waiting for the ~12-min auto-check">↻</button>`:''}
@@ -1849,12 +1853,15 @@ document.addEventListener("click",e=>{
     if(id){ expandedCards.has(id)?expandedCards.delete(id):expandedCards.add(id); render(); }
     return;
   }
-  // column-level: click the Fully Live header (or its collapsed rail) to toggle the whole column
+  // column-level: click any column header (or its collapsed rail) to toggle that column
   const ch=e.target.closest(".col-h.toggle");
   if(ch && !e.target.closest(".info-btn,.rf-btn")){
-    fullLiveCollapsed=!fullLiveCollapsed;
-    try{localStorage.setItem("fullLiveCollapsed",fullLiveCollapsed?"1":"0");}catch(_){}
-    render();
+    const colEl=ch.closest(".col"), col=colEl&&colEl.dataset.col;
+    if(col){
+      colCollapse[col]=!colEl.classList.contains("collapsed");   // toggle from current state
+      try{localStorage.setItem("colCollapse",JSON.stringify(colCollapse));}catch(_){}
+      render();
+    }
   }
 });
 /* To-Do box → non-promo status panel */
