@@ -1313,7 +1313,9 @@ function pipeCard(it){
   let controls="";
   if(it.stage===NEWCOL && it.type!=="roundup"){
     const pl=srcUrlOf(it)?`<a class="alink" href="${esc(srcUrlOf(it))}" target="_blank" rel="noopener">View product ↗</a>`:"";
-    controls=`${pl}<div class="acts"><button class="btn ${roundupDecided(it)?'ghost':'coral'}" data-assign="${it.row}">${roundupDecided(it)?'✎ Edit setup':'⚑ Set up & draft'}</button></div>`;
+    // when this product is in an actual roundup, offer to remove its individual card (it stays in the roundup)
+    const rmBtn = groupLabelOf(it) ? `<button class="btn ghost danger" data-hidecard="${it.row}" title="Remove this individual card — it stays in the roundup">🗑 Remove card</button>` : "";
+    controls=`${pl}<div class="acts"><button class="btn ${roundupDecided(it)?'ghost':'coral'}" data-assign="${it.row}">${roundupDecided(it)?'✎ Edit setup':'⚑ Set up & draft'}</button>${rmBtn}</div>`;
   }else if(it.stage===DRAFTCOL){
     controls=`<div class="muted2">Writing your draft…</div>`;
   }else if(it.stage===REVIEWCOL){
@@ -1506,7 +1508,7 @@ function confirmModal({kicker="Confirm",title="",body="",okLabel="Yes"}){
 
 /* ---------- actions ---------- */
 document.addEventListener("click",async e=>{
-  const t=e.target.closest("[data-add],[data-exclude],[data-gate],[data-assign],[data-draftroundup],[data-social],[data-imgdone],[data-imgskip],[data-markpub],[data-imgreview],[data-angle],[data-send],[data-remove],[data-delgroup]");
+  const t=e.target.closest("[data-add],[data-exclude],[data-gate],[data-assign],[data-draftroundup],[data-social],[data-imgdone],[data-imgskip],[data-markpub],[data-imgreview],[data-angle],[data-send],[data-remove],[data-delgroup],[data-hidecard]");
   if(!t)return;
   if(t.dataset.imgreview!==undefined){
     const it=pipe.find(p=>p.row===+t.dataset.imgreview);if(!it)return;
@@ -1541,7 +1543,23 @@ document.addEventListener("click",async e=>{
   if(t.dataset.imgskip!==undefined)return clearImages(+t.dataset.imgskip,"skip");
   if(t.dataset.markpub!==undefined){const it=pipe.find(p=>p.row===+t.dataset.markpub);if(it)moveStage(it,PUBCOL);return;}
   if(t.dataset.delgroup!==undefined)return deleteRoundup(+t.dataset.delgroup);
+  if(t.dataset.hidecard!==undefined)return hideRoundupMemberCard(+t.dataset.hidecard);
 });
+/* Remove a product's individual card from the board while keeping it in its roundup.
+   membersOf() matches by group label regardless of stage, so a hidden stage keeps the roundup intact. */
+async function hideRoundupMemberCard(row){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  const label=groupLabelOf(it);
+  if(!label){ toast("This product isn't in a roundup."); return; }
+  const ok=await confirmModal({kicker:"Remove individual card",
+    title:"Remove the individual card for “"+esc(titleOf(it))+"”?",
+    body:"It stays in the <b>"+esc(label)+"</b> roundup — still drafted and counted there, and still listed inside the roundup card. This just clears its own card off the board so it won't get a solo article. Nothing is deleted.",
+    okLabel:"Remove card"});
+  if(!ok)return;
+  const prev=it.stage; it.stage="Roundup Member"; render();
+  try{ await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"C"+row,data:[["Roundup Member"]]}); toast("Card removed — still in the “"+label+"” roundup"); }
+  catch(e){ it.stage=prev; render(); toast("Remove failed: "+(e.message||"")); }
+}
 /* Delete an EMPTY roundup card. Soft-archive (stage→"Archived"): leaves the board but the row
    stays in the Sheet, mirroring On Deck's Remove. Guarded so a roundup with products can't vanish. */
 async function deleteRoundup(row){
