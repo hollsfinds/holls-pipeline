@@ -154,6 +154,10 @@ button{font-family:inherit;cursor:pointer}
 .b-roundup{background:#f8837822;color:#c0534a}
 .b-nonaff{background:#8a7f7922;color:#6b625d}
 .b-pool{background:#fbceb1;color:#9a5b3f}
+.b-nonpromo{background:#6b5b9522;color:#5a4b80}
+.b-plat{background:#43b3ae18;color:#2f7d79}
+.non-promo-card{border-left:3px solid #8b7bb0}
+.np-cap{font-size:11px;color:var(--muted);margin:6px 0 0;line-height:1.45;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
 .tag-round{font-size:10px;color:var(--teal);font-weight:700;margin-bottom:6px}
 .gates{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
 .gate{font-size:10px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--muted);
@@ -251,6 +255,14 @@ button{font-family:inherit;cursor:pointer}
 .todo-box .side-h{padding:10px 12px;font-weight:800;font-size:13px;color:var(--espresso);border-bottom:1px solid var(--line);background:#faf7f5}
 .todo-box .todo-body{padding:12px;overflow-y:auto;flex:1 1 auto}
 .todo-empty{color:#c8bfb9;font-size:12px;font-style:italic;margin:0}
+.todo-body{display:flex;flex-direction:column;gap:8px}
+.todo-stat{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:1px solid var(--line);background:#faf7f5;border-radius:9px;padding:8px 10px;font:inherit;cursor:default}
+button.todo-stat{cursor:pointer}
+button.todo-stat:hover{background:var(--peach)}
+.todo-stat.todo-alert{background:#FBE0DC;border-color:#E8C4BE}
+.todo-num{font-weight:800;font-size:18px;color:var(--espresso);min-width:22px;text-align:center}
+.todo-alert .todo-num{color:#B0392B}
+.todo-lbl{font-size:12px;color:#7a6f66;line-height:1.3}
 .side-cal{flex:0 0 auto;background:#FBEFE4;border:1px solid #EFD9C7;border-radius:12px;padding:10px;box-shadow:0 7px 14px -9px rgba(0,0,0,.18)}
 .cal-side-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
 .cal-side-title{font-weight:800;font-size:13px;color:var(--espresso)}
@@ -824,6 +836,7 @@ let socialPacks={};  // { itemId: packObject } from the Social tab
 let ondeck=[];       // {row, asin, title, raw, img, url, cats, newcats, status, fsid, notes} from the On Deck tab
 let allCats=[]
 let pinBoards=[];      // [{id,title,slug}] live FreshStore categories, from the Meta tab cache
+let nonpromo=[];       // NonPromo tab rows {row,date,platform,type,caption,imgRef,status,schedId}
 /* Fully Live collapse state — column defaults collapsed (persisted); cards default collapsed each session */
 let fullLiveCollapsed = (()=>{try{return localStorage.getItem("fullLiveCollapsed")!=="0";}catch(_){return true;}})();
 let expandedCards = new Set();   // ids of Fully Live cards the user has opened this session
@@ -909,8 +922,11 @@ async function load(){
     const mv=mta?valuesOf(mta):[]; allCats=[];
     const mrow=mv.find(r=>(r[0]||"")==="freshstore_categories"); if(mrow){try{allCats=JSON.parse(mrow[1]||"[]");}catch(e){allCats=[];}}
     const brow=mv.find(r=>(r[0]||"")==="pinterest_boards"); pinBoards=[]; if(brow){try{pinBoards=JSON.parse(brow[1]||"[]");}catch(e){pinBoards=[];}}
+    let npd=null; try{ npd=await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"NonPromo"}); }catch(e){}
+    const npv=npd?valuesOf(npd):[];
+    nonpromo=npv.slice(1).map((r,i)=>({row:i+2,date:String(r[0]||"").slice(0,10),platform:String(r[1]||"").trim(),type:String(r[2]||"").trim(),caption:r[3]||"",imgRef:r[4]||"",status:String(r[5]||"").trim().toLowerCase(),schedId:r[6]||""})).filter(x=>x.platform||x.caption);
     setStatus("ok","Connected · "+inbox.filter(x=>x.status==="new").length+" new · "+pipe.length+" in pipeline");
-    render();
+    render(); renderTodo();
   }catch(e){
     setStatus("err",e.message||"Couldn't load");
     $("#board").innerHTML='<div class="empty" style="padding:30px">'+esc(e.message||"Load failed")+'</div>';
@@ -930,8 +946,10 @@ function render(){
     else items=pipe.filter(x=>x.stage===col);
     let holds = (col===POOL) ? pipe.filter(x=>x.type!=="roundup" && x.grp==="HOLD") : [];
     if(searchQ){items=items.filter(matchesSearch);holds=holds.filter(matchesSearch);}
-    if(col===PUBCOL) items.sort((a,b)=>b.row-a.row);   // Fully Live: newest (highest sheet row) on top
-    const has = items.length || holds.length;
+    // Fully Live also carries scheduled/queued non-promo posts, intermixed by date
+    const pubNps = (col===PUBCOL) ? nonpromo.filter(n=>(n.status==="queued"||n.status==="scheduled") && (!searchQ||matchesSearchNP(n))) : [];
+    if(col===PUBCOL) items.sort((a,b)=>b.row-a.row);   // articles: newest (highest sheet row) on top
+    const has = items.length || holds.length || pubNps.length;
     // empty cols auto-collapse; Fully Live (PUBCOL) is user-collapsible and defaults collapsed
     let collapsed = !has;
     if(col===PUBCOL) collapsed = fullLiveCollapsed;
@@ -945,19 +963,28 @@ function render(){
         <div class="row1">${bolt}<span class="nm">${esc(LABEL[col]||col)}</span>${twirl}
           <button class="info-btn" data-info="${esc(col)}">i</button>
           ${REFRESH_ACTION[col]?`<button class="rf-btn" data-refresh="${esc(col)}" title="Check now — flag the brain to look for updates on its next sweep (~2 min), instead of waiting for the ~12-min auto-check">↻</button>`:''}
-          <span class="ct">${items.length+(holds.length?1:0)}</span></div>
+          <span class="ct">${items.length+pubNps.length+(holds.length?1:0)}</span></div>
       </div>
       <div class="cards" data-col="${esc(col)}"></div>`;
     const holder=$(".cards",c);
     if(!has)holder.innerHTML='<div class="empty">—</div>';
-    items.forEach(it=>{
-      const el = col===ONDECK ? ondeckCard(it)
-        : it.status==="new" ? newCard(it)
-        : col===MISSING ? missingCard(it)
-        : (it.type==="roundup" && it.stage===POOL) ? groupCard(it)
-        : pipeCard(it);
-      holder.appendChild(el);
-    });
+    if(col===PUBCOL){
+      const z=n=>String(n).padStart(2,'0'); const td=new Date(); const todayISO=td.getFullYear()+'-'+z(td.getMonth()+1)+'-'+z(td.getDate());
+      const merged=[
+        ...items.map(it=>({k:'art',it,d:todayISO,r:it.row})),
+        ...pubNps.map(n=>({k:'np',np:n,d:n.date||todayISO,r:0}))
+      ].sort((a,b)=> a.d<b.d?1 : a.d>b.d?-1 : (b.r-a.r));
+      merged.forEach(m=> holder.appendChild(m.k==='np'?nonpromoCard(m.np):pipeCard(m.it)));
+    }else{
+      items.forEach(it=>{
+        const el = col===ONDECK ? ondeckCard(it)
+          : it.status==="new" ? newCard(it)
+          : col===MISSING ? missingCard(it)
+          : (it.type==="roundup" && it.stage===POOL) ? groupCard(it)
+          : pipeCard(it);
+        holder.appendChild(el);
+      });
+    }
     if(holds.length) holder.appendChild(onHoldCard(holds));
     board.appendChild(c);
   });
@@ -1230,6 +1257,32 @@ function scheduledDatesHTML(it){
     return `<li><span class="sd-plat">${esc(plat)}${esc(typ)}</span><span class="sd-when">${esc(fmt(whenOf(p)))}</span></li>`;
   }).join("");
   return `<div class="muted2" style="margin:9px 0 2px;font-weight:700">📅 Scheduled posts</div><ul class="schedlist">${rows}</ul>`;
+}
+/* ---- Non-promo cards in Fully Live ---- */
+const NP_PLAT_LABEL={instagram:"Instagram",instagramstory:"IG Story",facebook:"Facebook",facebookstory:"FB Story",tiktok:"TikTok"};
+function npHeadline(np){
+  const segs=(np.imgRef||"").split("|").map(s=>s.trim()).filter(Boolean);
+  if(segs.length>=2 && segs[1]) return segs[1];
+  const w=(np.caption||"").trim().split(/\s+/);
+  return w.length ? w.slice(0,7).join(" ")+(w.length>7?"…":"") : (np.type||"Non-promo post");
+}
+function prettyDate(iso){ if(!iso) return ""; const p=iso.split("-"); if(p.length<3) return iso;
+  const d=new Date(+p[0],+p[1]-1,+p[2]); const wd=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  return isNaN(d)?iso:wd[d.getDay()]+" "+(d.getMonth()+1)+"/"+d.getDate(); }
+function matchesSearchNP(n){ const q=searchQ.toLowerCase(); return [n.caption,n.platform,n.type,npHeadline(n)].join(" ").toLowerCase().includes(q); }
+function nonpromoCard(np){
+  const key="np-"+np.row, open=expandedCards.has(key);
+  const d=document.createElement("div");d.className="card collapsible non-promo-card"+(open?" open":"");d.draggable=false;d.dataset.id=key;
+  const plat=NP_PLAT_LABEL[np.platform.toLowerCase()]||np.platform;
+  const statusEl = np.status==="scheduled" ? '<span class="badge b-ok">✓ Scheduled</span>' : '<span class="badge b-flag">⏳ Scheduling…</span>';
+  const dt=prettyDate(np.date);
+  d.innerHTML=`<div class="chead"><div class="ttl">${esc(npHeadline(np))}</div><span class="ccaret">${open?'▾':'▸'}</span></div>
+    <div class="cbody">
+      <div class="badges"><span class="badge b-nonpromo">Non-promo</span><span class="badge b-plat">${esc(plat)}${np.type?' · '+esc(np.type):''}</span>${statusEl}</div>
+      ${dt?`<div class="muted2" style="margin:6px 0 2px;font-weight:700">📅 ${esc(dt)}</div>`:''}
+      <p class="np-cap">${esc(np.caption||"")}</p>
+    </div>`;
+  return d;
 }
 function pipeCard(it){
   const d=document.createElement("div");d.className="card";d.draggable=true;d.dataset.id=it.id;d.dataset.row=it.row;
@@ -1804,6 +1857,24 @@ document.addEventListener("click",e=>{
     render();
   }
 });
+/* To-Do box → non-promo status panel */
+function renderTodo(){
+  const host=$("#todoBox .todo-body"); if(!host) return;
+  const waiting=nonpromo.filter(n=>n.status==="needs_review").length;
+  const z=n=>String(n).padStart(2,"0"), iso=d=>d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
+  const now=new Date();now.setHours(0,0,0,0);
+  const ws=new Date(now);ws.setDate(now.getDate()-now.getDay());
+  const we=new Date(ws);we.setDate(ws.getDate()+6);
+  const wsI=iso(ws), weI=iso(we);
+  const schedWk=nonpromo.filter(n=>n.status==="scheduled" && n.date>=wsI && n.date<=weI).length;
+  host.innerHTML=
+    `<button class="todo-stat${waiting?' todo-alert':''}" data-goreview="1" title="Open Personal Posts to review">
+       <span class="todo-num">${waiting}</span><span class="todo-lbl">non-promo waiting for review${waiting?' →':''}</span></button>`
+    +`<div class="todo-stat"><span class="todo-num">${schedWk}</span><span class="todo-lbl">non-promo scheduled this week</span></div>`;
+}
+document.addEventListener("click",e=>{
+  if(e.target.closest("[data-goreview]")){ const t=document.querySelector('.tab[data-view="review"]'); if(t)t.click(); }
+});
 const infopop=document.createElement("div");infopop.className="infopop";document.body.appendChild(infopop);
 function showInfo(btn){
   const col=btn.dataset.info;if(!INFO[col])return;
@@ -2069,6 +2140,8 @@ async function renderReview(){
       if(ap){ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:cap});
               await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"queued"}); }
       else  { await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"}); }
+      const n=nonpromo.find(x=>x.row===row); if(n){ n.status=ap?"queued":"skipped"; if(ap&&cap) n.caption=cap; }
+      renderTodo(); render();   // reflect immediately: Fully Live card appears (queued) + To-Do counts update
       card.style.transition="opacity .3s"; card.style.opacity="0";
       setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")) renderReview(); },320);
       toast(ap?"Approved — queued for scheduling.":"Skipped.");
