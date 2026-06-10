@@ -1773,7 +1773,7 @@ function openRoundupAssign(row,thenDraft){
   modal.innerHTML=`<button class="x" data-cc="x">×</button>
     <div class="kicker">Set up the draft</div>
     <h3>${esc(titleOf(it))}</h3>
-    <p>Put this product in a roundup group, or mark it as not part of one (same label on two+ products = one roundup). Add an optional spin below.${thenDraft?" On save I'll send it to <b>Drafting</b> and start the article right away.":""}</p>
+    <p>Put this product in a roundup group, or mark it as not part of one (same label on two+ products = one roundup). Add an optional spin below.${thenDraft?" Use <b>Save &amp; draft</b> to assign it and start the article, or <b>Roundup only</b> to add it to a roundup <b>without</b> drafting it.":""}</p>
     <label>Roundup group</label>
     <input id="grpInput" placeholder="e.g. Boho Throws Under $50" value="${esc(groupLabelOf(it))}">
     <div class="chips">${chips}</div>
@@ -1782,6 +1782,7 @@ function openRoundupAssign(row,thenDraft){
     <div class="mfoot">
       <button class="btn ghost" data-cc="hold">⏸ On hold</button>
       <button class="btn ghost" data-cc="none">Not in a roundup${thenDraft?" → draft":""}</button>
+      ${thenDraft?`<button class="btn ghost" data-cc="group-only">＋ Roundup only (no draft)</button>`:""}
       <button class="btn coral" data-cc="save">${thenDraft?"Save &amp; draft ⚡":"Assign to group"}</button>
     </div>`;
   scrim.classList.add("show");
@@ -1795,13 +1796,14 @@ function openRoundupAssign(row,thenDraft){
     if(v==="x"){close();return;}
     const lab=input.value.trim();
     const angEl=$("#angleInput"); const ang=angEl?angEl.value.trim():"";
-    if(v==="save" && !lab){toast("Type a roundup label, or pick On hold / Not in a roundup");return;}
+    if((v==="save"||v==="group-only") && !lab){toast("Type a roundup label, or pick On hold / Not in a roundup");return;}
     close();
     if(ang!==(it.angle||"")){ it.angle=ang; try{await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"M"+row,data:[[ang]]}); }catch(e){} }
     if(v==="hold")await setOnHold(row);
     else if(v==="none")await setNoRoundup(row);
     else if(v==="save")await assignGroup(row,lab);
-    if(thenDraft)await draftAfterDecision(row);
+    else if(v==="group-only"){ await assignGroup(row,lab); toast("Added to “"+lab+"” — not drafted"); }
+    if(thenDraft && v!=="group-only")await draftAfterDecision(row);
   }
   modal.addEventListener("click",onClick);
   setTimeout(()=>input&&input.focus(),30);
