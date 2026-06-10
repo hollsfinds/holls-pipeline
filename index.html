@@ -1313,9 +1313,7 @@ function pipeCard(it){
   let controls="";
   if(it.stage===NEWCOL && it.type!=="roundup"){
     const pl=srcUrlOf(it)?`<a class="alink" href="${esc(srcUrlOf(it))}" target="_blank" rel="noopener">View product ↗</a>`:"";
-    // when this product is in an actual roundup, offer to remove its individual card (it stays in the roundup)
-    const rmBtn = groupLabelOf(it) ? `<button class="btn ghost danger" data-hidecard="${it.row}" title="Remove this individual card — it stays in the roundup">🗑 Remove card</button>` : "";
-    controls=`${pl}<div class="acts"><button class="btn ${roundupDecided(it)?'ghost':'coral'}" data-assign="${it.row}">${roundupDecided(it)?'✎ Edit setup':'⚑ Set up & draft'}</button>${rmBtn}</div>`;
+    controls=`${pl}<div class="acts"><button class="btn ${roundupDecided(it)?'ghost':'coral'}" data-assign="${it.row}">${roundupDecided(it)?'✎ Edit setup':'⚑ Set up & draft'}</button></div>`;
   }else if(it.stage===DRAFTCOL){
     controls=`<div class="muted2">Writing your draft…</div>`;
   }else if(it.stage===REVIEWCOL){
@@ -1372,6 +1370,11 @@ function pipeCard(it){
     }
     controls=`${pubLink}${discBadge}${statusEl}${prodLinks}
       <div class="acts"><button class="btn coral" data-social="${it.row}">📋 View social pack</button></div>`;
+  }
+  // Remove-card button: roundup-assigned products in New Products, OR any product card in Add Images.
+  // Hides the card from the board — roundup members stay in their roundup; non-roundup cards just leave the pipeline.
+  if(it.type!=="roundup" && ((it.stage===NEWCOL && groupLabelOf(it)) || it.stage===REVIEWCOL)){
+    controls += `<div class="acts"><button class="btn ghost danger" data-hidecard="${it.row}" title="Remove this card from the pipeline">🗑 Remove card</button></div>`;
   }
   const im = (it.type!=="roundup" && it.stage===NEWCOL) ? imgOf(it) : "";
   const thumb = im ? `<img class="thumb-sm" src="${esc(im)}" data-zoom="${esc(im)}" onerror="this.style.display='none'">` : "";
@@ -1549,15 +1552,17 @@ document.addEventListener("click",async e=>{
    membersOf() matches by group label regardless of stage, so a hidden stage keeps the roundup intact. */
 async function hideRoundupMemberCard(row){
   const it=pipe.find(p=>p.row===row);if(!it)return;
-  const label=groupLabelOf(it);
-  if(!label){ toast("This product isn't in a roundup."); return; }
-  const ok=await confirmModal({kicker:"Remove individual card",
-    title:"Remove the individual card for “"+esc(titleOf(it))+"”?",
-    body:"It stays in the <b>"+esc(label)+"</b> roundup — still drafted and counted there, and still listed inside the roundup card. This just clears its own card off the board so it won't get a solo article. Nothing is deleted.",
-    okLabel:"Remove card"});
+  const label=groupLabelOf(it), inRoundup=!!label;
+  const body = inRoundup
+    ? "It stays in the <b>"+esc(label)+"</b> roundup — still drafted and counted there, and still listed inside the roundup card. This just clears its own card off the board so it won't get a solo article. Nothing is deleted."
+    : "This pulls the card out of the pipeline so it won't publish a solo article. Any draft already created is <b>left unpublished</b> (not deleted) — you can still find it in FreshStore. Nothing is permanently removed.";
+  const ok=await confirmModal({kicker:"Remove card",
+    title:"Remove the card for “"+esc(titleOf(it))+"”?",
+    body, okLabel:"Remove card"});
   if(!ok)return;
-  const prev=it.stage; it.stage="Roundup Member"; render();
-  try{ await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"C"+row,data:[["Roundup Member"]]}); toast("Card removed — still in the “"+label+"” roundup"); }
+  const prev=it.stage; it.stage = inRoundup ? "Roundup Member" : "Removed"; render();
+  try{ await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"C"+row,data:[[it.stage]]});
+    toast(inRoundup ? ("Card removed — still in the “"+label+"” roundup") : "Card removed from the pipeline"); }
   catch(e){ it.stage=prev; render(); toast("Remove failed: "+(e.message||"")); }
 }
 /* Delete an EMPTY roundup card. Soft-archive (stage→"Archived"): leaves the board but the row
