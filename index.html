@@ -79,6 +79,7 @@ button{font-family:inherit;cursor:pointer}
 .col-h .row1{display:flex;align-items:center;gap:7px}
 .col-h .nm{font-weight:800;font-size:13px}
 .col-h .ct{margin-left:auto;background:var(--bg);color:var(--muted);font-weight:700;border-radius:20px;padding:1px 9px;font-size:11px}
+.col-h .ct.has{background:var(--coral);color:#fff}
 .col-h .bolt{color:var(--coral);font-weight:900}
 .info-btn{border:none;background:var(--bg);color:var(--muted);width:19px;height:19px;border-radius:50%;
   font-size:11px;font-weight:800;line-height:1;display:inline-flex;align-items:center;justify-content:center}
@@ -967,7 +968,7 @@ function render(){
         <div class="row1">${bolt}<span class="nm">${esc(LABEL[col]||col)}</span>${twirl}
           <button class="info-btn" data-info="${esc(col)}">i</button>
           ${REFRESH_ACTION[col]?`<button class="rf-btn" data-refresh="${esc(col)}" title="Check now — flag the brain to look for updates on its next sweep (~2 min), instead of waiting for the ~12-min auto-check">↻</button>`:''}
-          <span class="ct">${items.length+pubNps.length+(holds.length?1:0)}</span></div>
+          <span class="ct${(items.length+pubNps.length+(holds.length?1:0))>0?' has':''}">${items.length+pubNps.length+(holds.length?1:0)}</span></div>
       </div>
       <div class="cards" data-col="${esc(col)}"></div>`;
     const holder=$(".cards",c);
