@@ -292,6 +292,7 @@ button{font-family:inherit;cursor:pointer}
 .dc-combo.gap{background:#fff;color:var(--espresso);box-shadow:inset 0 0 0 1px var(--line)}
 .dc-combo.off{background:#f3efec;color:#c8bfb9}
 .dc-combo.unk{background:transparent;color:#c3b8af}
+.dc-combo.wrong{background:var(--coral);color:#fff}   /* mismatch — needs addressing */
 .empty{color:#c8bfb9;font-size:11px;text-align:center;padding:14px 4px;font-style:italic}
 /* roundup tray */
 .tray{margin-bottom:14px;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
@@ -1909,8 +1910,12 @@ async function renderCalendar(targetId,compact){
     if(o.sched>0) return {cls:'part',txt:o.sched+'/'+o.req};
     return {cls:'gap',txt:'0/'+o.req};
   }
-  // combined-bubble color for split lanes = overall coverage (promo + non together)
-  function comboCls(s){ const goal=s.promo.req+s.non.req, sched=s.promo.sched+s.non.sched;
+  // combined-bubble color for split lanes.
+  // CORAL = wrong type in a slot (promo in a reserved non slot, or non over its promo reservation).
+  // Otherwise = overall coverage (promo + non together).
+  function comboCls(s){
+    if(s.promo.sched>s.promo.req || s.non.sched>s.non.req) return 'wrong';
+    const goal=s.promo.req+s.non.req, sched=s.promo.sched+s.non.sched;
     if(goal===0&&sched===0) return 'off';
     if(sched>=goal&&goal>0) return 'full';
     if(sched>0) return 'part';
