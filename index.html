@@ -1925,9 +1925,9 @@ async function renderCalendar(targetId,compact){
     let h='<div class="dc-colh"><span class="dc-lbl"></span><span class="dc-ch">Pro</span><span class="dc-ch">Non</span></div>';
     lanes.forEach(L=>{ const s=laneSplit(L,d);
       if(!L.split){
-        // articles + pinterest: single Pro bubble, Non cell left blank (no 0/0)
+        // articles + pinterest: full-width bubble (same size as social), number on the Pro side, Non side blank
         const p=s.exists?cell2(s.promo):{cls:'unk',txt:'·'};
-        h+='<div class="dc-row2"><span class="dc-lbl">'+L.n+'</span><span class="dc-cell '+p.cls+'">'+p.txt+'</span><span class="dc-cell blank"></span></div>';
+        h+='<div class="dc-row2"><span class="dc-lbl">'+L.n+'</span><span class="dc-combo '+p.cls+'"><span class="cb-pro">'+p.txt+'</span><span class="cb-non"></span></span></div>';
       }else{
         // social lanes: ONE bubble around both tallies, colored by overall coverage
         const pTxt=s.exists?(s.promo.sched+'/'+s.promo.req):'·';
