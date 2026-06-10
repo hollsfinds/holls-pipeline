@@ -26,6 +26,9 @@
     user-select:none;background:#fff;transition:.12s}
   .cat.on{background:var(--coral);border-color:var(--coral);color:#fff;font-weight:600}
   .cat.parent{font-weight:600}
+  .cat.sub{font-size:12px;background:#faf6f2}
+  .catgroup{width:100%;margin-bottom:8px}
+  .catkids{margin-left:16px;margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;border-left:2px solid var(--line);padding-left:10px}
   .hint{font-size:11px;color:#a89c93;margin-top:4px}
   button.add{width:100%;margin-top:18px;background:var(--coral);color:#fff;border:0;border-radius:10px;
     padding:13px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.2px}
@@ -101,6 +104,17 @@
   document.getElementById("title").addEventListener("input", refreshBtn);
 
   // ---- load live categories from the Meta cache ----
+  // build a chip with toggle behavior
+  function makeChip(c, kind){
+    var el=document.createElement("span");
+    el.className="cat "+kind; el.textContent=c.title;
+    el.onclick=function(){
+      if(selected[c.title]){ delete selected[c.title]; el.classList.remove("on"); }
+      else { selected[c.title]=true; el.classList.add("on"); }
+      refreshBtn();
+    };
+    return el;
+  }
   function loadCats(){
     fetch(EXEC_URL + "?token=" + encodeURIComponent(API_TOKEN) + "&action=meta")
       .then(function(r){return r.json();})
@@ -109,15 +123,25 @@
         var list=[];
         try{ list=JSON.parse((j.meta&&j.meta.freshstore_categories)||"[]"); }catch(e){ list=[]; }
         if(!list.length){ box.innerHTML='<span class="hint">No categories cached yet — type a new one below.</span>'; return; }
+        // Cache entries: {id,title,slug,parent_id}. Nest subcategories under their parent.
+        var haveIds=list.some(function(c){return c&&c.id!=null;});
+        if(!haveIds){ list.forEach(function(c){ box.appendChild(makeChip(c,"parent")); }); return; } // flat fallback
+        var byId={}; list.forEach(function(c){ if(c&&c.id!=null) byId[c.id]=c; });
+        var kids={}, roots=[];
         list.forEach(function(c){
-          var el=document.createElement("span");
-          el.className="cat"; el.textContent=c.title;
-          el.onclick=function(){
-            if(selected[c.title]){ delete selected[c.title]; el.classList.remove("on"); }
-            else { selected[c.title]=true; el.classList.add("on"); }
-            refreshBtn();
-          };
-          box.appendChild(el);
+          var pid=(c.parent_id!=null && byId[c.parent_id])?c.parent_id:null;
+          if(pid==null) roots.push(c); else { (kids[pid]=kids[pid]||[]).push(c); }
+        });
+        roots.forEach(function(r){
+          var grp=document.createElement("div"); grp.className="catgroup";
+          grp.appendChild(makeChip(r,"parent"));
+          var ch=kids[r.id]||[];
+          if(ch.length){
+            var kbox=document.createElement("div"); kbox.className="catkids";
+            ch.forEach(function(c){ kbox.appendChild(makeChip(c,"sub")); });
+            grp.appendChild(kbox);
+          }
+          box.appendChild(grp);
         });
       })
       .catch(function(){ document.getElementById("cats").innerHTML='<span class="hint">Couldn\'t load categories — type a new one below.</span>'; });

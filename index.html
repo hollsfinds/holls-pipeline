@@ -68,6 +68,10 @@ button{font-family:inherit;cursor:pointer}
 .rcats{display:flex;flex-wrap:wrap;gap:6px}
 .rcat{border:1px solid var(--line);border-radius:20px;padding:5px 11px;font-size:12px;cursor:pointer;user-select:none;background:#fff}
 .rcat.on{background:var(--coral);border-color:transparent;color:#fff;font-weight:700}
+.rcat.parent{font-weight:700}
+.rcat.sub{font-size:11.5px;background:#faf6f2}
+.catgroup{margin-bottom:8px;width:100%}
+.catkids{margin-left:16px;margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;border-left:2px solid var(--line);padding-left:10px}
 .rhint{font-size:11px;color:var(--teal);font-weight:700;margin-top:6px;min-height:14px}
 
 /* board */
@@ -1027,20 +1031,39 @@ function ondeckCard(it){
     ${note}${acts}`;
   return d;
 }
+/* build grouped/indented category chips from the cached list.
+   Cache entries look like {id,title,slug,parent_id}; subcategories nest under their parent.
+   Falls back to a flat list if the cache has no id/parent_id (older cache shape). */
+function catChipsHtml(sel){
+  sel=sel||{};
+  if(!allCats.length) return '<span class="muted2">No categories cached yet — add one below.</span>';
+  const chip=(c,kind)=>`<span class="rcat ${kind} ${sel[c.title]?'on':''}" data-cat="${esc(c.title)}">${esc(c.title)}</span>`;
+  const haveIds=allCats.some(c=>c&&c.id!=null);
+  if(!haveIds) return allCats.map(c=>chip(c,"parent")).join("");   // flat fallback
+  const byId={}; allCats.forEach(c=>{ if(c&&c.id!=null) byId[c.id]=c; });
+  const kids={}; const roots=[];
+  allCats.forEach(c=>{
+    const pid=(c.parent_id!=null && byId[c.parent_id])?c.parent_id:null;
+    if(pid==null) roots.push(c); else (kids[pid]=kids[pid]||[]).push(c);
+  });
+  return roots.map(r=>{
+    const childHtml=(kids[r.id]||[]).map(ch=>chip(ch,"sub")).join("");
+    return `<div class="catgroup">${chip(r,"parent")}${childHtml?`<div class="catkids">${childHtml}</div>`:""}</div>`;
+  }).join("");
+}
 /* review & send: edit title + categories right before it goes live */
 function reviewSendModal(it){
   return new Promise(resolve=>{
     const scrim=$("#scrim"),modal=$("#modal");
     const sel={};(it.cats||"").split(",").map(s=>s.trim()).filter(Boolean).forEach(c=>sel[c]=true);
-    const chips=allCats.length?allCats.map(c=>`<span class="rcat ${sel[c.title]?'on':''}" data-cat="${esc(c.title)}">${esc(c.title)}</span>`).join("")
-      :'<span class="muted2">No categories cached yet — add one below.</span>';
+    const chips=catChipsHtml(sel);
     modal.innerHTML=`<button class="x" data-cc="0">×</button>
       <div class="kicker">Send to FreshStore</div>
       <h3>Review &amp; send live</h3>
       <p>Fix the title or categories if you need to, then send. It imports <b>live</b> with images + your tagged link, and I patch in the clean title + SEO.</p>
       <label class="rlbl">Title</label>
       <textarea id="rtitle" class="rinput" rows="2">${esc(it.title)}</textarea>
-      <label class="rlbl">Categories <span class="muted2">(tap to toggle)</span></label>
+      <label class="rlbl">Categories <span class="muted2">(tap to toggle)</span> <button type="button" class="btn ghost sm" id="rrefresh" title="Reload the latest category list">↻ Refresh</button></label>
       <div class="rcats">${chips}</div>
       <label class="rlbl">New category <span class="muted2">(comma-separated, optional)</span></label>
       <input id="rnew" class="rinput" type="text" placeholder="e.g. Wall Decor, Entryway" value="${esc(it.newcats||'')}">
@@ -1078,7 +1101,24 @@ function reviewSendModal(it){
         }catch(e){ const s=$("#rsug"); if(s) s.textContent=""; }
       })();
     }
+    async function refreshCatsInModal(btn){
+      const orig=btn.textContent; btn.disabled=true; btn.textContent="↻ Refreshing…";
+      try{
+        // re-read the shared category cache (Meta!freshstore_categories) straight from the Sheet.
+        // No FreshStore key needed here — the daily refresh keeps that cell current; this just reloads it.
+        _cache=null;  // bust the 1.5s read-cache so we pull a fresh copy
+        const mv=valuesOf(await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Meta"}));
+        const mrow=mv.find(r=>(r[0]||"")==="freshstore_categories");
+        try{ allCats=mrow?JSON.parse(mrow[1]||"[]"):[]; }catch(e){ allCats=[]; }
+        const box=modal.querySelector(".rcats");
+        if(box) box.innerHTML = catChipsHtml(sel);
+        toast("Categories reloaded ("+allCats.length+")");
+      }catch(err){ toast("Refresh failed: "+(err&&err.message||err)); }
+      finally{ btn.disabled=false; btn.textContent=orig; }
+    }
     function onClick(e){
+      const rf=e.target.closest("#rrefresh");
+      if(rf){ refreshCatsInModal(rf); return; }
       const chip=e.target.closest("[data-cat]");
       if(chip){const c=chip.dataset.cat;if(sel[c]){delete sel[c];chip.classList.remove("on");}else{sel[c]=true;chip.classList.add("on");}return;}
       const b=e.target.closest("[data-cc]");if(!b)return;
