@@ -271,6 +271,18 @@ button{font-family:inherit;cursor:pointer}
 .dc-row.gap{background:#fff} .dc-row.gap .dc-val{color:var(--espresso)}
 .dc-row.off{background:#f3efec} .dc-row.off .dc-val{color:#c3b8af}
 .dc-row.unk .dc-val{color:#c3b8af}
+/* two-column tally (Promo | Non-promo) */
+.dc-colh{display:flex;align-items:center;gap:4px;padding:3px 7px;font-size:9px;font-weight:700;color:#b3a89f;text-transform:uppercase;letter-spacing:.02em;background:#faf7f5;border-top:1px solid var(--line)}
+.dc-colh .dc-lbl{flex:1}
+.dc-colh .dc-ch{width:40px;flex:0 0 auto;text-align:center}
+.dc-row2{display:flex;align-items:center;gap:4px;padding:3px 7px;font-size:11px;border-top:1px solid var(--line)}
+.dc-row2 .dc-lbl{flex:1;color:#7a6f66;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dc-cell{width:40px;flex:0 0 auto;text-align:center;font-weight:700;font-variant-numeric:tabular-nums;border-radius:5px;padding:1px 0;font-size:10.5px}
+.dc-cell.full{background:var(--sage);color:#2f5e2e}
+.dc-cell.part{background:#FFE7D6;color:var(--espresso)}
+.dc-cell.gap{background:#fff;color:var(--espresso);box-shadow:inset 0 0 0 1px var(--line)}
+.dc-cell.off{background:#f3efec;color:#c8bfb9}
+.dc-cell.unk{background:transparent;color:#c3b8af}
 .empty{color:#c8bfb9;font-size:11px;text-align:center;padding:14px 4px;font-style:italic}
 /* roundup tray */
 .tray{margin-bottom:14px;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
@@ -1827,6 +1839,8 @@ async function renderCalendar(targetId,compact){
     art.innerHTML='<div class="cal-empty">No data yet — fills automatically once the Mac brain writes the Calendar. (If it stays empty after a sweep, add <code>Calendar</code> to the Apps Script tab list + redeploy.)</div>';
     return;
   }
+  // also pull the NonPromo tab (same cached payload) to tally non-promo per lane/day
+  let npRows=[]; try{ const _all=await apiGet(); npRows=_all["NonPromo"]||[]; }catch(e){}
   const body=rows.slice(1), plat=r=>String(r[1]||'').toLowerCase();
   const artRows=body.filter(r=>plat(r)==='articles');
   const runRow=body.find(r=>plat(r)==='runway');
@@ -1842,22 +1856,59 @@ async function renderCalendar(targetId,compact){
   // coverage map + furthest scheduled per platform
   const map={}, furthest={};
   postRows.forEach(r=>{ const d=String(r[0]||'').slice(0,10), pl=plat(r), s=parseInt(r[3]||'0',10)||0; if(!d) return;
-    (map[d]=map[d]||{})[pl]={goal:parseInt(r[2]||'0',10)||0, sched:s};
+    (map[d]=map[d]||{})[pl]={goal:parseInt(r[2]||'0',10)||0, sched:s, npGoal:parseInt(r[6]||'0',10)||0};   // col G = non-promo required
     if(s>0 && (!furthest[pl]||d>furthest[pl])) furthest[pl]=d; });
+  // non-promo SCHEDULED tally from the NonPromo tab — count queued+scheduled, mapped to a lane
+  const NP_LANE={instagram:'instagram-posts',instagramstory:'instagram-stories',facebook:'facebook-posts',facebookstory:'facebook-stories',tiktok:'tiktok'};
+  const npSched={};   // npSched[date][laneKey] = count
+  (npRows||[]).slice(1).forEach(r=>{ const d=String(r[0]||'').slice(0,10), pl=String(r[1]||'').toLowerCase(), st=String(r[5]||'').toLowerCase();
+    if(!d) return; if(st!=='queued'&&st!=='scheduled') return; const lane=NP_LANE[pl]; if(!lane) return;
+    (npSched[d]=npSched[d]||{})[lane]=(npSched[d][lane]||0)+1; });
   const lanes=[
     {key:"articles",n:"Articles",art:true},
     {key:"pinterest",n:"Pinterest"},
-    {key:"facebook-posts",n:"FB Posts",fb:"facebook"},
-    {key:"facebook-stories",n:"FB Story",dg:2},
-    {key:"instagram-posts",n:"IG Posts",fb:"instagram"},
-    {key:"instagram-stories",n:"IG Story",dg:2},
-    {key:"tiktok",n:"TikTok"}
+    {key:"facebook-posts",n:"FB Posts",fb:"facebook",split:true},
+    {key:"facebook-stories",n:"FB Story",dg:2,split:true},
+    {key:"instagram-posts",n:"IG Posts",fb:"instagram",split:true},
+    {key:"instagram-stories",n:"IG Story",dg:2,split:true},
+    {key:"tiktok",n:"TikTok",split:true}
   ];
   const cellFor=rec=>{ if(!rec) return {cls:'unk',txt:'·'};
     if(rec.goal===0) return {cls:'off',txt:'–'};
     if(rec.sched>=rec.goal) return {cls:'full',txt:rec.sched+'/'+rec.goal};
     if(rec.sched>0) return {cls:'part',txt:rec.sched+'/'+rec.goal};
     return {cls:'gap',txt:'0/'+rec.goal}; };
+  // ---- two-column (Promo | Non-promo) model ----
+  // split goal+scheduled for a lane on a day into promo & non-promo halves
+  function laneSplit(L,d){
+    let goal=0,sched=0,exists=true;
+    if(L.art){ const r=byDate[d]; if(r){goal=r.goal;sched=r.sched;}else{exists=false;} }
+    else { let r=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb]));
+      if(r){goal=r.goal;sched=r.sched;} else if(L.dg!=null){goal=L.dg;sched=0;} else {exists=false;} }
+    if(!exists) return {exists:false};
+    let npReq=0;
+    if(L.split){ const r=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb])); npReq=Math.min(r?(r.npGoal||0):0, goal); }
+    const npSc = L.split ? ((npSched[d]&&npSched[d][L.key])||0) : 0;
+    return {exists:true,
+      promo:{sched:Math.max(0,sched-npSc), req:Math.max(0,goal-npReq)},
+      non:{sched:npSc, req:npReq}};
+  }
+  // one tally cell {cls,txt} for a {sched,req} pair
+  function cell2(o){
+    if(o.req===0 && o.sched===0) return {cls:'off',txt:'0/0'};
+    if(o.sched>=o.req && o.req>0) return {cls:'full',txt:o.sched+'/'+o.req};
+    if(o.sched>0) return {cls:'part',txt:o.sched+'/'+o.req};
+    return {cls:'gap',txt:'0/'+o.req};
+  }
+  // the lane rows (column header + one row per lane) for a given ISO date — shared by both views
+  function laneRowsHTML(d){
+    let h='<div class="dc-colh"><span class="dc-lbl"></span><span class="dc-ch">Promo</span><span class="dc-ch">Non</span></div>';
+    lanes.forEach(L=>{ const s=laneSplit(L,d);
+      const p=s.exists?cell2(s.promo):{cls:'unk',txt:'·'};
+      const n=s.exists?cell2(s.non):{cls:'unk',txt:'·'};
+      h+='<div class="dc-row2"><span class="dc-lbl">'+L.n+'</span><span class="dc-cell '+p.cls+'">'+p.txt+'</span><span class="dc-cell '+n.cls+'">'+n.txt+'</span></div>'; });
+    return h;
+  }
   // ---- Pipeline sidebar calendar: one day at a time, vertically scrollable (compact only).
   //      Posting Calendar page (compact=false) keeps the full week grid below — untouched.
   if(compact){
@@ -1869,11 +1920,7 @@ async function renderCalendar(targetId,compact){
     let off=0;   // days from today; ▲ goes back, ▼ goes forward
     const drawDay=()=>{ const dt=new Date(today); dt.setDate(today.getDate()+off); const d=isoL(dt); const isT=(off===0);
       let h='<div class="dc'+(isT?' today':'')+'"><div class="dc-hd">'+wd[dt.getDay()]+' '+(dt.getMonth()+1)+'/'+dt.getDate()+(isT?' • Today':'')+'</div>';
-      lanes.forEach(L=>{ let rec;
-        if(L.art){ rec=byDate[d]; }
-        else { rec=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb])); if(!rec&&L.dg!=null) rec={goal:L.dg,sched:0}; }
-        const c=cellFor(rec);
-        h+='<div class="dc-row '+c.cls+'"><span class="dc-lbl">'+L.n+'</span><span class="dc-val">'+c.txt+'</span></div>'; });
+      h+=laneRowsHTML(d);
       h+='</div>'; dayBox.innerHTML=h; };
     drawDay();
     const bindC=(sel,fn)=>{ const b=art.querySelector(sel); if(b) b.onclick=fn; };
@@ -1916,11 +1963,7 @@ async function renderCalendar(targetId,compact){
     let h='<div class="dc-wrap">';
     for(let i=0;i<7;i++){ const dt=new Date(viewStart); dt.setDate(viewStart.getDate()+i); const d=isoL(dt);
       h+='<div class="dc'+(d===tISO?' today':'')+'"><div class="dc-hd">'+wd[dt.getDay()]+'<span>'+(dt.getMonth()+1)+'/'+dt.getDate()+'</span></div>';
-      lanes.forEach(L=>{ let rec;
-        if(L.art){ rec=byDate[d]; }
-        else { rec=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb])); if(!rec&&L.dg!=null) rec={goal:L.dg,sched:0}; }
-        const c=cellFor(rec);
-        h+='<div class="dc-row '+c.cls+'"><span class="dc-lbl">'+L.n+'</span><span class="dc-val">'+c.txt+'</span></div>'; });
+      h+=laneRowsHTML(d);
       h+='</div>'; }
     h+='</div>'; box.innerHTML=h;
     const end=new Date(viewStart); end.setDate(viewStart.getDate()+6);
