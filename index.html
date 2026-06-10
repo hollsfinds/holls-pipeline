@@ -235,6 +235,8 @@ button{font-family:inherit;cursor:pointer}
 .cov-legend .lg.gap{background:#fbe0dc;color:#8a2c1d}
 .cov-legend .lg.off{background:#f3efec;color:#7a6f66}
 .cov-legend .lg.none{background:#fff;border:1px solid var(--line);color:#7a6f66}
+.cov-legend .lg.wrong{background:var(--coral);color:#fff}
+.cov-legend .lg-note{color:#7a6f66;font-weight:600}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;flex-wrap:wrap}
 .cal-collapsed-lbl{display:none}
 /* ---- Pipeline page: left sidebar (To-Do + single-day calendar) beside the board ---- */
@@ -1973,7 +1975,14 @@ async function renderCalendar(targetId,compact){
   let warnHtml='';
   if(runRow){ const wk=parseInt(runRow[2]||'0',10)||0, far=parseInt(runRow[3]||'0',10)||0, furthestD=esc(runRow[0]||'');
     if(wk>12) warnHtml='<div class="cal-warn">⚠️ Runway extends '+wk+' weeks (to '+furthestD+'). '+far+' pin'+(far===1?'':'s')+' scheduled 12+ weeks out — worth re-checking those products are still in stock before they post.</div>'; }
-  const legend='<div class="cov-legend"><span class="lg full">filled</span><span class="lg none">not filled yet</span><span class="lg off">off-day</span></div>';
+  const legend='<div class="cov-legend">'
+    +'<span class="lg-note">Each social lane shows <b>Pro</b> | <b>Non</b> (scheduled / required):</span>'
+    +'<span class="lg full">filled</span>'
+    +'<span class="lg part">partly filled</span>'
+    +'<span class="lg none">not filled yet</span>'
+    +'<span class="lg off">none needed</span>'
+    +'<span class="lg wrong">wrong type — needs a fix</span>'
+    +'</div>';
   let hist='<details class="cal-details"><summary>Full history ▾</summary><table class="cal-table"><thead><tr><th>Date</th><th>Goal</th><th>Published</th><th>Running balance</th></tr></thead><tbody>';
   artRows.slice(-60).reverse().forEach(r=>{ hist+='<tr><td>'+esc(r[0])+'</td><td>'+esc(r[2])+'</td><td>'+esc(r[3])+'</td><td>'+esc(r[4]||'')+'</td></tr>'; });
   hist+='</tbody></table></details>';
