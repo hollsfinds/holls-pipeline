@@ -283,6 +283,15 @@ button{font-family:inherit;cursor:pointer}
 .dc-cell.gap{background:#fff;color:var(--espresso);box-shadow:inset 0 0 0 1px var(--line)}
 .dc-cell.off{background:#f3efec;color:#c8bfb9}
 .dc-cell.unk{background:transparent;color:#c3b8af}
+.dc-cell.blank{background:transparent;box-shadow:none}
+/* combined bubble (social lanes) — one pill wrapping both Pro + Non numbers */
+.dc-combo{flex:0 0 auto;display:flex;gap:4px;width:84px;border-radius:5px;padding:1px 0}
+.dc-combo .cb-pro,.dc-combo .cb-non{width:40px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums;font-size:10.5px}
+.dc-combo.full{background:var(--sage);color:#2f5e2e}
+.dc-combo.part{background:#FFE7D6;color:var(--espresso)}
+.dc-combo.gap{background:#fff;color:var(--espresso);box-shadow:inset 0 0 0 1px var(--line)}
+.dc-combo.off{background:#f3efec;color:#c8bfb9}
+.dc-combo.unk{background:transparent;color:#c3b8af}
 .empty{color:#c8bfb9;font-size:11px;text-align:center;padding:14px 4px;font-style:italic}
 /* roundup tray */
 .tray{margin-bottom:14px;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
@@ -1900,13 +1909,27 @@ async function renderCalendar(targetId,compact){
     if(o.sched>0) return {cls:'part',txt:o.sched+'/'+o.req};
     return {cls:'gap',txt:'0/'+o.req};
   }
+  // combined-bubble color for split lanes = overall coverage (promo + non together)
+  function comboCls(s){ const goal=s.promo.req+s.non.req, sched=s.promo.sched+s.non.sched;
+    if(goal===0&&sched===0) return 'off';
+    if(sched>=goal&&goal>0) return 'full';
+    if(sched>0) return 'part';
+    return 'gap'; }
   // the lane rows (column header + one row per lane) for a given ISO date — shared by both views
   function laneRowsHTML(d){
-    let h='<div class="dc-colh"><span class="dc-lbl"></span><span class="dc-ch">Promo</span><span class="dc-ch">Non</span></div>';
+    let h='<div class="dc-colh"><span class="dc-lbl"></span><span class="dc-ch">Pro</span><span class="dc-ch">Non</span></div>';
     lanes.forEach(L=>{ const s=laneSplit(L,d);
-      const p=s.exists?cell2(s.promo):{cls:'unk',txt:'·'};
-      const n=s.exists?cell2(s.non):{cls:'unk',txt:'·'};
-      h+='<div class="dc-row2"><span class="dc-lbl">'+L.n+'</span><span class="dc-cell '+p.cls+'">'+p.txt+'</span><span class="dc-cell '+n.cls+'">'+n.txt+'</span></div>'; });
+      if(!L.split){
+        // articles + pinterest: single Pro bubble, Non cell left blank (no 0/0)
+        const p=s.exists?cell2(s.promo):{cls:'unk',txt:'·'};
+        h+='<div class="dc-row2"><span class="dc-lbl">'+L.n+'</span><span class="dc-cell '+p.cls+'">'+p.txt+'</span><span class="dc-cell blank"></span></div>';
+      }else{
+        // social lanes: ONE bubble around both tallies, colored by overall coverage
+        const pTxt=s.exists?(s.promo.sched+'/'+s.promo.req):'·';
+        const nTxt=s.exists?(s.non.sched+'/'+s.non.req):'·';
+        const cls=s.exists?comboCls(s):'unk';
+        h+='<div class="dc-row2"><span class="dc-lbl">'+L.n+'</span><span class="dc-combo '+cls+'"><span class="cb-pro">'+pTxt+'</span><span class="cb-non">'+nTxt+'</span></span></div>';
+      } });
     return h;
   }
   // ---- Pipeline sidebar calendar: one day at a time, vertically scrollable (compact only).
