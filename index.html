@@ -2124,11 +2124,20 @@ async function renderReview(){
   try{ const data=await apiGet(); rows=data["NonPromo"]||[]; }
   catch(e){ host.innerHTML='<p class="muted">Couldn’t reach the Sheet: '+esc(e&&e.message||String(e))+'</p>'; return; }
   const body=rows.slice(1); // cols: 0 Date,1 Platform,2 Type,3 Caption,4 ImageRef,5 Status,6 ScheduledId
+  // submitted interviews the brain is still drafting (status interview_pending) → show a "drafting" indicator below the form
+  const drafting=body.filter(r=>String(r[5]||"").trim().toLowerCase()==="interview_pending");
+  let draftHtml="";
+  if(drafting.length){
+    draftHtml='<div class="rv-drafting" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+drafting.map(r=>{
+      const m=String(r[3]||"").match(/TOPIC:\s*(.+)/i); const topic=m?m[1].trim():"Your personal story";
+      return '<div class="genwait"><span class="genspin"></span><span>✍ <b>Drafting…</b> the brain is writing this in your voice (IG + FB + TikTok) — usually a few minutes, then it drops into the queue below.<br><span style="opacity:.8;font-style:italic">Topic: '+esc(topic)+'</span></span></div>';
+    }).join("")+'</div>';
+  }
   const pending=body.map((r,i)=>({r,sheetRow:i+2})).filter(o=>String(o.r[5]||"").trim().toLowerCase()==="needs_review");
-  if(!pending.length){ host.innerHTML='<div class="rv-empty">🎉 Nothing waiting for review. New non-promo + personal posts show up here as the pipeline queues them.</div>'; return; }
+  if(!pending.length){ host.innerHTML=draftHtml+'<div class="rv-empty">'+(drafting.length?('Nothing to review just yet — your '+drafting.length+' submitted '+(drafting.length===1?'story is':'stories are')+' drafting above. ✍'):'🎉 Nothing waiting for review. New non-promo + personal posts show up here as the pipeline queues them.')+'</div>'; return; }
   const tcol=t=>({personal:["#FAD9D3","#B0392B"],value:["#EBEFE6","#5E6E50"],engagement:["#FFE7D6","#B5702F"],trending:["#E7E0F0","#6B5B95"]})[String(t||"").toLowerCase()]||["#eee","#555"];
   const isImg=s=>/^https?:\/\//i.test(String(s||""));
-  let html='<div class="rv-grid">';
+  let html=draftHtml+'<div class="rv-grid">';
   pending.forEach(o=>{ const dt=o.r[0],pl=o.r[1],ty=o.r[2],cap=o.r[3],img=o.r[4]; const tc=tcol(ty);
     html+='<div class="rv-card" data-row="'+o.sheetRow+'">';
     if(isImg(img)) html+='<div class="rv-thumb"><img src="'+esc(img)+'" alt="" loading="lazy"></div>';
@@ -2192,6 +2201,7 @@ function renderIdeaChips(){
       await apiPost({ sheet:'NonPromo', action:'appendRow', values:[today,'(intake)','personal-intake',blob,'','interview_pending',''] });
       st.textContent='Sent ✓ The brain will draft it shortly — check the queue below in a few minutes.';
       ['#nsTopic','#nsStory','#nsFeel','#nsDetail','#nsNotes'].forEach(id=>{const el=$(id); if(el) el.value='';});
+      renderReview();   // show the ✍ Drafting indicator right away
     }catch(e){ st.textContent=''; toast('Submit failed: '+(e&&e.message||e)); }
     finally{ sb.disabled=false; }
   });
