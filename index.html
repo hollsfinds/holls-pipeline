@@ -1859,7 +1859,7 @@ document.addEventListener("click",e=>{
 });
 /* To-Do box → non-promo status panel */
 function renderTodo(){
-  const host=$("#todoBox .todo-body"); if(!host) return;
+  const host=$(".todo-box .todo-body"); if(!host) return;
   const waiting=nonpromo.filter(n=>n.status==="needs_review").length;
   const z=n=>String(n).padStart(2,"0"), iso=d=>d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
   const now=new Date();now.setHours(0,0,0,0);
