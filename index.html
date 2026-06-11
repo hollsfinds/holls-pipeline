@@ -629,10 +629,11 @@ button.todo-stat:hover{background:var(--peach)}
         /* ============ THE FUNNEL — the whole business in four numbers ============ */
         {
           const pinJ=latest.pinterest&&latest.pinterest.j, fsJ=latest.freshstore&&latest.freshstore.j;
-          // 1. SEEN: Pinterest impressions, last 7 days (+WoW)
+          // 1. SEEN: Pinterest impressions, last 7 days (+WoW) — NEW-ERA pins only when available
           let seen=null, seenD=null;
-          if(pinJ&&pinJ.daily&&pinJ.daily.length){ const D=pinJ.daily, s=a=>a.reduce((x,y)=>x+(y.imp||0),0);
-            seen=s(D.slice(-7)); seenD=delta(seen,s(D.slice(-14,-7))); }
+          const seenSrc=(pinJ&&pinJ.newEra&&pinJ.newEra.daily&&pinJ.newEra.daily.length)?pinJ.newEra.daily:(pinJ&&pinJ.daily&&pinJ.daily.length?pinJ.daily:null);
+          if(seenSrc){ const s=a=>a.reduce((x,y)=>x+(y.imp||0),0);
+            seen=s(seenSrc.slice(-7)); seenD=delta(seen,s(seenSrc.slice(-14,-7))); }
           // 2. VISITED: FreshStore visits — 7-day diff between snapshots once history exists, else lifetime
           let visited=null, visitedNote="last 7 days";
           const fsHist=rows.filter(r=>r.src==="freshstore"&&r.j.traffic).sort((a,b)=>a.d<b.d?-1:1);
@@ -667,8 +668,9 @@ button.todo-stat:hover{background:var(--peach)}
         {
           const pinJ=latest.pinterest&&latest.pinterest.j, fsJ=latest.freshstore&&latest.freshstore.j, mcJ=latest.metricool&&latest.metricool.j;
           const win=[];
-          if(pinJ&&pinJ.top&&pinJ.top.length){ const b=pinJ.top.slice().sort((a,x)=>(x.out||0)-(a.out||0))[0];
-            if(b) win.push(`<div class="st-win">${b.img?`<img src="${esc(b.img)}">`:""}<div><b>Top pin</b><br>${esc((b.title||"").slice(0,46)||b.id)}<br><span>${fmt(b.imp)} seen · ${fmt(b.out)} clicks</span></div></div>`); }
+          const topSrc=(pinJ&&pinJ.newEra&&pinJ.newEra.top&&pinJ.newEra.top.length)?pinJ.newEra.top:(pinJ&&pinJ.top)||[];
+          if(topSrc.length){ const b=topSrc.slice().sort((a,x)=>(x.out||0)-(a.out||0))[0];
+            if(b) win.push(`<div class="st-win">${b.img?`<img src="${esc(b.img)}">`:""}<div><b>Top pin${(pinJ.newEra&&pinJ.newEra.top===topSrc)?" (new era)":""}</b><br>${esc((b.title||"").slice(0,46)||b.id)}<br><span>${fmt(b.imp)} seen · ${fmt(b.out)} clicks</span></div></div>`); }
           if(fsJ&&fsJ.traffic&&fsJ.traffic.sources){ const s=fsJ.traffic.sources.filter(x=>!/direct/i.test(x.source)).sort((a,b)=>b.visits-a.visits)[0];
             if(s) win.push(`<div class="st-win"><div class="st-winemo">🚪</div><div><b>Top traffic source</b><br>${esc(s.source)}<br><span>${fmt(s.visits)} visits all-time</span></div></div>`); }
           if(mcJ&&mcJ.byNet){ const n=Object.entries(mcJ.byNet).sort((a,b)=>b[1]-a[1])[0];
@@ -695,9 +697,18 @@ button.todo-stat:hover{background:var(--peach)}
         if(pin&&pin.error){
           out+=`<div class="help-card" style="border-left:4px solid ${C.coral}"><h3>📌 Pinterest needs a re-connect</h3><p style="font-size:13px">${esc(pin.error)}. Your upgraded Standard-access app is approved — we just need a fresh token with analytics scopes. Ask Claude to walk you through it.</p></div>`;
         }else if(pin&&pin.daily&&pin.daily.length){
-          const D=pin.daily, last7=D.slice(-7), prev7=D.slice(-14,-7);
           const sum=(a,k)=>a.reduce((s,x)=>s+(x[k]||0),0);
-          out+=`<h3 class="cal-h">🔎 The details</h3><details class="st-det"><summary>📌 Pinterest — impressions, saves, clicks</summary><div class="st-row" style="margin-top:10px">`
+          out+=`<h3 class="cal-h">🔎 The details</h3><details class="st-det" open><summary>📌 Pinterest — impressions, saves, clicks</summary>`;
+          const era=pin.newEra;
+          if(era&&era.daily&&era.daily.length){
+            const E=era.daily, l7=E.slice(-7), p7=E.slice(-14,-7);
+            out+=`<div style="font-weight:800;font-size:12px;margin:10px 0 4px;color:#2E6E6A">YOUR NEW PINS — since ${esc(era.since)} (${era.pinCount} pins; this is what the funnel uses)</div><div class="st-row">`
+              +kpi("Impressions",sum(l7,"imp"),sum(p7,"imp"),E.map(x=>x.imp),C.coral)
+              +kpi("Outbound clicks",sum(l7,"out"),sum(p7,"out"),E.map(x=>x.out),C.amber)
+              +kpi("Saves",sum(l7,"save"),sum(p7,"save"),E.map(x=>x.save),C.sage)+`</div>`;
+          }
+          const D=pin.daily, last7=D.slice(-7), prev7=D.slice(-14,-7);
+          out+=`<div style="font-weight:800;font-size:12px;margin:10px 0 4px;color:#8a7f79">WHOLE ACCOUNT — incl. old pins</div><div class="st-row">`
             +kpi("Impressions",sum(last7,"imp"),sum(prev7,"imp"),D.map(x=>x.imp),C.coral)
             +kpi("Engagements",sum(last7,"eng"),sum(prev7,"eng"),D.map(x=>x.eng),C.teal)
             +kpi("Outbound clicks",sum(last7,"out"),sum(prev7,"out"),D.map(x=>x.out),C.amber)
@@ -705,10 +716,11 @@ button.todo-stat:hover{background:var(--peach)}
           const dImp=delta(sum(last7,"imp"),sum(prev7,"imp")), dOut=delta(sum(last7,"out"),sum(prev7,"out"));
           chips.push({t:`Impressions ${dImp.a} ${dImp.t} WoW`,c:dImp.c});
           chips.push({t:`Outbound clicks ${dOut.a} ${dOut.t} WoW`,c:dOut.c});
-          if(pin.top&&pin.top.length){
-            const best=pin.top.slice().sort((a,b)=>(b.out||0)-(a.out||0))[0];
+          const gridSrc=(pin.newEra&&pin.newEra.top&&pin.newEra.top.length)?pin.newEra.top:(pin.top||[]);
+          if(gridSrc.length){
+            const best=gridSrc.slice().sort((a,b)=>(b.out||0)-(a.out||0))[0];
             if(best&&best.out) chips.push({t:`Top clicker: “${(best.title||best.id).slice(0,38)}” · ${fmt(best.out)} clicks`,c:C.teal});
-            out+=`<div style="font-weight:800;font-size:12px;margin:8px 0 4px">Top pins (30d, by impressions)</div><div class="st-pins">`+pin.top.map(p=>
+            out+=`<div style="font-weight:800;font-size:12px;margin:8px 0 4px">Top pins (30d, by impressions${(pin.newEra&&gridSrc===pin.newEra.top)?" — new era only":""})</div><div class="st-pins">`+gridSrc.map(p=>
               `<div class="st-pin">${p.img?`<img src="${esc(p.img)}" loading="lazy">`:`<div class="st-pinph">📌</div>`}
                <div class="st-pinm"><b>${fmt(p.imp)}</b> imp · <b>${fmt(p.out)}</b> out · <b>${fmt(p.save)}</b> saves</div>
                <div class="st-pint">${esc((p.title||"").slice(0,52))}</div></div>`).join("")+`</div>`;
