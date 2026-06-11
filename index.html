@@ -414,6 +414,7 @@ button.todo-stat:hover{background:var(--peach)}
       <button class="tab" data-view="calendar">Posting Calendar</button>
       <button class="tab" data-view="review">Personal Posts</button>
       <button class="tab" data-view="roadmap">Roadmap</button>
+      <button class="tab" data-view="stats">Stats</button>
       <button class="tab" data-view="reference">Reference Tool</button>
       <button class="tab" data-view="help">Help</button>
     </div>
@@ -579,6 +580,111 @@ button.todo-stat:hover{background:var(--peach)}
       window.renderRoadmap=renderRoadmap;
       var rb=document.getElementById("rmRefresh");
       if(rb) rb.addEventListener("click",function(){ _cache=null; renderRoadmap(); });
+    })();
+    </script>
+  </section>
+
+  <!-- STATS DASHBOARD -->
+  <section class="view" id="view-stats">
+    <div class="toolbar">
+      <div>
+        <div class="lead">Stats</div>
+        <div class="sub">One page, every backend. Collected a few times a day by the Mac brain — Pinterest analytics, Metricool volumes, FreshStore inventory. Search Console joins once it has data.</div>
+      </div>
+      <div class="toolacts"><button class="btn ghost" id="stRefresh">↻ Refresh</button></div>
+    </div>
+    <div id="stBody"><p class="tool-note">Loading…</p></div>
+    <script>
+    (function(){
+      const C={coral:"#F88378",teal:"#2E6E6A",sage:"#5E6E50",amber:"#B5702F",ink:"#2C2421",line:"#E0D8CF",red:"#B0392B"};
+      function spark(series,w,h,color){
+        if(!series||series.length<2)return "";
+        const max=Math.max(...series,1),min=Math.min(...series,0);
+        const pts=series.map((v,i)=>`${(i/(series.length-1)*w).toFixed(1)},${(h-((v-min)/(max-min||1))*(h-4)-2).toFixed(1)}`).join(" ");
+        return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/></svg>`;
+      }
+      function fmt(n){ n=+n||0; return n>=1000000?(n/1000000).toFixed(1)+"M":n>=1000?(n/1000).toFixed(1)+"k":String(n); }
+      function delta(cur,prev){
+        if(!prev) return {t:"new",c:C.amber,a:""};
+        const p=Math.round((cur-prev)/prev*100);
+        return {t:(p>=0?"+":"")+p+"%",c:p>=0?C.teal:C.red,a:p>=0?"▲":"▼"};
+      }
+      function kpi(label,cur,prev,series,color){
+        const d=delta(cur,prev);
+        return `<div class="st-kpi"><div class="st-kl">${label}</div><div class="st-kn">${fmt(cur)}</div>
+          <div class="st-kd" style="color:${d.c}">${d.a} ${d.t} <span>vs prior 7d</span></div>
+          <div class="st-ks">${spark(series,150,34,color)}</div></div>`;
+      }
+      async function renderStats(){
+        const host=document.getElementById("stBody"); if(!host) return;
+        host.innerHTML='<p class="tool-note">Loading…</p>';
+        let data; try{ data=await apiGet(); }catch(e){ host.innerHTML='<p class="tool-note">Couldn’t reach the Sheet: '+esc(e.message||"")+'</p>'; return; }
+        const rows=(data.Stats||[]).slice(4).map(r=>({d:String(r[0]||"").slice(0,10),src:String(r[1]||""),j:safeJSON(r[2])})).filter(x=>x.src&&x.j);
+        if(!rows.length){ host.innerHTML='<div class="help-card"><h3>No data yet</h3><p style="font-size:13px">The collector runs every ~6 hours from the Mac brain. First snapshots land on its next pass — check back shortly.</p></div>'; return; }
+        const latest={}; rows.forEach(r=>{ if(!latest[r.src]||r.d>=latest[r.src].d) latest[r.src]=r; });
+        let out="";
+        const chips=[];
+        /* ---- Pinterest ---- */
+        const pin=latest.pinterest&&latest.pinterest.j;
+        if(pin&&pin.error){
+          out+=`<div class="help-card" style="border-left:4px solid ${C.coral}"><h3>📌 Pinterest needs a re-connect</h3><p style="font-size:13px">${esc(pin.error)}. Your upgraded Standard-access app is approved — we just need a fresh token with analytics scopes. Ask Claude to walk you through it.</p></div>`;
+        }else if(pin&&pin.daily&&pin.daily.length){
+          const D=pin.daily, last7=D.slice(-7), prev7=D.slice(-14,-7);
+          const sum=(a,k)=>a.reduce((s,x)=>s+(x[k]||0),0);
+          out+=`<h3 class="cal-h">📌 Pinterest — last 7 days</h3><div class="st-row">`
+            +kpi("Impressions",sum(last7,"imp"),sum(prev7,"imp"),D.map(x=>x.imp),C.coral)
+            +kpi("Engagements",sum(last7,"eng"),sum(prev7,"eng"),D.map(x=>x.eng),C.teal)
+            +kpi("Outbound clicks",sum(last7,"out"),sum(prev7,"out"),D.map(x=>x.out),C.amber)
+            +kpi("Saves",sum(last7,"save"),sum(prev7,"save"),D.map(x=>x.save),C.sage)+`</div>`;
+          const dImp=delta(sum(last7,"imp"),sum(prev7,"imp")), dOut=delta(sum(last7,"out"),sum(prev7,"out"));
+          chips.push({t:`Impressions ${dImp.a} ${dImp.t} WoW`,c:dImp.c});
+          chips.push({t:`Outbound clicks ${dOut.a} ${dOut.t} WoW`,c:dOut.c});
+          if(pin.top&&pin.top.length){
+            const best=pin.top.slice().sort((a,b)=>(b.out||0)-(a.out||0))[0];
+            if(best&&best.out) chips.push({t:`Top clicker: “${(best.title||best.id).slice(0,38)}” · ${fmt(best.out)} clicks`,c:C.teal});
+            out+=`<h3 class="cal-h">Top pins (30d, by impressions)</h3><div class="st-pins">`+pin.top.map(p=>
+              `<div class="st-pin">${p.img?`<img src="${esc(p.img)}" loading="lazy">`:`<div class="st-pinph">📌</div>`}
+               <div class="st-pinm"><b>${fmt(p.imp)}</b> imp · <b>${fmt(p.out)}</b> out · <b>${fmt(p.save)}</b> saves</div>
+               <div class="st-pint">${esc((p.title||"").slice(0,52))}</div></div>`).join("")+`</div>`;
+          }
+        }
+        /* ---- Metricool: published volume ---- */
+        const mc=latest.metricool&&latest.metricool.j;
+        if(mc&&mc.byNet){
+          const nets=Object.entries(mc.byNet).sort((a,b)=>b[1]-a[1]);
+          const max=Math.max(...nets.map(n=>n[1]),1);
+          const NC={pinterest:C.coral,instagram:C.amber,facebook:C.teal,tiktok:C.ink};
+          out+=`<h3 class="cal-h">📤 Posts published — last 30 days (${mc.totalPast30d||0} total)</h3><div class="st-bars">`+nets.map(([n,v])=>
+            `<div class="st-bar"><span class="st-bn">${esc(n)}</span><div class="st-bt"><div class="st-bf" style="width:${Math.round(v/max*100)}%;background:${NC[n]||C.sage}"></div></div><b>${v}</b></div>`).join("")+`</div>`;
+          if(nets.length) chips.push({t:`Busiest platform: ${nets[0][0]} (${nets[0][1]} posts/30d)`,c:C.ink});
+        }
+        /* ---- FreshStore inventory ---- */
+        const fsx=latest.freshstore&&latest.freshstore.j;
+        if(fsx){
+          out+=`<h3 class="cal-h">🏪 FreshStore</h3><div class="st-row">`
+            +`<div class="st-kpi"><div class="st-kl">Live products</div><div class="st-kn">${fsx.products??"—"}</div></div>`
+            +`<div class="st-kpi"><div class="st-kl">Live articles</div><div class="st-kn">${fsx.liveArticles??"—"}</div></div>`
+            +`<div class="st-kpi"><div class="st-kl">Drafts waiting</div><div class="st-kn">${fsx.draftArticles??"—"}</div></div>`
+            +`<div class="st-kpi"><div class="st-kl">Search Console</div><div class="st-kn" style="font-size:14px;line-height:1.4;font-weight:600">joins after connect<br>+ ~2 wks of data</div></div></div>`;
+        }
+        /* ---- insight chips (the dashboard version of "deciphering") ---- */
+        if(chips.length){
+          out=`<div class="st-chips">`+chips.map(c=>`<span class="st-chip" style="border-color:${c.c};color:${c.c}">${esc(c.t)}</span>`).join("")+`</div>`+out;
+        }
+        const newest=rows.map(r=>r.d).sort().pop();
+        out+=`<p class="cal-rule" style="margin-top:14px">Last collected: ${esc(newest)} · refreshes every ~6h via the Mac brain.</p>`;
+        host.innerHTML=out;
+      }
+      window.renderStats=renderStats;
+      const rb=document.getElementById("stRefresh");
+      if(rb) rb.addEventListener("click",()=>{ _cache=null; renderStats(); });
+      const css=document.createElement("style");
+      css.textContent=".st-chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 14px}.st-chip{font-size:12px;font-weight:800;border:1.5px solid;border-radius:20px;padding:5px 13px;background:#fff}"
+        +".st-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:6px 0 18px}"
+        +".st-kpi{background:#fff;border:1px solid var(--line,#E0D8CF);border-radius:12px;padding:12px 14px}.st-kl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#8a7f79}.st-kn{font-size:26px;font-weight:800;color:#2C2421;margin:2px 0}.st-kd{font-size:11.5px;font-weight:700}.st-kd span{color:#a99e97;font-weight:600}.st-ks{margin-top:6px}"
+        +".st-bars{display:flex;flex-direction:column;gap:8px;margin:6px 0 18px;max-width:520px}.st-bar{display:flex;align-items:center;gap:10px;font-size:12.5px}.st-bn{width:80px;font-weight:700;text-transform:capitalize}.st-bt{flex:1;background:#F1ECE7;border-radius:6px;height:16px;overflow:hidden}.st-bf{height:100%;border-radius:6px}"
+        +".st-pins{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:6px 0 18px}.st-pin{background:#fff;border:1px solid var(--line,#E0D8CF);border-radius:10px;overflow:hidden}.st-pin img{width:100%;height:110px;object-fit:cover;display:block}.st-pinph{height:110px;display:flex;align-items:center;justify-content:center;font-size:32px;background:#F7F2EE}.st-pinm{font-size:10.5px;padding:7px 9px 0;color:#5c534e}.st-pint{font-size:11px;font-weight:700;padding:3px 9px 9px;line-height:1.35}";
+      document.head.appendChild(css);
     })();
     </script>
   </section>
@@ -2507,6 +2613,7 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
   if(b.dataset.view==="pipeline")renderCalendar("calArticlesTop",true);
   if(b.dataset.view==="review"){renderReview();renderIdeaChips();}
   if(b.dataset.view==="roadmap"&&typeof renderRoadmap==="function")renderRoadmap();
+  if(b.dataset.view==="stats"&&typeof renderStats==="function")renderStats();
   maybeLoadFrame(b.dataset.view);
 }));
 { const rb=$("#reviewRefresh"); if(rb) rb.addEventListener("click",renderReview); }
