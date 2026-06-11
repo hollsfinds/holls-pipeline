@@ -423,6 +423,7 @@ button.todo-stat:hover{background:var(--peach)}
 
   <!-- PIPELINE -->
   <section class="view active" id="view-pipeline">
+    <div id="alertBar"></div>
     <div class="pipe-layout">
       <aside class="pipe-side" id="pipeSide">
         <button class="side-toggle" id="sideToggle" title="Hide / show this panel">◀ Hide</button>
@@ -981,6 +982,8 @@ let socialPacks={};  // { itemId: packObject } from the Social tab
 let ondeck=[];       // {row, asin, title, raw, img, url, cats, newcats, status, fsid, notes} from the On Deck tab
 let allCats=[]
 let pinBoards=[];      // [{id,title,slug}] live FreshStore categories, from the Meta tab cache
+let pinBoardMap=null;  // {boards:{key:{id,name}}, ruleKeys:[...]} — published by sweep.js from pin-board-map.json
+let metaRows=[];       // raw Meta tab rows (for metaSet writes)
 let nonpromo=[];       // NonPromo tab rows {row,date,platform,type,caption,imgRef,status,schedId}
 /* Column collapse — any column can be collapsed by clicking its header (persisted).
    Defaults unchanged: empty cols + Fully Live start collapsed, everything else expanded. */
@@ -1073,11 +1076,13 @@ async function load(){
     const mv=mta?valuesOf(mta):[]; allCats=[];
     const mrow=mv.find(r=>(r[0]||"")==="freshstore_categories"); if(mrow){try{allCats=JSON.parse(mrow[1]||"[]");}catch(e){allCats=[];}}
     const brow=mv.find(r=>(r[0]||"")==="pinterest_boards"); pinBoards=[]; if(brow){try{pinBoards=JSON.parse(brow[1]||"[]");}catch(e){pinBoards=[];}}
+    const pbm=mv.find(r=>(r[0]||"")==="pin_board_map"); pinBoardMap=null; if(pbm){try{pinBoardMap=JSON.parse(pbm[1]||"null");}catch(e){pinBoardMap=null;}}
+    metaRows=mv;
     let npd=null; try{ npd=await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"NonPromo"}); }catch(e){}
     const npv=npd?valuesOf(npd):[];
     nonpromo=npv.slice(1).map((r,i)=>({row:i+2,date:String(r[0]||"").slice(0,10),platform:String(r[1]||"").trim(),type:String(r[2]||"").trim(),caption:r[3]||"",imgRef:r[4]||"",status:String(r[5]||"").trim().toLowerCase(),schedId:r[6]||""})).filter(x=>x.platform||x.caption);
     setStatus("ok","Connected · "+inbox.filter(x=>x.status==="new").length+" new · "+pipe.length+" in pipeline");
-    render(); renderTodo();
+    render(); renderTodo(); renderAlerts();
   }catch(e){
     setStatus("err",e.message||"Couldn't load");
     $("#board").innerHTML='<div class="empty" style="padding:30px">'+esc(e.message||"Load failed")+'</div>';
@@ -1208,6 +1213,7 @@ function reviewSendModal(it){
       <label class="rlbl">New category <span class="muted2">(comma-separated, optional)</span></label>
       <input id="rnew" class="rinput" type="text" placeholder="e.g. Wall Decor, Entryway" value="${esc(it.newcats||'')}">
       <div class="rhint" id="rsug"></div>
+      <div id="rboardwarn"></div>
       <div class="mfoot">
         <button class="btn ghost" data-cc="0">Cancel</button>
         <button class="btn coral" data-cc="1">Send it live ▸</button>
@@ -1256,11 +1262,36 @@ function reviewSendModal(it){
       }catch(err){ toast("Refresh failed: "+(err&&err.message||err)); }
       finally{ btn.disabled=false; btn.textContent=orig; }
     }
-    function onClick(e){
+    /* EARLY Pinterest-board check (Holls 2026-06-11): warn + pick the moment categories are
+       chosen — weeks before publish — instead of stalling pins on the Fully Live card. */
+    function updateBoardWarn(){
+      const box=document.getElementById("rboardwarn"); if(!box) return;
+      const cats=Object.keys(sel).concat(($("#rnew").value||"").split(",").map(s=>s.trim()).filter(Boolean));
+      const un=[...new Set(cats.filter(c=>!catCovered(c)))];
+      if(!un.length){ box.innerHTML=""; return; }
+      const opts=(pinBoards||[]).map(b=>`<option value="${esc(String(b.id))}">${esc(b.name||b.id)}</option>`).join("");
+      box.innerHTML=`<div style="background:#FDF3EC;border:1px solid #F3CDB8;border-radius:8px;padding:9px 11px;margin-top:8px;font-size:12px;line-height:1.5">
+        <b style="color:#9a3b32">📍 No Pinterest board mapped yet:</b>`+un.map((c,i)=>
+          opts?`<div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap"><span style="flex:1;min-width:110px">“${esc(c)}”</span>
+            <select data-bw="${i}" data-bwcat="${esc(c)}" style="padding:4px 6px;border:1px solid #e7ded7;border-radius:6px;font-size:11.5px;background:#fff">${opts}</select>
+            <button type="button" class="btn ghost sm" data-bwsave="${i}">Save</button></div>`
+          :`<div style="margin-top:5px">“${esc(c)}” — board list not synced yet (pins will pause at publish until mapped)</div>`).join("")+
+        `<div style="opacity:.65;margin-top:6px">Picking now means pins schedule instantly when the article goes live. One pick covers this category forever.</div></div>`;
+    }
+    updateBoardWarn();
+    { const rn=$("#rnew"); if(rn) rn.addEventListener("input",updateBoardWarn); }
+    async function onClick(e){
+      const bs=e.target.closest("[data-bwsave]");
+      if(bs){ const s=modal.querySelector(`[data-bw="${bs.dataset.bwsave}"]`); if(!s)return;
+        const cat=s.dataset.bwcat;
+        try{ await saveBoardPick(cat,s.value,(s.options[s.selectedIndex]||{}).text||s.value);
+          toast("“"+cat+"” mapped ✓"); updateBoardWarn(); }
+        catch(err){ toast("Save failed: "+(err&&err.message||err)); }
+        return; }
       const rf=e.target.closest("#rrefresh");
       if(rf){ refreshCatsInModal(rf); return; }
       const chip=e.target.closest("[data-cat]");
-      if(chip){const c=chip.dataset.cat;if(sel[c]){delete sel[c];chip.classList.remove("on");}else{sel[c]=true;chip.classList.add("on");}return;}
+      if(chip){const c=chip.dataset.cat;if(sel[c]){delete sel[c];chip.classList.remove("on");}else{sel[c]=true;chip.classList.add("on");}updateBoardWarn();return;}
       const b=e.target.closest("[data-cc]");if(!b)return;
       if(b.dataset.cc!=="1"){cleanup(null);return;}
       const newcats=$("#rnew").value.split(",").map(s=>s.trim()).filter(Boolean);
@@ -2072,6 +2103,80 @@ document.addEventListener("click",e=>{
   }
 });
 /* To-Do box → non-promo status panel */
+/* ===== "Needs You" alert bar (audit follow-up: surface errors EARLY, not in log reports) ===== */
+async function metaSet(key,value){
+  const idx=metaRows.findIndex(r=>(r[0]||"")===key);
+  if(idx>=0) await apiPost({sheet:"Meta",action:"updateRange",range:"B"+(idx+1),values:[[value]]});
+  else await apiPost({sheet:"Meta",action:"appendRow",values:[key,value]});
+}
+/* is a category plausibly covered by the brain's board mapping? exact rule key,
+   or contained in / containing a rule key. Over-warning is fine: one pick = learned forever. */
+function catCovered(cat){
+  if(!pinBoardMap||!Array.isArray(pinBoardMap.ruleKeys)) return true;  // map not synced yet — don't nag
+  const c=String(cat).trim().toLowerCase(); if(!c) return true;
+  return pinBoardMap.ruleKeys.some(k=>{const kk=String(k).toLowerCase(); return kk===c||kk.includes(c)||c.includes(kk);});
+}
+/* early board pick: writes Meta!pin_board_picks {category:{id,name}}; sweep.js merges
+   it into pin-board-map.json on the next beat — learned before the article ever publishes */
+async function saveBoardPick(cat,boardId,boardName){
+  let picks={}; const row=metaRows.find(r=>(r[0]||"")==="pin_board_picks");
+  if(row){ try{picks=JSON.parse(row[1]||"{}")||{};}catch(e){picks={};} }
+  picks[cat]={id:boardId,name:boardName};
+  await metaSet("pin_board_picks",JSON.stringify(picks));
+  if(pinBoardMap&&Array.isArray(pinBoardMap.ruleKeys)) pinBoardMap.ruleKeys.push(cat);  // optimistic: stop warning now
+}
+function pickBoardForCategory(cat){
+  const modal=$("#modal"),scrim=$("#scrim");
+  const opts=(pinBoards||[]).map(b=>`<option value="${esc(String(b.id))}">${esc(b.name||b.id)}</option>`).join("");
+  modal.innerHTML=`<button class="x" data-cc="x">×</button>
+    <div class="kicker">Pinterest board — early pick</div>
+    <h3>“${esc(cat)}”</h3>
+    ${opts?`<p>No Pinterest board is mapped for this category yet. Pick one now and every product in “${esc(cat)}” auto-maps forever — pins will never stall at publish.</p>
+      <select id="epSel" class="bp-sel">${opts}</select>
+      <div class="mfoot"><button class="btn ghost" data-cc="x">Later</button><button class="btn coral" id="epSave">Save board</button></div>`
+      :`<p class="muted">Your Pinterest board list isn’t synced yet — ask the brain to sync boards, then reopen this.</p>`}`;
+  scrim.classList.add("show");
+  function close(){scrim.classList.remove("show");modal.removeEventListener("click",onClick);}
+  async function onClick(e){
+    if(e.target.closest("[data-cc]")){close();return;}
+    if(e.target.closest("#epSave")){
+      const sel=document.getElementById("epSel"); if(!sel)return;
+      try{ await saveBoardPick(cat,sel.value,(sel.options[sel.selectedIndex]||{}).text||sel.value);
+        toast("Saved — “"+cat+"” is mapped ✓"); close(); renderAlerts(); }
+      catch(err){ toast("Save failed: "+(err&&err.message||err)); }
+    }
+  }
+  modal.addEventListener("click",onClick);
+}
+function renderAlerts(){
+  const el=document.getElementById("alertBar"); if(!el) return;
+  const items=[];
+  // 1. late board stalls (existing needs_board on Fully Live cards)
+  pipe.forEach(p=>{ const q=String(p.imgStatus||"");
+    if(q.indexOf("needs_board:")===0) items.push({t:`📌 “${esc(cardTitleOf(p))}” pins are BLOCKED — pick a Pinterest board`,act:()=>openBoardPicker(p.row)});
+    else if(q==="gemini_billing") items.push({t:`💳 Image generation is out of Gemini credits — <a href="https://aistudio.google.com/billing" target="_blank" rel="noopener">top up ↗</a>`});
+    else if(q) items.push({t:`🖼 Image error on “${esc(cardTitleOf(p))}”: ${esc(q)} (auto-retrying)`});
+    if(/upload-fail#3/.test(String(p.notes||""))) items.push({t:`⚠ Image upload failed 3× for “${esc(cardTitleOf(p))}” — needs a look`});
+  });
+  // 2. On Deck import failures
+  ondeck.forEach(o=>{ if(o.status==="Import Failed") items.push({t:`🛒 Import failed: “${esc(o.title||o.asin)}” — ${esc(String(o.notes||"").slice(0,90))}`}); });
+  // 3. EARLY catch: unmapped categories on items still in On Deck (weeks before publish)
+  const seen={};
+  ondeck.forEach(o=>{ if(o.status!=="New"&&o.status!=="Ready to Send")return;
+    String(o.cats||"").split(",").concat(String(o.newcats||"").split(",")).map(s=>s.trim()).filter(Boolean).forEach(c=>{
+      if(seen[c.toLowerCase()]||catCovered(c))return; seen[c.toLowerCase()]=1;
+      items.push({t:`📍 “${esc(c)}” has no Pinterest board yet — pick now so pins never stall`,act:()=>pickBoardForCategory(c)});
+    });
+  });
+  if(!items.length){ el.innerHTML=""; el.style.display="none"; return; }
+  el.style.display="";
+  el.innerHTML=`<div class="ab-wrap"><b>⚠ Needs you (${items.length})</b>`+items.map((it,i)=>
+    `<span class="ab-item${it.act?' ab-click':''}" data-ab="${i}">${it.t}</span>`).join("")+`</div>`;
+  el.querySelectorAll("[data-ab]").forEach(s=>{ const it=items[+s.dataset.ab]; if(it.act) s.addEventListener("click",it.act); });
+}
+{ const css=document.createElement("style");
+  css.textContent="#alertBar .ab-wrap{display:flex;flex-direction:column;gap:6px;background:#FDF3EC;border:1px solid #F3CDB8;border-left:4px solid #F88378;border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:12.5px;line-height:1.5}#alertBar .ab-wrap>b{color:#9a3b32;font-size:12px}#alertBar .ab-item{display:block}#alertBar .ab-click{cursor:pointer;text-decoration:underline;text-decoration-color:#F3CDB8;text-underline-offset:3px}#alertBar .ab-click:hover{color:#9a3b32}";
+  document.head.appendChild(css); }
 function renderTodo(){
   const host=$(".todo-box .todo-body"); if(!host) return;
   const waiting=nonpromo.filter(n=>n.status==="needs_review").length;
