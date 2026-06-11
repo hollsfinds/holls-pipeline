@@ -946,6 +946,16 @@ async function apiPost(body){
   if(!j.ok) throw new Error(j.error || "write failed");
   return j;
 }
+/* several writes to ONE sheet in a single round trip (bridge "batch" action).
+   Falls back to sequential updateRange posts on an old bridge that lacks batch. */
+async function sheetBatch(sheet,ops){
+  try{ return await apiPost({sheet:sheet,action:"batch",ops:ops}); }
+  catch(e){
+    if(!/unknown action/i.test(e&&e.message||"")) throw e;
+    for(const op of ops){ await apiPost({sheet:sheet,action:"updateRange",range:op.range,values:op.values}); }
+    return {ok:true,fallback:true};
+  }
+}
 async function mcp(name,args){
   if(name==="mcp__google-sheets__get_sheet_data"){
     const data = await apiGet();
@@ -1639,8 +1649,9 @@ async function moveStage(it,target,skipConfirm){
   if(enterPub){it.pubA=1;}   // published → mark live (image-check flag retired; the image pipeline guarantees images before publish)
   render();
   try{
-    await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"C"+it.row,data:[[target]]});
-    if(enterPub) await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"J"+it.row+":K"+it.row,data:[["yes","yes"]]});
+    const ops=[{range:"C"+it.row,values:[[target]]}];
+    if(enterPub) ops.push({range:"J"+it.row+":K"+it.row,values:[["yes","yes"]]});
+    await sheetBatch("Pipeline",ops);   // one round trip instead of two sequential posts
     const taskId=TASK_IDS[target];
     if(taskId){
       if(window.cowork&&window.cowork.runScheduledTask){
@@ -2523,6 +2534,49 @@ try{ if(localStorage.getItem('hf_auth')==='1') startApp(); }catch(e){}
     setInterval(paint, 60000); /* reflect the brain's auto-resume without a full reload */
   }
   if(document.readyState !== "loading") mount(); else document.addEventListener("DOMContentLoaded", mount);
+})();
+
+/* ===== Brain heartbeat pill (audit fix #3) =====
+   The sweep gate writes Stats!W1 (status text) + W2 (ISO timestamp) every beat:
+   "🔄 sweep: <reasons>" when Claude launches, "idle — no work"/"idle — paused" on skips.
+   This pill shows what the brain is doing RIGHT NOW + how long ago — so "hung"
+   becomes visible instead of mysterious. Uses the light ?tabs=Stats read (an old
+   bridge ignores the param and just returns everything — still works). */
+(function(){
+  const W=22; /* 0-based index of column W in Stats */
+  async function getStats(){
+    const r=await fetch(EXEC_URL+"?token="+encodeURIComponent(API_TOKEN)+"&tabs=Stats");
+    const j=await r.json(); if(!j.ok) throw new Error(j.error||"read failed");
+    return (j.data&&j.data.Stats)||[];
+  }
+  function agoMin(iso){ const t=Date.parse(iso); return isNaN(t)?null:Math.max(0,Math.round((Date.now()-t)/60000)); }
+  function agoTxt(m){ return m==null?"":(m===0?"just now":(m<60?m+"m ago":Math.round(m/60)+"h ago")); }
+  async function paint(){
+    const el=document.getElementById("brainPill"); if(!el) return;
+    try{
+      const s=await getStats();
+      const txt=((s[0]&&s[0][W])?String(s[0][W]):"").trim();
+      const m=agoMin((s[1]&&s[1][W])?String(s[1][W]):"");
+      let state="idle", body="🧠 brain: idle";
+      if(txt){
+        const running=txt.indexOf("🔄")===0;
+        if(running && m!=null && m>40){ state="stall"; body="⚠ brain may be stalled · "+agoTxt(m); el.title="Last heartbeat: "+esc(txt)+" — no update in "+m+" min. Check the Mac / usage limits."; }
+        else if(running){ state="busy"; body=esc(txt)+(m!=null?" · "+agoTxt(m):""); el.title="The brain is working — board updates when it finishes."; }
+        else { state="idle"; body="🧠 "+esc(txt)+(m!=null?" · "+agoTxt(m):""); el.title="Brain heartbeat (Stats!W1/W2)."; }
+      } else { el.title="No heartbeat yet — appears after the next sweep beat."; }
+      el.dataset.state=state; el.innerHTML=body;
+    }catch(e){ /* leave the last paint alone on a transient read error */ }
+  }
+  function mount(){
+    if(document.getElementById("brainPill")) return;
+    const css=document.createElement("style");
+    css.textContent="#brainPill{display:flex;align-items:center;margin-left:8px;flex:0 0 auto;font:700 11.5px/1.2 -apple-system,system-ui,sans-serif;background:#fff;border:1px solid #e7ded7;border-radius:999px;padding:7px 12px;color:#2C2421;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#brainPill[data-state=busy]{border-color:#43B3AE;color:#1f5a57}#brainPill[data-state=stall]{border-color:#F88378;color:#9a3b32;background:#FDECEA}";
+    document.head.appendChild(css);
+    const el=document.createElement("div"); el.id="brainPill"; el.textContent="🧠 …";
+    (document.querySelector(".topbar")||document.body).appendChild(el);
+    paint(); setInterval(paint,60000);
+  }
+  if(document.readyState!=="loading") mount(); else document.addEventListener("DOMContentLoaded",mount);
 })();
 </script>
 </body>

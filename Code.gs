@@ -30,8 +30,16 @@ function doGet(e) {
   }
 
   const ss = SpreadsheetApp.openById(SHEET_ID);
+  // Optional ?tabs=Stats,Pipeline filter — returns ONLY those tabs (must be in TABS).
+  // Lightweight polls (heartbeat/pause pill, sweep gate) use this; no param = all tabs (back-compat).
+  let want = TABS;
+  if (e.parameter.tabs) {
+    const req = String(e.parameter.tabs).split(",").map(s => s.trim()).filter(Boolean);
+    const allowed = req.filter(t => TABS.indexOf(t) !== -1);
+    if (allowed.length) want = allowed;
+  }
   const data = {};
-  TABS.forEach(t => {
+  want.forEach(t => {
     const sh = ss.getSheetByName(t);
     data[t] = sh ? sh.getDataRange().getValues() : [];
   });
@@ -42,6 +50,11 @@ function doPost(e) {
   let b = {};
   try { b = JSON.parse(e.postData.contents); } catch (err) { return json({ error: "bad json" }); }
   if (b.token !== TOKEN) return json({ error: "unauthorized" });
+
+  // LockService: the board + the Mac brain both write; serialize so concurrent
+  // writes can't race. 10s wait is generous (writes take <1s).
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(10000); } catch (err) { return json({ error: "busy — write lock timeout" }); }
 
   const ss = SpreadsheetApp.openById(SHEET_ID);
 
@@ -70,9 +83,16 @@ function doPost(e) {
       sh.appendRow(b.values);
       return json({ ok: true, row: sh.getLastRow() });
     }
+    if (b.action === "batch") {                 // {ops:[{range:"C5",values:[[...]]},...]} — several writes, ONE round trip (same sheet)
+      if (!Array.isArray(b.ops) || !b.ops.length) return json({ error: "batch: no ops" });
+      b.ops.forEach(op => { sh.getRange(op.range).setValues(op.values); });
+      return json({ ok: true, applied: b.ops.length });
+    }
     return json({ error: "unknown action: " + b.action });
   } catch (err) {
     return json({ error: String(err) });
+  } finally {
+    lock.releaseLock();
   }
 }
 
