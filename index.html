@@ -1027,6 +1027,11 @@ button.todo-stat:hover{background:var(--peach)}
       .pp-use{background:var(--coral,#F88378);color:#fff;border:none;border-radius:7px;padding:6px 14px;font-weight:700;font-size:12px;cursor:pointer}
       .pp-never{background:none;border:none;color:#a99e97;font-size:11.5px;cursor:pointer}
       .pp-never:hover{color:#B0392B}
+      .pp-later{background:none;border:none;color:#a99e97;font-size:11.5px;cursor:pointer}
+      .pp-later:hover{color:#B5702F}
+      .pp-quick{border-left:3px solid #B5702F;background:#FDF8F0}
+      .pp-kindtag{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#B5702F}
+      .pp-kindtag.pp-kstory{color:#2E6E6A}
       .pb-card{border:1px solid var(--line,#E0D8CF);border-left:4px solid var(--coral,#F88378);border-radius:12px;background:#fff;padding:14px 16px;margin-bottom:14px}
       .pb-title{font-weight:800;font-size:14px;margin-bottom:2px}
       .pb-sub{font-size:11.5px;color:#8a7f79;margin-bottom:10px}
@@ -2845,49 +2850,67 @@ function upcomingHtml(body){
 function ideaRows(){
   return nonpromo.filter(n=>String(n.type||"").toLowerCase()==="idea")
     .map(n=>{ let j=null; try{ j=JSON.parse(n.caption||"null"); }catch(e){}
-      return j&&j.prompt?{row:n.row,status:(n.status||"fresh").toLowerCase(),prompt:j.prompt,nudges:j.nudges||[]}:null; })
+      return j&&j.prompt?{row:n.row,status:(n.status||"fresh").toLowerCase(),prompt:j.prompt,nudges:j.nudges||[],kind:(j.kind||"story").toLowerCase()}:null; })
     .filter(Boolean);
 }
 let _sparkShown=[];
 function renderSparks(){
   const box=document.getElementById('ppSparks'); if(!box) return;
   const ideas=ideaRows();
-  const fresh=ideas.filter(i=>i.status==="fresh"), shown=ideas.filter(i=>i.status==="shown");
-  const pool=fresh.length?fresh.concat(shown):shown;
+  // pool priority: fresh → shown (shuffled away) → later ("maybe later")
+  const pool=["fresh","shown","later"].flatMap(s=>ideas.filter(i=>i.status===s));
   if(!pool.length){ box.innerHTML='<p class="muted" style="font-size:12px">The idea bank is refilling — the brain generates fresh sparks on its next pass. Or just hit "I\'ve got my own story." ✏️</p>'; _sparkShown=[]; return; }
-  const pick=pool.slice(0,3);
+  const pick=pool.slice(0,5);
   _sparkShown=pick.map(p=>p.row);
-  box.innerHTML=pick.map(p=>'<div class="pp-spark" data-row="'+p.row+'"><b>'+esc(p.prompt)+'</b>'
-    +(p.nudges.length?'<div class="pp-nudge">'+p.nudges.map(n=>'· '+esc(n)).join('<br>')+'</div>':'')
-    +'<div class="pp-sparkacts"><button class="pp-use" data-row="'+p.row+'">Tell this one →</button><button class="pp-never" data-row="'+p.row+'" title="Never show this idea again">🚫 not me</button></div></div>').join('');
+  box.innerHTML=pick.map(p=>{
+    const quick=p.kind==="quick";
+    return '<div class="pp-spark'+(quick?' pp-quick':'')+'" data-row="'+p.row+'">'
+      +(quick?'<span class="pp-kindtag">⚡ quick take — one line is plenty</span>':'<span class="pp-kindtag pp-kstory">📖 story</span>')
+      +'<b>'+esc(p.prompt)+'</b>'
+      +(p.nudges.length?'<div class="pp-nudge">'+p.nudges.map(n=>'· '+esc(n)).join('<br>')+'</div>':'')
+      +'<div class="pp-sparkacts"><button class="pp-use" data-row="'+p.row+'">'+(quick?'Answer it ⚡':'Tell this one →')+'</button>'
+      +'<button class="pp-later" data-row="'+p.row+'" title="Not now — resurface later">💤 later</button>'
+      +'<button class="pp-never" data-row="'+p.row+'" title="Never show this idea again">🚫 not me</button></div></div>';
+  }).join('');
 }
 async function setIdeaStatus(row,status){ try{ await apiPost({sheet:'NonPromo',action:'updateCell',row:row,col:6,value:status});
   const n=nonpromo.find(x=>x.row===row); if(n) n.status=status; }catch(e){} }
 function captureModal(idea){
   const modal=$('#modal'),scrim=$('#scrim');
+  const quick=!!(idea&&idea.kind==="quick");
   const nudges=(idea&&idea.nudges&&idea.nudges.length)?idea.nudges:["What actually happened?","How did it feel, honestly?","One tiny specific detail makes it real — a time, a smell, a thing someone said."];
   modal.innerHTML='<button class="x" data-cc="x">×</button>'
-    +'<div class="kicker">Tell me something</div>'
+    +'<div class="kicker">'+(quick?'Quick take — 10 seconds':'Tell me something')+'</div>'
     +'<h3>'+(idea?esc(idea.prompt):'Your story')+'</h3>'
-    +'<p style="font-size:12.5px;line-height:1.6;color:#8a7f79">'+nudges.map(n=>'· '+esc(n)).join('<br>')
-    +'<br><br>Answer like you\'d text your sister — fragments, typos, half-thoughts all fine. I shape it; you stay you. One send = FB + IG + TikTok drafted together.</p>'
-    +'<textarea id="ppStory" class="rv-cap" style="min-height:140px" placeholder="Just start typing…"></textarea>'
-    +'<input id="ppPhoto" class="ns-input" style="margin-top:8px" placeholder="Photo URL (optional — a real photo beats a branded card)">'
+    +(quick
+      ?'<p style="font-size:12.5px;line-height:1.6;color:#8a7f79">One honest line — your real opinion, however blunt. I build the poll/post around YOUR words, so it actually sounds like you.</p>'
+       +'<input id="ppTake" class="ns-input" placeholder="Your one-liner…">'
+      :'<p style="font-size:12.5px;line-height:1.6;color:#8a7f79">'+nudges.map(n=>'· '+esc(n)).join('<br>')
+       +'<br><br>Answer like you\'d text your sister — fragments, typos, half-thoughts all fine. I shape it; you stay you. One send = FB + IG + TikTok drafted together.</p>'
+       +'<textarea id="ppStory" class="rv-cap" style="min-height:140px" placeholder="Just start typing…"></textarea>'
+       +'<input id="ppPhoto" class="ns-input" style="margin-top:8px" placeholder="Photo URL (optional — a real photo beats a branded card)">')
     +'<div class="mfoot"><button class="btn ghost" data-cc="x">Not now</button><button class="btn coral" id="ppSend">Send it ✨</button></div>';
   scrim.classList.add('show');
   function close(){scrim.classList.remove('show');modal.removeEventListener('click',onClick);}
   async function onClick(e){
     if(e.target.closest('[data-cc]')){close();return;}
     if(!e.target.closest('#ppSend'))return;
-    const story=($('#ppStory').value||'').trim();
-    if(story.length<20){ toast('Give me a little more than that — even 2 messy sentences.'); return; }
-    const photo=($('#ppPhoto').value||'').trim();
-    const blob=(idea?('IDEA: '+idea.prompt+'\n'):'')+'STORY: '+story+(photo?'\nPHOTO: '+photo:'');
+    let blob;
+    if(quick){
+      const take=($('#ppTake').value||'').trim();
+      if(take.length<3){ toast('Even three words will do — but give me something.'); return; }
+      blob='IDEA: '+idea.prompt+'\nKIND: quick\nTAKE: '+take;
+    }else{
+      const story=($('#ppStory').value||'').trim();
+      if(story.length<20){ toast('Give me a little more than that — even 2 messy sentences.'); return; }
+      const photo=($('#ppPhoto').value||'').trim();
+      blob=(idea?('IDEA: '+idea.prompt+'\n'):'')+'STORY: '+story+(photo?'\nPHOTO: '+photo:'');
+    }
     try{
       const today=new Date().toISOString().slice(0,10);
-      await apiPost({sheet:'NonPromo',action:'appendRow',values:[today,'(intake)','personal-intake',blob,photo||'','interview_pending','','']});
+      await apiPost({sheet:'NonPromo',action:'appendRow',values:[today,'(intake)','personal-intake',blob,'','interview_pending','','']});
       if(idea) await setIdeaStatus(idea.row,'used');
-      toast('Sent ✓ — the brain drafts your FB+IG+TikTok bundle in a few minutes.');
+      toast(quick?'Got it ⚡ — your take becomes a post in a few minutes.':'Sent ✓ — the brain drafts your FB+IG+TikTok bundle in a few minutes.');
       close(); renderReview(); renderSparks();
     }catch(err){ toast('Send failed: '+(err&&err.message||err)); }
   }
@@ -2896,8 +2919,9 @@ function captureModal(idea){
 {
   const sp=document.getElementById('ppSparks');
   if(sp) sp.addEventListener('click',e=>{
-    const u=e.target.closest('.pp-use'), nv=e.target.closest('.pp-never');
+    const u=e.target.closest('.pp-use'), nv=e.target.closest('.pp-never'), lt=e.target.closest('.pp-later');
     if(u){ const idea=ideaRows().find(i=>i.row===+u.dataset.row); if(idea) captureModal(idea); return; }
+    if(lt){ setIdeaStatus(+lt.dataset.row,'later').then(()=>{ toast('Parked for later. 💤'); renderSparks(); }); return; }
     if(nv){ setIdeaStatus(+nv.dataset.row,'never').then(()=>{ toast('Gone forever. 🚫'); renderSparks(); }); return; }
   });
   const sh=document.getElementById('ppShuffle');
