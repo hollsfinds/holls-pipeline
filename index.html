@@ -699,6 +699,7 @@ button.todo-stat:hover{background:var(--peach)}
         var rows=S.map(function(s){return{s:s,i:info(s)};}).sort(function(a,b){return a.i.sort-b.i.sort;});
         var hot=rows.filter(function(r){return r.i.k===2;}).map(function(r){return r.s.e+" "+r.s.n;});
         var soon=rows.filter(function(r){return r.i.k===1;}).map(function(r){return r.s.e+" "+r.s.n;});
+        window._seasonHot=hot;   // the To-Do box shows the count
         var out='<div style="background:rgba(248,131,120,.12);border:1px solid var(--coral,#F88378);border-radius:8px;padding:10px 12px;margin:6px 0 14px;font-size:13px">';
         out+='<b>📥 Add to On Deck now:</b> '+(hot.length?hot.join(", "):"— nothing due —");
         if(soon.length) out+='<br><span style="opacity:.7">Coming up (≤45 days): '+soon.join(", ")+'</span>';
@@ -1139,7 +1140,7 @@ async function load(){
     const npv=npd?valuesOf(npd):[];
     nonpromo=npv.slice(1).map((r,i)=>({row:i+2,date:String(r[0]||"").slice(0,10),platform:String(r[1]||"").trim(),type:String(r[2]||"").trim(),caption:r[3]||"",imgRef:r[4]||"",status:String(r[5]||"").trim().toLowerCase(),schedId:r[6]||""})).filter(x=>x.platform||x.caption);
     setStatus("ok","Connected · "+inbox.filter(x=>x.status==="new").length+" new · "+pipe.length+" in pipeline");
-    render(); renderTodo(); renderAlerts();
+    render(); renderAlerts(); renderTodo();   // alerts first — the To-Do box shows their count
   }catch(e){
     setStatus("err",e.message||"Couldn't load");
     $("#board").innerHTML='<div class="empty" style="padding:30px">'+esc(e.message||"Load failed")+'</div>';
@@ -2228,6 +2229,7 @@ function renderAlerts(){
       items.push({t:`📍 “${esc(c)}” has no Pinterest board yet — pick now so pins never stall`,act:()=>pickBoardForCategory(c)});
     });
   });
+  window._alertCount=items.length;   // the To-Do box shows this
   if(!items.length){ el.innerHTML=""; el.style.display="none"; return; }
   el.style.display="";
   el.innerHTML=`<div class="ab-wrap"><b>⚠ Needs you (${items.length})</b>`+items.map((it,i)=>
@@ -2237,19 +2239,38 @@ function renderAlerts(){
 { const css=document.createElement("style");
   css.textContent="#alertBar .ab-wrap{display:flex;flex-direction:column;gap:6px;background:#FDF3EC;border:1px solid #F3CDB8;border-left:4px solid #F88378;border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:12.5px;line-height:1.5}#alertBar .ab-wrap>b{color:#9a3b32;font-size:12px}#alertBar .ab-item{display:block}#alertBar .ab-click{cursor:pointer;text-decoration:underline;text-decoration-color:#F3CDB8;text-underline-offset:3px}#alertBar .ab-click:hover{color:#9a3b32}";
   document.head.appendChild(css); }
+/* To-Do box (automated 2026-06-11): one glanceable "what needs Holls" panel.
+   Aggregates every action waiting on a human, computed from data already loaded. */
 function renderTodo(){
   const host=$(".todo-box .todo-body"); if(!host) return;
+  const rows=[];
+  // 🖼 image sets awaiting her review (previews present, not mid-regen)
+  const imgReview=pipe.filter(p=>p.stage===REVIEWCOL && p.imgPreviews && !(p.imgReview&&p.imgReview.status==="regen")).length;
+  if(imgReview) rows.push({n:imgReview,l:"image set"+(imgReview>1?"s":"")+" to review",alert:true});
+  // 🚀 articles attached + waiting on her publish click
+  const toPub=pipe.filter(p=>p.stage===FSPUB).length;
+  if(toPub) rows.push({n:toPub,l:"article"+(toPub>1?"s":"")+" ready to publish",alert:true});
+  // ⚠ alert-bar items (set by renderAlerts — runs before this)
+  const al=window._alertCount||0;
+  if(al) rows.push({n:al,l:"alert"+(al>1?"s":"")+" in the Needs-You bar",alert:true});
+  // 📝 non-promo review queue (click-through preserved)
   const waiting=nonpromo.filter(n=>n.status==="needs_review").length;
+  rows.push({n:waiting,l:"non-promo waiting for review"+(waiting?" →":""),alert:!!waiting,go:"review"});
+  // 📥 seasonal pushes due now (exposed by the seasonal calendar)
+  const hot=(window._seasonHot||[]).length;
+  if(hot) rows.push({n:hot,l:"seasonal push"+(hot>1?"es":"")+" due — add products"});
+  // 🗓 non-promo scheduled this week (context, not action)
   const z=n=>String(n).padStart(2,"0"), iso=d=>d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
   const now=new Date();now.setHours(0,0,0,0);
   const ws=new Date(now);ws.setDate(now.getDate()-now.getDay());
   const we=new Date(ws);we.setDate(ws.getDate()+6);
-  const wsI=iso(ws), weI=iso(we);
-  const schedWk=nonpromo.filter(n=>n.status==="scheduled" && n.date>=wsI && n.date<=weI).length;
-  host.innerHTML=
-    `<button class="todo-stat${waiting?' todo-alert':''}" data-goreview="1" title="Open Personal Posts to review">
-       <span class="todo-num">${waiting}</span><span class="todo-lbl">non-promo waiting for review${waiting?' →':''}</span></button>`
-    +`<div class="todo-stat"><span class="todo-num">${schedWk}</span><span class="todo-lbl">non-promo scheduled this week</span></div>`;
+  const schedWk=nonpromo.filter(n=>n.status==="scheduled" && n.date>=iso(ws) && n.date<=iso(we)).length;
+  rows.push({n:schedWk,l:"non-promo scheduled this week"});
+  host.innerHTML=rows.map(r=>{
+    const inner=`<span class="todo-num">${r.n}</span><span class="todo-lbl">${esc(r.l)}</span>`;
+    return r.go?`<button class="todo-stat${r.alert?' todo-alert':''}" data-goreview="1" title="Open Personal Posts to review">${inner}</button>`
+      :`<div class="todo-stat${r.alert?' todo-alert':''}">${inner}</div>`;
+  }).join("");
 }
 document.addEventListener("click",e=>{
   if(e.target.closest("[data-goreview]")){ const t=document.querySelector('.tab[data-view="review"]'); if(t)t.click(); }
