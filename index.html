@@ -1019,6 +1019,25 @@ button.todo-stat:hover{background:var(--peach)}
       .ns-ideahead{font-size:12px;font-weight:700;color:var(--esp,#4A3B33);opacity:.85;margin-bottom:6px;display:flex;align-items:center;gap:10px}
       .ns-refresh{font-size:12px;background:none;border:none;color:var(--teal,#2E6E6A);cursor:pointer;font-weight:700;padding:0}
       .ns-refresh:hover{text-decoration:underline}
+      .pp-sparks{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+      .pp-spark{border:1px solid var(--line,#E0D8CF);border-radius:10px;padding:12px 14px;background:#FDFBF8;display:flex;flex-direction:column;gap:8px}
+      .pp-spark b{font-size:13px;line-height:1.45}
+      .pp-nudge{font-size:11.5px;color:#8a7f79;line-height:1.5}
+      .pp-sparkacts{display:flex;gap:8px;margin-top:auto}
+      .pp-use{background:var(--coral,#F88378);color:#fff;border:none;border-radius:7px;padding:6px 14px;font-weight:700;font-size:12px;cursor:pointer}
+      .pp-never{background:none;border:none;color:#a99e97;font-size:11.5px;cursor:pointer}
+      .pp-never:hover{color:#B0392B}
+      .pb-card{border:1px solid var(--line,#E0D8CF);border-left:4px solid var(--coral,#F88378);border-radius:12px;background:#fff;padding:14px 16px;margin-bottom:14px}
+      .pb-title{font-weight:800;font-size:14px;margin-bottom:2px}
+      .pb-sub{font-size:11.5px;color:#8a7f79;margin-bottom:10px}
+      .pb-plats{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
+      .pb-plat{display:flex;flex-direction:column;gap:5px}
+      .pb-plathead{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;text-transform:capitalize}
+      .pb-x{margin-left:auto;background:none;border:none;color:#c9beb6;cursor:pointer;font-size:14px}
+      .pb-x:hover{color:#B0392B}
+      .pb-acts{display:flex;gap:10px;align-items:center;margin-top:12px}
+      .pp-up{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+      .pp-upitem{font-size:11.5px;background:#fff;border:1px solid var(--line,#E0D8CF);border-radius:8px;padding:6px 11px}
     </style>
     <div class="toolbar">
       <div>
@@ -1028,16 +1047,13 @@ button.todo-stat:hover{background:var(--peach)}
       <div class="toolacts"><button class="btn ghost" id="reviewRefresh">↻ Refresh</button></div>
     </div>
     <div class="ns-card">
-      <div class="ns-head">✍️ New personal story</div>
-      <div class="ns-sub">Pick or type a topic, answer a few quick things, and submit. The brain drafts it in your voice (IG + FB + TikTok) and it drops into the queue below to approve — usually within a few minutes.</div>
-      <div class="ns-ideahead">Idea starters <button type="button" class="ns-refresh" id="nsIdeasRefresh">🔄 New ideas</button></div>
-      <div class="ns-chips" id="nsChips"></div>
-      <input id="nsTopic" class="ns-input" placeholder="Topic (tap a chip above or type your own)">
-      <textarea id="nsStory" class="rv-cap" style="margin-bottom:8px" placeholder="What's the story? (the situation / what's happening)"></textarea>
-      <textarea id="nsFeel" class="rv-cap" style="margin-bottom:8px" placeholder="Your honest feeling or take on it"></textarea>
-      <textarea id="nsDetail" class="rv-cap" style="margin-bottom:8px" placeholder="Specific details — a room, a find, a price, a moment (the more real, the better)"></textarea>
-      <textarea id="nsNotes" class="rv-cap" style="margin-bottom:8px" placeholder="Anything that must be IN, or off-limits? (optional)"></textarea>
-      <div class="ns-acts"><button class="btn ns-submit" id="nsSubmit">Submit for drafting</button><span class="ns-status" id="nsStatus"></span></div>
+      <div class="ns-head">💬 Tell me something</div>
+      <div class="ns-sub">Pick a spark — I'll prod you with little questions so you never face a blank box. One story makes ONE bundle: FB + IG + TikTok drafted together, approved together. Skipped sparks never come back.</div>
+      <div class="ns-ideahead">Today's sparks
+        <button type="button" class="ns-refresh" id="ppShuffle">🔀 Shuffle</button>
+        <button type="button" class="ns-refresh" id="ppOwn" style="margin-left:14px">✏️ I've got my own story</button>
+      </div>
+      <div id="ppSparks" class="pp-sparks"><p class="muted" style="font-size:12px">Loading sparks…</p></div>
     </div>
     <div id="reviewLane"></div>
   </section>
@@ -2709,12 +2725,12 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
   $$(".view").forEach(v=>v.classList.remove("active"));$("#view-"+b.dataset.view).classList.add("active");
   if(b.dataset.view==="calendar")renderCalendar("calArticles");
   if(b.dataset.view==="pipeline")renderCalendar("calArticlesTop",true);
-  if(b.dataset.view==="review"){renderReview();renderIdeaChips();}
+  if(b.dataset.view==="review"){renderReview();renderSparks();}
   if(b.dataset.view==="roadmap"&&typeof renderRoadmap==="function")renderRoadmap();
   if(b.dataset.view==="stats"&&typeof renderStats==="function")renderStats();
   maybeLoadFrame(b.dataset.view);
 }));
-{ const rb=$("#reviewRefresh"); if(rb) rb.addEventListener("click",renderReview); }
+{ const rb=$("#reviewRefresh"); if(rb) rb.addEventListener("click",()=>{ _cache=null; renderReview(); renderSparks(); }); }
 /* ---------- NonPromo review lane (separate tab for now) ---------- */
 async function renderReview(){
   const host=$("#reviewLane"); if(!host) return;
@@ -2732,11 +2748,33 @@ async function renderReview(){
       return '<div class="genwait"><span class="genspin"></span><span>✍ <b>Drafting…</b> the brain is writing this in your voice (IG + FB + TikTok) — usually a few minutes, then it drops into the queue below.<br><span style="opacity:.8;font-style:italic">Topic: '+esc(topic)+'</span></span></div>';
     }).join("")+'</div>';
   }
-  const pending=body.map((r,i)=>({r,sheetRow:i+2})).filter(o=>String(o.r[5]||"").trim().toLowerCase()==="needs_review");
-  if(!pending.length){ host.innerHTML=draftHtml+'<div class="rv-empty">'+(drafting.length?('Nothing to review just yet — your '+drafting.length+' submitted '+(drafting.length===1?'story is':'stories are')+' drafting above. ✍'):'🎉 Nothing waiting for review. New non-promo + personal posts show up here as the pipeline queues them.')+'</div>'; return; }
+  const allPending=body.map((r,i)=>({r,sheetRow:i+2})).filter(o=>String(o.r[5]||"").trim().toLowerCase()==="needs_review");
+  // BUNDLES (2026-06-11 revamp): personal rows sharing col H = one story drafted for
+  // FB+IG+TikTok together — reviewed as ONE card, approved with ONE click.
+  const bundles={}; const pending=[];
+  allPending.forEach(o=>{ const b=String(o.r[7]||"").trim();
+    if(b && String(o.r[2]||"").toLowerCase()==="personal"){ (bundles[b]=bundles[b]||[]).push(o); } else pending.push(o); });
+  if(!allPending.length){ host.innerHTML=draftHtml+'<div class="rv-empty">'+(drafting.length?('Nothing to review just yet — your '+drafting.length+' submitted '+(drafting.length===1?'story is':'stories are')+' drafting above. ✍'):'🎉 Nothing waiting for review. New posts show up here as the pipeline queues them.')+'</div>'+upcomingHtml(body); return; }
   const tcol=t=>({personal:["#FAD9D3","#B0392B"],value:["#EBEFE6","#5E6E50"],engagement:["#FFE7D6","#B5702F"],trending:["#E7E0F0","#6B5B95"]})[String(t||"").toLowerCase()]||["#eee","#555"];
   const isImg=s=>/^https?:\/\//i.test(String(s||""));
-  let html=draftHtml+'<div class="rv-grid">';
+  let html=draftHtml;
+  const PEMO={facebook:"📘",instagram:"📸",tiktok:"🎵"};
+  Object.keys(bundles).forEach(bid=>{
+    const set=bundles[bid];
+    const first=(set[0].r[3]||"").split("\n")[0].slice(0,70);
+    html+='<div class="pb-card" data-bundle="'+esc(bid)+'">'
+      +'<div class="pb-title">📖 Your story — one approve posts all '+set.length+'</div>'
+      +'<div class="pb-sub">"'+esc(first)+'…" · tweak any wording right here, kill a platform with ✕, then approve the lot.</div>'
+      +'<div class="pb-plats">'+set.map(o=>{
+        const pl=String(o.r[1]||"").toLowerCase();
+        return '<div class="pb-plat" data-row="'+o.sheetRow+'"><div class="pb-plathead">'+(PEMO[pl]||"📣")+' '+esc(pl)
+          +(isImg(o.r[4])?'':' <span class="rv-cardbadge">🖼 card</span>')
+          +'<button class="pb-x" data-row="'+o.sheetRow+'" title="Skip just this platform">✕</button></div>'
+          +'<textarea class="rv-cap" style="min-height:110px">'+esc(o.r[3]||"")+'</textarea></div>';
+      }).join("")+'</div>'
+      +'<div class="pb-acts"><button class="btn rv-approve pb-approve">✓ Approve all</button><button class="btn ghost pb-skipall">Skip story</button><span class="rv-status"></span></div></div>';
+  });
+  html+='<div class="rv-grid">';
   pending.forEach(o=>{ const dt=o.r[0],pl=o.r[1],ty=o.r[2],cap=o.r[3],img=o.r[4]; const tc=tcol(ty);
     html+='<div class="rv-card" data-row="'+o.sheetRow+'">';
     if(isImg(img)) html+='<div class="rv-thumb"><img src="'+esc(img)+'" alt="" loading="lazy"></div>';
@@ -2744,11 +2782,37 @@ async function renderReview(){
     html+='<textarea class="rv-cap">'+esc(cap||"")+'</textarea>';
     html+='<div class="rv-acts"><button class="btn rv-approve" data-row="'+o.sheetRow+'">✓ Approve</button><button class="btn ghost rv-skip" data-row="'+o.sheetRow+'">Skip</button><span class="rv-status"></span></div></div></div>';
   });
-  html+='</div>';
+  html+='</div>'+upcomingHtml(body);
   host.innerHTML=html;
   host.onclick=async e=>{
+    // ----- bundle actions (approve/skip the whole story, or ✕ one platform) -----
+    const px=e.target.closest(".pb-x");
+    if(px){ const row=+px.dataset.row, blk=px.closest(".pb-plat");
+      try{ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"});
+        blk.style.opacity=".35"; blk.querySelectorAll("textarea,button").forEach(x=>x.disabled=true);
+        toast("That platform's version skipped."); }catch(err){ toast("Skip failed: "+(err&&err.message||err)); }
+      return; }
+    const pa=e.target.closest(".pb-approve"), ps=e.target.closest(".pb-skipall");
+    if(pa||ps){ const card=(pa||ps).closest(".pb-card"), st=card.querySelector(".rv-status");
+      (pa||ps).disabled=true; st.textContent="Saving…";
+      try{
+        const blocks=[...card.querySelectorAll(".pb-plat")].filter(b=>!b.querySelector("textarea").disabled);
+        for(const b of blocks){ const row=+b.dataset.row;
+          if(pa){ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:b.querySelector("textarea").value});
+                  await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"queued"}); }
+          else  { await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"}); }
+          const n=nonpromo.find(x=>x.row===row); if(n) n.status=pa?"queued":"skipped";
+        }
+        renderTodo(); render();
+        card.style.transition="opacity .3s"; card.style.opacity="0";
+        setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")&&!host.querySelector(".pb-card")) renderReview(); },320);
+        toast(pa?("Story approved — "+blocks.length+" posts queued 🎉"):"Story skipped.");
+      }catch(err){ st.textContent=""; (pa||ps).disabled=false; toast("Save failed: "+(err&&err.message||err)); }
+      return; }
+    // ----- single-card actions (engagement / trending / legacy) -----
     const ap=e.target.closest(".rv-approve"), sk=e.target.closest(".rv-skip"); const btn=ap||sk; if(!btn) return;
-    const card=btn.closest(".rv-card"), row=parseInt(card.dataset.row,10), st=card.querySelector(".rv-status");
+    const card=btn.closest(".rv-card"); if(!card) return;
+    const row=parseInt(card.dataset.row,10), st=card.querySelector(".rv-status");
     const cap=card.querySelector(".rv-cap").value;
     btn.disabled=true; st.textContent="Saving…";
     try{
@@ -2758,52 +2822,86 @@ async function renderReview(){
       const n=nonpromo.find(x=>x.row===row); if(n){ n.status=ap?"queued":"skipped"; if(ap&&cap) n.caption=cap; }
       renderTodo(); render();   // reflect immediately: Fully Live card appears (queued) + To-Do counts update
       card.style.transition="opacity .3s"; card.style.opacity="0";
-      setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")) renderReview(); },320);
+      setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")&&!host.querySelector(".pb-card")) renderReview(); },320);
       toast(ap?"Approved — queued for scheduling.":"Skipped.");
     }catch(err){ st.textContent=""; btn.disabled=false; toast("Save failed: "+(err&&err.message||err)); }
   };
 }
-/* New personal story form — rotating idea chips (life + decor) + submit (writes intake; brain drafts) */
-var IDEA_POOL=[
-  // home / decor
-  "Empty-nest room reclaim","Looks expensive, wasn't","A decorating fail I learned from",
-  "How my style evolved","Behind the scenes of a find","What I almost bought",
-  "The room that finally feels like me","A splurge I don't regret",
-  // life in general
-  "Empty-nest real talk","What nobody tells you about kids leaving","Reinventing myself at this stage",
-  "A small thing that made my week","Something I'm learning to let go of","A hobby I picked back up",
-  "Treating myself without the guilt","A win I'm proud of this week","Slowing down on purpose",
-  "What home means to me now","A lesson from my mom I still use","Friendships in your 40s",
-  "Saying yes to me for once","The mess I'm making peace with","A morning that actually felt good",
-  "A tradition I'm keeping (or ditching)","Something I'd tell my younger self","A change I was scared of but love now"
-];
-function renderIdeaChips(){
-  var box=document.getElementById('nsChips'); if(!box) return;
-  var pool=IDEA_POOL.slice();
-  for(var i=pool.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=pool[i];pool[i]=pool[j];pool[j]=t;}
-  box.innerHTML=pool.slice(0,6).map(function(x){return '<span class="ns-chip">'+esc(x)+'</span>';}).join('');
+/* "Coming up" strip — already-approved personal/non-promo posts with future dates */
+function upcomingHtml(body){
+  const today=new Date().toISOString().slice(0,10);
+  const up=body.map((r,i)=>({r,i})).filter(o=>{const s=String(o.r[5]||"").toLowerCase();return (s==="scheduled"||s==="queued") && String(o.r[0]||"").slice(0,10)>=today;})
+    .sort((a,b)=>String(a.r[0]).slice(0,10)<String(b.r[0]).slice(0,10)?-1:1).slice(0,12);
+  if(!up.length) return "";
+  return '<div style="margin-top:18px"><div class="ns-head" style="font-size:13px">📅 Coming up</div><div class="pp-up">'
+    +up.map(o=>'<span class="pp-upitem"><b>'+esc(String(o.r[0]).slice(0,10))+'</b> · '+esc(String(o.r[1]||""))+' · '+esc(String(o.r[2]||""))+(String(o.r[5]).toLowerCase()==="queued"?" · ⏳":" · ✓")+'</span>').join("")+'</div></div>';
 }
-{
-  const chipBox=$('#nsChips');
-  if(chipBox) chipBox.addEventListener('click',e=>{ const c=e.target.closest('.ns-chip'); if(!c) return; const t=$('#nsTopic'); if(t){ t.value=c.textContent; t.focus(); } });
-  const ir=$('#nsIdeasRefresh'); if(ir) ir.addEventListener('click',renderIdeaChips);
-  renderIdeaChips();
-  const sb=$('#nsSubmit');
-  if(sb) sb.addEventListener('click', async ()=>{
-    const val=id=>{const el=$(id); return el?(el.value||'').trim():'';};
-    const topic=val('#nsTopic'), story=val('#nsStory');
-    if(!topic||!story){ toast('Add at least a topic and the story.'); return; }
-    const blob='TOPIC: '+topic+'\nSTORY: '+story+'\nFEELING: '+val('#nsFeel')+'\nDETAILS: '+val('#nsDetail')+'\nNOTES: '+val('#nsNotes');
-    const st=$('#nsStatus'); sb.disabled=true; st.textContent='Submitting…';
+/* ===== Idea Bank sparks + capture (2026-06-11 revamp) =====
+   Ideas live as NonPromo rows: Type="idea", Caption=JSON {prompt, nudges[]},
+   Status: fresh -> shown (shuffled away, low priority) -> used / never (permanent).
+   The brain keeps the bank topped up (>=6 fresh) — see run-pipeline 5.7. */
+function ideaRows(){
+  return nonpromo.filter(n=>String(n.type||"").toLowerCase()==="idea")
+    .map(n=>{ let j=null; try{ j=JSON.parse(n.caption||"null"); }catch(e){}
+      return j&&j.prompt?{row:n.row,status:(n.status||"fresh").toLowerCase(),prompt:j.prompt,nudges:j.nudges||[]}:null; })
+    .filter(Boolean);
+}
+let _sparkShown=[];
+function renderSparks(){
+  const box=document.getElementById('ppSparks'); if(!box) return;
+  const ideas=ideaRows();
+  const fresh=ideas.filter(i=>i.status==="fresh"), shown=ideas.filter(i=>i.status==="shown");
+  const pool=fresh.length?fresh.concat(shown):shown;
+  if(!pool.length){ box.innerHTML='<p class="muted" style="font-size:12px">The idea bank is refilling — the brain generates fresh sparks on its next pass. Or just hit "I\'ve got my own story." ✏️</p>'; _sparkShown=[]; return; }
+  const pick=pool.slice(0,3);
+  _sparkShown=pick.map(p=>p.row);
+  box.innerHTML=pick.map(p=>'<div class="pp-spark" data-row="'+p.row+'"><b>'+esc(p.prompt)+'</b>'
+    +(p.nudges.length?'<div class="pp-nudge">'+p.nudges.map(n=>'· '+esc(n)).join('<br>')+'</div>':'')
+    +'<div class="pp-sparkacts"><button class="pp-use" data-row="'+p.row+'">Tell this one →</button><button class="pp-never" data-row="'+p.row+'" title="Never show this idea again">🚫 not me</button></div></div>').join('');
+}
+async function setIdeaStatus(row,status){ try{ await apiPost({sheet:'NonPromo',action:'updateCell',row:row,col:6,value:status});
+  const n=nonpromo.find(x=>x.row===row); if(n) n.status=status; }catch(e){} }
+function captureModal(idea){
+  const modal=$('#modal'),scrim=$('#scrim');
+  const nudges=(idea&&idea.nudges&&idea.nudges.length)?idea.nudges:["What actually happened?","How did it feel, honestly?","One tiny specific detail makes it real — a time, a smell, a thing someone said."];
+  modal.innerHTML='<button class="x" data-cc="x">×</button>'
+    +'<div class="kicker">Tell me something</div>'
+    +'<h3>'+(idea?esc(idea.prompt):'Your story')+'</h3>'
+    +'<p style="font-size:12.5px;line-height:1.6;color:#8a7f79">'+nudges.map(n=>'· '+esc(n)).join('<br>')
+    +'<br><br>Answer like you\'d text your sister — fragments, typos, half-thoughts all fine. I shape it; you stay you. One send = FB + IG + TikTok drafted together.</p>'
+    +'<textarea id="ppStory" class="rv-cap" style="min-height:140px" placeholder="Just start typing…"></textarea>'
+    +'<input id="ppPhoto" class="ns-input" style="margin-top:8px" placeholder="Photo URL (optional — a real photo beats a branded card)">'
+    +'<div class="mfoot"><button class="btn ghost" data-cc="x">Not now</button><button class="btn coral" id="ppSend">Send it ✨</button></div>';
+  scrim.classList.add('show');
+  function close(){scrim.classList.remove('show');modal.removeEventListener('click',onClick);}
+  async function onClick(e){
+    if(e.target.closest('[data-cc]')){close();return;}
+    if(!e.target.closest('#ppSend'))return;
+    const story=($('#ppStory').value||'').trim();
+    if(story.length<20){ toast('Give me a little more than that — even 2 messy sentences.'); return; }
+    const photo=($('#ppPhoto').value||'').trim();
+    const blob=(idea?('IDEA: '+idea.prompt+'\n'):'')+'STORY: '+story+(photo?'\nPHOTO: '+photo:'');
     try{
       const today=new Date().toISOString().slice(0,10);
-      await apiPost({ sheet:'NonPromo', action:'appendRow', values:[today,'(intake)','personal-intake',blob,'','interview_pending',''] });
-      st.textContent='Sent ✓ The brain will draft it shortly — check the queue below in a few minutes.';
-      ['#nsTopic','#nsStory','#nsFeel','#nsDetail','#nsNotes'].forEach(id=>{const el=$(id); if(el) el.value='';});
-      renderReview();   // show the ✍ Drafting indicator right away
-    }catch(e){ st.textContent=''; toast('Submit failed: '+(e&&e.message||e)); }
-    finally{ sb.disabled=false; }
+      await apiPost({sheet:'NonPromo',action:'appendRow',values:[today,'(intake)','personal-intake',blob,photo||'','interview_pending','','']});
+      if(idea) await setIdeaStatus(idea.row,'used');
+      toast('Sent ✓ — the brain drafts your FB+IG+TikTok bundle in a few minutes.');
+      close(); renderReview(); renderSparks();
+    }catch(err){ toast('Send failed: '+(err&&err.message||err)); }
+  }
+  modal.addEventListener('click',onClick);
+}
+{
+  const sp=document.getElementById('ppSparks');
+  if(sp) sp.addEventListener('click',e=>{
+    const u=e.target.closest('.pp-use'), nv=e.target.closest('.pp-never');
+    if(u){ const idea=ideaRows().find(i=>i.row===+u.dataset.row); if(idea) captureModal(idea); return; }
+    if(nv){ setIdeaStatus(+nv.dataset.row,'never').then(()=>{ toast('Gone forever. 🚫'); renderSparks(); }); return; }
   });
+  const sh=document.getElementById('ppShuffle');
+  if(sh) sh.addEventListener('click',async()=>{ for(const r of _sparkShown){ const i=ideaRows().find(x=>x.row===r); if(i&&i.status==='fresh') await setIdeaStatus(r,'shown'); } renderSparks(); });
+  const own=document.getElementById('ppOwn');
+  if(own) own.addEventListener('click',()=>captureModal(null));
 }
 /* roundup pool is now a board column, not a tray */
 
