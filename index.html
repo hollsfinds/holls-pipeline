@@ -2759,6 +2759,7 @@ async function renderReview(){
   const isImg=s=>/^https?:\/\//i.test(String(s||""));
   let html=draftHtml;
   const PEMO={facebook:"📘",instagram:"📸",tiktok:"🎵"};
+  if(Object.keys(bundles).length) html+='<div class="ns-head" style="font-size:13px;margin:4px 0 8px">📖 Your stories</div>';
   Object.keys(bundles).forEach(bid=>{
     const set=bundles[bid];
     const first=(set[0].r[3]||"").split("\n")[0].slice(0,70);
@@ -2774,6 +2775,7 @@ async function renderReview(){
       }).join("")+'</div>'
       +'<div class="pb-acts"><button class="btn rv-approve pb-approve">✓ Approve all</button><button class="btn ghost pb-skipall">Skip story</button><span class="rv-status"></span></div></div>';
   });
+  if(pending.length) html+='<div class="ns-head" style="font-size:13px;margin:14px 0 2px">💬 Group Chat Starters <span style="font-weight:600;font-size:11px;color:#8a7f79">— auto-drafted polls & trend takes (not your personal stories); approve, tweak, or skip</span></div>';
   html+='<div class="rv-grid">';
   pending.forEach(o=>{ const dt=o.r[0],pl=o.r[1],ty=o.r[2],cap=o.r[3],img=o.r[4]; const tc=tcol(ty);
     html+='<div class="rv-card" data-row="'+o.sheetRow+'">';
