@@ -1022,6 +1022,63 @@ function prodPillHTML(it){
   if(!u) return `<div class="prodpill"><span>📦 ${name}</span></div>`;
   return `<div class="prodpill"><a href="${esc(u)}" target="_blank" rel="noopener">📦 ${name} ↗</a></div>`;
 }
+/* ===== Pinterest board pill (review + change the board on any article card) ===== */
+function cardSlugOf(it){
+  if(it.imgPreviews){for(const k in it.imgPreviews){const m=String(it.imgPreviews[k]||"").match(/\/previews\/([^/]+)\//);if(m)return m[1];}}
+  const m=String(it.artUrl||"").match(/\/articles\/([^/?#]+)/);return m?m[1]:null;
+}
+function resolvedBoardOf(it){
+  const slug=cardSlugOf(it);
+  const bc=metaRows.find(r=>(r[0]||"")==="board_changes");
+  if(bc&&slug){try{const j=JSON.parse(bc[1]||"{}");if(j[slug])return{name:j[slug].name||j[slug].id,state:"moving"};}catch(e){}}
+  if(it.boardSel){const b=(pinBoards||[]).find(x=>String(x.id)===String(it.boardSel));return{name:(b&&b.name)||("board "+it.boardSel),state:"override"};}
+  if(pinBoardMap&&pinBoardMap.articles&&slug&&pinBoardMap.articles[slug]){const a=pinBoardMap.articles[slug];return{name:a.name||a.id,state:"set"};}
+  return{name:"auto — brain picks at publish",state:"auto"};
+}
+function boardPillHTML(it){
+  if(!ARTICLE_STAGES[it.stage])return "";
+  const r=resolvedBoardOf(it);
+  const lbl=r.state==="moving"?("↻ moving to "+esc(r.name)+"…"):esc(r.name);
+  return `<div class="boardpill${r.state==="auto"?" bp-auto":""}" data-chgboard="${it.row}" title="Pinterest board for this article's pins — tap to review or change">📌 ${lbl} ▾</div>`;
+}
+function changeBoardModal(row){
+  const it=pipe.find(p=>p.row===row);if(!it)return;
+  const slug=cardSlugOf(it), cur=resolvedBoardOf(it), scheduled=!!it.sched;
+  const modal=$("#modal"),scrim=$("#scrim");
+  if(!(pinBoards&&pinBoards.length)){toast("Board list isn't synced yet — sync boards first");return;}
+  const opts=pinBoards.map(b=>`<option value="${esc(String(b.id))}"${String(b.id)===String(it.boardSel)?" selected":""}>${esc(b.name||b.id)}</option>`).join("");
+  modal.innerHTML=`<button class="x" data-cc="x">×</button>
+    <div class="kicker">Pinterest board</div>
+    <h3>${esc(cardTitleOf(it))}</h3>
+    <p>Currently: <b>${esc(cur.name)}</b>${cur.state==="auto"?" (no explicit pick yet)":""}.${scheduled?" Pins are already scheduled — changing the board <b>moves every future pin</b> to the new one (already-posted pins stay put).":" Pins haven't scheduled yet — your pick is used when they do."}</p>
+    <select id="cbSel" class="bp-sel">${opts}</select>
+    <div class="mfoot"><button class="btn ghost" data-cc="x">Cancel</button><button class="btn coral" id="cbSave">${scheduled?"Change board + move future pins":"Save board"}</button></div>`;
+  scrim.classList.add("show");
+  function close(){scrim.classList.remove("show");modal.removeEventListener("click",onClick);}
+  async function onClick(e){
+    if(e.target.closest("[data-cc]")){close();return;}
+    if(!e.target.closest("#cbSave"))return;
+    const sel=document.getElementById("cbSel");if(!sel)return;
+    const id=sel.value,name=(sel.options[sel.selectedIndex]||{}).text||id;
+    try{
+      await mcp("mcp__google-sheets__update_cells",{spreadsheet_id:SS,sheet:"Pipeline",range:"R"+row,data:[[id]]});
+      it.boardSel=id;
+      if(scheduled&&slug){
+        let ch={};const bc=metaRows.find(r=>(r[0]||"")==="board_changes");
+        if(bc){try{ch=JSON.parse(bc[1]||"{}")||{};}catch(e){ch={};}}
+        ch[slug]={id:id,name:name,at:new Date().toISOString()};
+        await metaSet("board_changes",JSON.stringify(ch));
+        toast("Saved — future pins move to “"+name+"” within ~2 min");
+      }else toast("Board set to “"+name+"” ✓");
+      close();render();
+    }catch(err){toast("Save failed: "+(err&&err.message||err));}
+  }
+  modal.addEventListener("click",onClick);
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-chgboard]");if(!b)return;changeBoardModal(+b.dataset.chgboard);});
+{ const css=document.createElement("style");
+  css.textContent=".boardpill{display:inline-flex;align-items:center;gap:4px;margin:4px 0 2px;font-size:10.5px;font-weight:700;color:#2E6E6A;background:#EAF4F3;border:1px solid #CDE4E2;border-radius:20px;padding:3px 10px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.boardpill:hover{background:#DCEEEC}.boardpill.bp-auto{color:#8a7f79;background:#F4F1EE;border-color:#E5DED8}";
+  document.head.appendChild(css); }
 /* product photo: inbox cards carry .img; pipe cards look it up from the matching Inbox row */
 function imgOf(it){
   if(it.img) return it.img;
@@ -1597,7 +1654,7 @@ function pipeCard(it){
     d.innerHTML=`<div class="chead">${thumb}<div class="ttl">${esc(cardTitleOf(it))}</div><span class="ccaret">${open?'▾':'▸'}</span></div>
       <div class="cbody">
         <div class="badges">${tb}${memTag}${rdz}${flagTag}${spinTag}${dupTag}</div>
-        ${prodPillHTML(it)}
+        ${prodPillHTML(it)}${boardPillHTML(it)}
         ${controls}
         ${scheduledDatesHTML(it)}
       </div>`;
@@ -1605,7 +1662,7 @@ function pipeCard(it){
   }
   d.innerHTML=`<div class="chead">${thumb}<div class="ttl">${esc(cardTitleOf(it))}</div></div>
     <div class="badges">${tb}${memTag}${rdz}${flagTag}${spinTag}${dupTag}</div>
-    ${prodPillHTML(it)}
+    ${prodPillHTML(it)}${boardPillHTML(it)}
     ${controls}`;
   return d;
 }
