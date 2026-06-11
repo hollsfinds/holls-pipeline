@@ -413,6 +413,7 @@ button.todo-stat:hover{background:var(--peach)}
       <button class="tab active" data-view="pipeline">Pipeline</button>
       <button class="tab" data-view="calendar">Posting Calendar</button>
       <button class="tab" data-view="review">Personal Posts</button>
+      <button class="tab" data-view="roadmap">Roadmap</button>
       <button class="tab" data-view="reference">Reference Tool</button>
       <button class="tab" data-view="help">Help</button>
     </div>
@@ -474,6 +475,113 @@ button.todo-stat:hover{background:var(--peach)}
     </div>
   </section>
 
+  <!-- REVENUE ROADMAP -->
+  <section class="view" id="view-roadmap">
+    <div class="toolbar">
+      <div>
+        <div class="lead">Revenue roadmap</div>
+        <div class="sub">The growth plan, in priority order. Edit a note, change a status, add ideas as they hit — everything saves to the Sheet.</div>
+      </div>
+      <div class="toolacts"><button class="btn ghost" id="rmRefresh">↻ Refresh</button></div>
+    </div>
+    <div id="rmBody"><p class="tool-note">Loading…</p></div>
+    <script>
+    (function(){
+      var RM_TAB="Roadmap";
+      var ST={now:["🔥 Now","#F88378"],next:["🔜 Next","#B5702F"],later:["🌙 Later","#2E6E6A"],done:["✅ Done","#5E6E50"],pass:["🚫 Pass","#999"]};
+      var ST_ORDER=["now","next","later","done","pass"];
+      var SEED=[
+        ["Amazon: first 3 sales → unlock Creators API + storefront","now","ALL efforts here first. Unlock = official product images on the SITE (FreshStore supports Creators API natively) + storefront access. Images stay unmodified + site-only per TOS. 180-day window is ticking."],
+        ["Amazon Influencer Program","now","High on the list. Build social engagement to qualify. On-shelf videos = passive commissions on other sellers' product pages."],
+        ["Prime Day content — Jun 23–26","now","Earlier than usual this year! Roundups of already-live products + deal-day pins. NO prices or percent-off in copy (Amazon TOS). Never run paid/boosted ads linking to Amazon (Apr 2026 rule)."],
+        ["Q4 gift guide hub","next","Biggest quarter of the year. Articles live by mid-Sep, pins flowing by early Oct. Gifts-by-recipient + under-$50 formats."],
+        ["Bottom-funnel articles (X vs Y, best under $50)","next","Buyers searching these are holding their wallets. Add comparison tables."],
+        ["Per-channel Amazon tracking IDs","next","Separate IDs for pinterest / blog / IG-FB / tiktok → see which platform actually converts."],
+        ["Search Console feedback loop","next","Monthly check: which articles get impressions/clicks → steer product picks + roundup topics."],
+        ["Internal linking in drafting step","next","Each new article links 2–3 related articles + roundup cross-links. Cheapest authority builder."],
+        ["Multi-merchant expansion (Wayfair 5–7% whole-cart, One Kings Lane 12%, LTK fashion)","later","THE long-term plan — after the Amazon foundation is earning. Wayfair pays on the entire cart."],
+        ["Email list + lead magnet","later","Down the road, not ready yet. Amazon links are now allowed in opted-in email, but linking to articles is smarter anyway."],
+        ["Content refresh cadence (90-day)","later","Re-touch top articles: updated year in meta title, swap dead products."],
+        ["Display ads (Raptive/Mediavine @ ~50k sessions/mo)","pass","Holls passed on this — revisit only if traffic makes it silly not to."]
+      ];
+      function rmRows(data){ return (data&&data[RM_TAB])?data[RM_TAB]:null; }
+      function fmtD(s){ if(!s)return ""; try{ return new Date(s).toLocaleDateString(undefined,{month:"short",day:"numeric"});}catch(e){return "";} }
+      async function renderRoadmap(){
+        var host=document.getElementById("rmBody"); if(!host) return;
+        host.innerHTML='<p class="tool-note">Loading…</p>';
+        var data=null; try{ data=await apiGet(); }catch(e){ host.innerHTML='<p class="tool-note">Couldn’t reach the Sheet: '+esc(e.message||"")+'</p>'; return; }
+        var rows=rmRows(data);
+        if(rows===null){
+          host.innerHTML='<div class="help-card"><h3>One-time bridge setup needed</h3>'+
+            '<p style="font-size:13px;line-height:1.6">The Apps Script bridge isn’t returning the <b>Roadmap</b> tab yet. In the Pipeline Sheet: <b>Extensions → Apps Script</b>, find the <code>TABS</code> line and add <code>"Roadmap"</code> to the list, then <b>Deploy → Manage deployments → ✎ → New version → Deploy</b>. Then come back and hit ↻ Refresh.</p></div>';
+          return;
+        }
+        var items=rows.slice(1).map(function(r,i){return{row:i+2,title:r[0]||"",status:(r[1]||"later").toLowerCase(),notes:r[2]||"",upd:r[3]||""};}).filter(function(x){return x.title;});
+        if(!items.length){
+          host.innerHTML='<div class="help-card"><h3>Fresh tab, no items yet</h3><p style="font-size:13px">Load the starter roadmap (12 items from the June audit, with your calls baked in)?</p>'+
+            '<button class="btn coral" id="rmSeed">Seed the roadmap</button></div>';
+          var sb=document.getElementById("rmSeed");
+          if(sb) sb.addEventListener("click",async function(){
+            sb.disabled=true; sb.textContent="Seeding…";
+            try{
+              if(rows.length===0) await apiPost({sheet:RM_TAB,action:"appendRow",createIfMissing:true,values:["Item","Status","Notes","Updated"]});
+              for(var i=0;i<SEED.length;i++){ await apiPost({sheet:RM_TAB,action:"appendRow",createIfMissing:true,values:[SEED[i][0],SEED[i][1],SEED[i][2],new Date().toISOString()]}); }
+              toast("Roadmap seeded ✓"); renderRoadmap();
+            }catch(e){ toast("Seed failed: "+(e.message||"")); sb.disabled=false; sb.textContent="Seed the roadmap"; }
+          });
+          return;
+        }
+        var out="";
+        ST_ORDER.forEach(function(st){
+          var grp=items.filter(function(x){return x.status===st;});
+          if(!grp.length) return;
+          out+='<h3 class="cal-h" style="color:'+ST[st][1]+'">'+ST[st][0]+'</h3>';
+          grp.forEach(function(it){
+            out+='<div class="help-card" style="margin-bottom:10px" data-rmrow="'+it.row+'">';
+            out+='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
+            out+='<b style="flex:1;font-size:14px">'+esc(it.title)+'</b>';
+            out+='<select class="rm-st" style="padding:5px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;background:#fff">';
+            ST_ORDER.forEach(function(s){ out+='<option value="'+s+'"'+(s===it.status?" selected":"")+'>'+ST[s][0]+'</option>'; });
+            out+='</select>';
+            if(it.upd) out+='<span style="font-size:11px;opacity:.5">saved '+esc(fmtD(it.upd))+'</span>';
+            out+='</div>';
+            out+='<textarea class="rm-notes" placeholder="Notes…" style="width:100%;margin-top:8px;min-height:54px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;font-family:inherit;line-height:1.5;resize:vertical">'+esc(it.notes)+'</textarea>';
+            out+='<div style="margin-top:6px;text-align:right"><button class="btn ghost rm-save" style="font-size:12px;padding:5px 12px">Save</button></div>';
+            out+='</div>';
+          });
+        });
+        out+='<div class="help-card" style="margin-top:14px"><h3>Add an idea</h3>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rmNewT" placeholder="What’s the idea?" style="flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit">'+
+          '<select id="rmNewS" style="padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;background:#fff"><option value="now">🔥 Now</option><option value="next" selected>🔜 Next</option><option value="later">🌙 Later</option></select>'+
+          '<button class="btn coral" id="rmAdd">+ Add</button></div></div>';
+        host.innerHTML=out;
+        host.querySelectorAll("[data-rmrow]").forEach(function(card){
+          var row=+card.dataset.rmrow;
+          function save(){
+            var st=card.querySelector(".rm-st").value, nt=card.querySelector(".rm-notes").value;
+            apiPost({sheet:RM_TAB,action:"updateRange",range:"B"+row+":D"+row,values:[[st,nt,new Date().toISOString()]]})
+              .then(function(){toast("Saved ✓");renderRoadmap();})
+              .catch(function(e){toast("Save failed: "+(e.message||""));});
+          }
+          card.querySelector(".rm-save").addEventListener("click",save);
+          card.querySelector(".rm-st").addEventListener("change",save);
+        });
+        var ab=document.getElementById("rmAdd");
+        if(ab) ab.addEventListener("click",function(){
+          var t=document.getElementById("rmNewT").value.trim(); if(!t){toast("Give the idea a name first");return;}
+          var s=document.getElementById("rmNewS").value;
+          apiPost({sheet:RM_TAB,action:"appendRow",createIfMissing:true,values:[t,s,"",new Date().toISOString()]})
+            .then(function(){toast("Added ✓");renderRoadmap();})
+            .catch(function(e){toast("Add failed: "+(e.message||""));});
+        });
+      }
+      window.renderRoadmap=renderRoadmap;
+      var rb=document.getElementById("rmRefresh");
+      if(rb) rb.addEventListener("click",function(){ _cache=null; renderRoadmap(); });
+    })();
+    </script>
+  </section>
+
   <!-- POSTING CALENDAR -->
   <section class="view" id="view-calendar">
     <div class="toolbar">
@@ -493,130 +601,152 @@ button.todo-stat:hover{background:var(--peach)}
     <p class="cal-rule">Each holiday shows its date + how posting ramps toward it: <b>Foundation</b> (seed early, light) → <b>Build</b> (ramp volume) → <b>Peak</b> (heavy, last-minute + urgency). “Add to On Deck by” = when products must enter the pipeline. Repeats yearly; current-month items are flagged ADD NOW.</p>
     <script>(function(){
       var months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      // [name, emoji, dateLabel, onDeckLabel, onDeckMonth, [[phase,when,focus]...]]
+      /* ONE source of truth for all seasonal pushes.
+         dl:{m,d} = "Add to On Deck by" deadline (0-based month) — drives the date-aware
+         urgency pills + the banner. ev = event month (0-based) — drives the focus bar
+         (heavy at 0–1 months out, ramp at 2, prep at 3). Repeats yearly.
+         NOTE Easter / Mother's Day / Thanksgiving float — update dateLabel each year. */
       var S=[
-        ["July 4th / Americana","🎆","Jul 4","now",5,[
+        {n:"Prime Day",e:"🛒",d:"Jun 23–26 (’26 — earlier than usual!)",dl:{m:5,d:13},ev:5,ph:[
+          ["Foundation","now","Deal-ready roundups of products ALREADY live on the site"],
+          ["Build","Jun 20–22","Teaser pins + “what I’m watching” content"],
+          ["Peak","Jun 23–26","Daily Prime Day finds — NO prices/percent-off in copy (TOS)"]]},
+        {n:"Father’s Day",e:"👔",d:"Jun 21 (3rd Sun)",dl:{m:5,d:10},ev:5,ph:[
+          ["Build","1–2 wks out","Gifts-for-him roundups: office, garage-chic, grill-adjacent"],
+          ["Peak","final wk","Last-minute gifts with Prime shipping angle"]]},
+        {n:"July 4th / Americana",e:"🎆",d:"Jul 4",dl:{m:5,d:17},ev:6,ph:[
           ["Foundation","4–3 wks · mid-Jun","Patio refresh + outdoor entertaining basics (light)"],
           ["Build","2 wks · late Jun","Americana decor, red/white/blue tablescapes"],
-          ["Peak","final wk","Last-minute party finds, drinkware, quick decor (daily)"]]],
-        ["Summer entertaining / patio","☀️","Jun–Aug","now",5,[
+          ["Peak","final wk","Last-minute party finds, drinkware, quick decor (daily)"]]},
+        {n:"Summer entertaining / patio",e:"☀️",d:"Jun–Aug",dl:{m:5,d:1},ev:6,ph:[
           ["Foundation","early Jun","Patio setup, outdoor rugs + lighting"],
           ["Build","Jun–Jul","Hosting, serveware, cooling finds"],
-          ["Peak","Jul–Aug","Cookout, pool + bug-season must-haves"]]],
-        ["Back-to-school / teen room","✏️","peak mid-Aug","Jun 17",5,[
+          ["Peak","Jul–Aug","Cookout, pool + bug-season must-haves"]]},
+        {n:"Back-to-school / teen room",e:"✏️",d:"peak mid-Aug",dl:{m:5,d:17},ev:7,ph:[
           ["Foundation","8–6 wks · Jul","Dorm + teen-room inspo, storage basics"],
           ["Build","5–3 wks · late Jul","Desk setups, lighting, organization"],
-          ["Peak","2 wks · early–mid Aug","Last-minute dorm checklists + deals"]]],
-        ["Fall / harvest decor","🍂","peak Sep–Oct","Jul 18",6,[
+          ["Peak","2 wks · early–mid Aug","Last-minute dorm checklists + deals"]]},
+        {n:"Fall / harvest decor",e:"🍂",d:"peak Sep–Oct",dl:{m:6,d:18},ev:8,ph:[
           ["Foundation","Aug","Early-fall transition, neutral textiles"],
           ["Build","early Sep","Pumpkins, wreaths, candles"],
-          ["Peak","late Sep–Oct","Full harvest decor + cozy layering"]]],
-        ["Halloween","🎃","Oct 31","Aug 18",7,[
+          ["Peak","late Sep–Oct","Full harvest decor + cozy layering"]]},
+        {n:"Prime Big Deal Days",e:"🛍️",d:"early–mid Oct (TBA)",dl:{m:8,d:1},ev:9,ph:[
+          ["Foundation","Sep","Fall decor + organization products live and indexed"],
+          ["Build","late Sep","Teaser pins, “fall finds I’m watching”"],
+          ["Peak","event days","Deal-day roundups — same TOS rules as Prime Day"]]},
+        {n:"Halloween",e:"🎃",d:"Oct 31",dl:{m:7,d:18},ev:9,ph:[
           ["Foundation","8 wks · Sep","Chic (not cheesy) Halloween inspo"],
           ["Build","5–3 wks · late Sep–mid Oct","Porch + entry decor, lighting"],
-          ["Peak","final 2 wks · late Oct","Last-minute + party + doormats (daily)"]]],
-        ["Thanksgiving / hosting","🦃","Nov 26 (4th Thu)","Sep 17",8,[
+          ["Peak","final 2 wks · late Oct","Last-minute + party + doormats (daily)"]]},
+        {n:"Thanksgiving / hosting",e:"🦃",d:"Nov 26 (’26 · 4th Thu)",dl:{m:8,d:17},ev:10,ph:[
           ["Foundation","8 wks · Oct","Tablescape inspo + hosting basics"],
           ["Build","Nov","Linens, serveware, centerpieces"],
-          ["Peak","final wk · ~Nov 19–26","Last-minute table + host gifts"]]],
-        ["Christmas / holiday decor","🎄","Dec 25","Sep 17",8,[
+          ["Peak","final wk · ~Nov 19–26","Last-minute table + host gifts"]]},
+        {n:"Christmas / holiday decor",e:"🎄",d:"Dec 25",dl:{m:8,d:17},ev:11,ph:[
           ["Foundation","10–7 wks · early Oct","Gift guides, holiday recipes, budgeting pins (light)"],
           ["Build","6–3 wks · late Oct–Nov","Tree + decor, stockings, hosting, gift roundups"],
-          ["Peak","final 2 wks · Dec","Last-minute gifts, quick DIYs, wrapping tips, holiday outfit inspo (daily)"]]],
-        ["Holiday gift guides","🎁","Black Fri (Nov 27) → Dec 24","Oct 1",9,[
-          ["Foundation","Oct","Gifts-for-X guides by recipient + price"],
+          ["Peak","final 2 wks · Dec","Last-minute gifts, quick DIYs, wrapping tips, holiday outfit inspo (daily)"]]},
+        {n:"Holiday gift guides",e:"🎁",d:"Black Fri (Nov 27) → Dec 24",dl:{m:9,d:1},ev:11,ph:[
+          ["Foundation","Jul–Oct","Pinterest plans EARLY — seed evergreen gift pins from July"],
           ["Build","early–mid Nov","Bundle + under-$50 roundups"],
-          ["Peak","Black Fri–mid Dec","Deal alerts + ship-by-date urgency"]]],
-        ["Winter cozy / hygge","🧣","Dec–Feb","Nov 1",10,[
+          ["Peak","Black Fri–mid Dec","Deal content + ship-by-date urgency (no prices in copy)"]]},
+        {n:"Winter cozy / hygge",e:"🧣",d:"Dec–Feb",dl:{m:10,d:1},ev:0,ph:[
           ["Foundation","Nov","Cozy textiles + ambiance basics"],
           ["Build","Dec–Jan","Layering, candles, warm-drink setups"],
-          ["Peak","Jan–Feb","Hibernation + cozy-night content (post-holiday filler)"]]],
-        ["New Year refresh / org","🗂️","Jan 1","Nov 17",10,[
+          ["Peak","Jan–Feb","Hibernation + cozy-night content (post-holiday filler)"]]},
+        {n:"New Year refresh / org",e:"🗂️",d:"Jan 1",dl:{m:10,d:17},ev:0,ph:[
           ["Foundation","Dec","Organization inspo + reset mindset"],
           ["Build","late Dec","Storage, closet, pantry finds"],
-          ["Peak","Jan 1–15","New-year reset checklists + declutter"]]],
-        ["Valentine’s Day","💐","Feb 14","Dec 22",11,[
+          ["Peak","Jan 1–15","New-year reset checklists + declutter"]]},
+        {n:"Valentine’s Day",e:"💐",d:"Feb 14",dl:{m:11,d:22},ev:1,ph:[
           ["Foundation","5 wks · Jan 5","Cozy + romantic decor inspo"],
           ["Build","3 wks · late Jan","Pink/red accents + gift ideas"],
-          ["Peak","final wk · early Feb","Last-minute gifts + at-home date setups"]]],
-        ["Spring refresh / cleaning","🌷","Mar–Apr","Jan 18",0,[
+          ["Peak","final wk · early Feb","Last-minute gifts + at-home date setups"]]},
+        {n:"Spring refresh / cleaning",e:"🌷",d:"Mar–Apr",dl:{m:0,d:18},ev:2,ph:[
           ["Foundation","Feb","Lighten-up inspo + declutter"],
           ["Build","Feb–Mar","Faux florals, light textiles, organization"],
-          ["Peak","Mar–Apr","Full spring-refresh roundups"]]],
-        ["Easter / spring table","🐰","Apr 5 (’26)","Feb 15",1,[
-          ["Foundation","6 wks · Mar","Pastel + spring-table inspo"],
-          ["Build","4–2 wks · mid-Mar","Tablescape + decor finds"],
-          ["Peak","final wk · late Mar–early Apr","Last-minute table + basket finds"]]],
-        ["Mother’s Day","💝","May 10 (2nd Sun ’26)","Mar 18",2,[
+          ["Peak","Mar–Apr","Full spring-refresh roundups"]]},
+        {n:"Easter / spring table",e:"🐰",d:"Mar 28 (’27)",dl:{m:1,d:8},ev:2,ph:[
+          ["Foundation","6 wks · mid-Feb","Pastel + spring-table inspo"],
+          ["Build","4–2 wks · early Mar","Tablescape + decor finds"],
+          ["Peak","final wk · late Mar","Last-minute table + basket finds"]]},
+        {n:"Mother’s Day",e:"💝",d:"May 9 (’27 · 2nd Sun)",dl:{m:2,d:18},ev:4,ph:[
           ["Foundation","6 wks · Apr","Gift-for-Mom guides"],
           ["Build","4–2 wks · mid–late Apr","Self-care, home gifts, jewelry"],
-          ["Peak","final wk · early May","Last-minute + ship-by urgency"]]],
-        ["Late spring / patio prep","🪴","May–Jun","Apr 1",3,[
+          ["Peak","final wk · early May","Last-minute + ship-by urgency"]]},
+        {n:"Late spring / patio prep",e:"🪴",d:"May–Jun",dl:{m:3,d:1},ev:5,ph:[
           ["Foundation","Apr","Patio-prep inspo"],
           ["Build","late Apr–May","Outdoor furniture refresh, planters"],
-          ["Peak","May–Jun","Full summer-ready (loops into July 4th)"]]]
+          ["Peak","May–Jun","Full summer-ready (loops into July 4th)"]]}
       ];
-      var el=document.getElementById("seasonalRamp"); if(!el) return;
-      var now=new Date().getMonth(), nextM=(now+1)%12;
-      var nowList=S.filter(function(s){return s[4]===now;}).map(function(s){return s[0];});
-      var nextList=S.filter(function(s){return s[4]===nextM;}).map(function(s){return s[0];});
-      var out='<div style="background:rgba(248,131,120,.12);border:1px solid var(--coral,#F88378);border-radius:8px;padding:10px 12px;margin:6px 0 14px;font-size:13px">';
-      out+='<b>📥 Add to On Deck now ('+months[now]+'):</b> '+(nowList.length?nowList.join(", "):"— nothing due —");
-      if(nextList.length) out+='<br><span style="opacity:.7">Coming next ('+months[nextM]+'): '+nextList.join(", ")+'</span>';
-      out+='</div>';
-      var col={Foundation:["#EBEFE6","#5E6E50"],Build:["#FFE7D6","#B5702F"],Peak:["#FAD9D3","#B0392B"]};
-      out+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px">';
-      S.forEach(function(s){
-        var actNow=(s[4]===now);
-        out+='<div style="border:1px solid '+(actNow?"var(--coral,#F88378)":"#E0D8CF")+';border-radius:10px;padding:10px 12px;background:#fff">';
-        out+='<div style="font-size:14px;margin-bottom:7px"><b>'+s[1]+' '+s[0]+'</b> · <span style="color:var(--teal,#2E6E6A);font-weight:700">'+s[2]+'</span> <span style="opacity:.6">· On Deck by '+s[3]+'</span>';
-        if(actNow) out+=' <span style="background:var(--coral,#F88378);color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px">ADD NOW</span>';
+      /* ---- date-aware urgency ---- */
+      var DAY=86400000, today=new Date(); today.setHours(0,0,0,0);
+      function nextOcc(dl){var y=today.getFullYear(),t=new Date(y,dl.m,dl.d);if(t<today)t=new Date(y+1,dl.m,dl.d);return t;}
+      function info(s){
+        var nx=nextOcc(s.dl), du=Math.round((nx-today)/DAY);
+        var pv=new Date(nx); pv.setFullYear(nx.getFullYear()-1);
+        var since=Math.round((today-pv)/DAY);
+        var lbl=months[s.dl.m]+" "+s.dl.d;
+        if(since>=0&&since<=30) return {k:2,sort:since-100,pill:"🔥 ACTIVE — add now",c:"#B0392B",lbl:lbl};
+        if(du===0)              return {k:2,sort:0,pill:"ADD NOW · today",c:"var(--coral,#F88378)",lbl:lbl};
+        if(du<=14)              return {k:2,sort:du,pill:"ADD NOW · "+du+"d",c:"var(--coral,#F88378)",lbl:lbl};
+        if(du<=45)              return {k:1,sort:du,pill:"NEXT UP · "+du+"d",c:"#B5702F",lbl:lbl};
+        return {k:0,sort:du,pill:"",c:"",lbl:lbl};
+      }
+      var el=document.getElementById("seasonalRamp");
+      if(el){
+        var rows=S.map(function(s){return{s:s,i:info(s)};}).sort(function(a,b){return a.i.sort-b.i.sort;});
+        var hot=rows.filter(function(r){return r.i.k===2;}).map(function(r){return r.s.e+" "+r.s.n;});
+        var soon=rows.filter(function(r){return r.i.k===1;}).map(function(r){return r.s.e+" "+r.s.n;});
+        var out='<div style="background:rgba(248,131,120,.12);border:1px solid var(--coral,#F88378);border-radius:8px;padding:10px 12px;margin:6px 0 14px;font-size:13px">';
+        out+='<b>📥 Add to On Deck now:</b> '+(hot.length?hot.join(", "):"— nothing due —");
+        if(soon.length) out+='<br><span style="opacity:.7">Coming up (≤45 days): '+soon.join(", ")+'</span>';
         out+='</div>';
-        s[5].forEach(function(p){
-          var c=col[p[0]]||["#eee","#555"];
-          out+='<div style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;font-size:12px">';
-          out+='<span style="flex:none;background:'+c[0]+';color:'+c[1]+';font-weight:700;border-radius:4px;padding:2px 0;width:80px;text-align:center">'+p[0]+'</span>';
-          out+='<span style="flex:none;width:118px;opacity:.7">'+p[1]+'</span>';
-          out+='<span style="flex:1">'+p[2]+'</span>';
+        var col={Foundation:["#EBEFE6","#5E6E50"],Build:["#FFE7D6","#B5702F"],Peak:["#FAD9D3","#B0392B"]};
+        out+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px">';
+        rows.forEach(function(r){
+          var s=r.s, i=r.i, hotCard=(i.k===2);
+          out+='<div style="border:1px solid '+(hotCard?"var(--coral,#F88378)":"#E0D8CF")+';border-radius:10px;padding:10px 12px;background:#fff">';
+          out+='<div style="font-size:14px;margin-bottom:7px"><b>'+s.e+' '+s.n+'</b> · <span style="color:var(--teal,#2E6E6A);font-weight:700">'+s.d+'</span> <span style="opacity:.6">· On Deck by '+i.lbl+'</span>';
+          if(i.pill) out+=' <span style="background:'+i.c+';color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px;white-space:nowrap">'+i.pill+'</span>';
+          out+='</div>';
+          s.ph.forEach(function(p){
+            var c=col[p[0]]||["#eee","#555"];
+            out+='<div style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;font-size:12px">';
+            out+='<span style="flex:none;background:'+c[0]+';color:'+c[1]+';font-weight:700;border-radius:4px;padding:2px 0;width:80px;text-align:center">'+p[0]+'</span>';
+            out+='<span style="flex:none;width:118px;opacity:.7">'+p[1]+'</span>';
+            out+='<span style="flex:1">'+p[2]+'</span>';
+            out+='</div>';
+          });
           out+='</div>';
         });
         out+='</div>';
-      });
-      out+='</div>';
-      el.innerHTML=out;
-    })();</script>
-
-    <script>(function(){
-      var bar=document.getElementById("seasonFocusBar"); if(!bar) return;
-      var MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      // [emoji, name, eventMonth 0-based] — prep starts 3 mo before the event
-      var SE=[
-        ["🎆","July 4th",6],["☀️","Summer patio",6],["✏️","Back-to-school",7],
-        ["🍂","Fall decor",9],["🎃","Halloween",9],["🦃","Thanksgiving",10],
-        ["🎄","Christmas",11],["🎁","Gift guides",11],["🧣","Winter cozy",0],
-        ["🗂️","New Year org",0],["💐","Valentine’s",1],["🌷","Spring refresh",2],
-        ["🐰","Easter",3],["💝","Mother’s Day",4],["🪴","Late-spring patio",5]
-      ];
-      function render(m){
-        var heavy=[],ramp=[],prep=[];
-        SE.forEach(function(s){var u=(s[2]-m+12)%12; var c=s[0]+" "+s[1];
-          if(u===0||u===1)heavy.push(c); else if(u===2)ramp.push(c); else if(u===3)prep.push(c);});
-        var seg=[];
-        if(heavy.length)seg.push('<b style="color:#B0392B">🔴 Heavy:</b> '+heavy.join(", "));
-        if(ramp.length)seg.push('<b style="color:#B5702F">🟠 Ramp:</b> '+ramp.join(", "));
-        if(prep.length)seg.push('<b style="color:#5E6E50">🟢 Prep:</b> '+prep.join(", "));
-        var body=seg.length?seg.join(' &nbsp;<span style="opacity:.35">|</span>&nbsp; '):"No seasonal pushes due this week.";
-        bar.innerHTML='<b style="white-space:nowrap">📌 Seasonal focus — '+MN[m]+':</b> '+body;
+        el.innerHTML=out;
       }
-      function curMonth(){
-        var lbl=document.querySelector("#calArticles .cal-lbl");
-        if(lbl){var mm=(lbl.textContent||"").match(/(\d+)\/\d+/); if(mm){var mi=parseInt(mm[1],10)-1; if(mi>=0&&mi<12) return mi;}}
-        return new Date().getMonth();
+      /* ---- seasonal focus bar (derived from the SAME data — no drift) ---- */
+      var bar=document.getElementById("seasonFocusBar");
+      if(bar){
+        function render(m){
+          var heavy=[],ramp=[],prep=[];
+          S.forEach(function(s){var u=(s.ev-m+12)%12; var c=s.e+" "+s.n;
+            if(u===0||u===1)heavy.push(c); else if(u===2)ramp.push(c); else if(u===3)prep.push(c);});
+          var seg=[];
+          if(heavy.length)seg.push('<b style="color:#B0392B">🔴 Heavy:</b> '+heavy.join(", "));
+          if(ramp.length)seg.push('<b style="color:#B5702F">🟠 Ramp:</b> '+ramp.join(", "));
+          if(prep.length)seg.push('<b style="color:#5E6E50">🟢 Prep:</b> '+prep.join(", "));
+          var body=seg.length?seg.join(' &nbsp;<span style="opacity:.35">|</span>&nbsp; '):"No seasonal pushes due this week.";
+          bar.innerHTML='<b style="white-space:nowrap">📌 Seasonal focus — '+months[m]+':</b> '+body;
+        }
+        function curMonth(){
+          var lbl=document.querySelector("#calArticles .cal-lbl");
+          if(lbl){var mm=(lbl.textContent||"").match(/(\d+)\/\d+/); if(mm){var mi=parseInt(mm[1],10)-1; if(mi>=0&&mi<12) return mi;}}
+          return new Date().getMonth();
+        }
+        function upd(){ render(curMonth()); }
+        upd();
+        var host=document.getElementById("calArticles");
+        if(host && window.MutationObserver){ new MutationObserver(upd).observe(host,{childList:true,subtree:true,characterData:true}); }
       }
-      function upd(){ render(curMonth()); }
-      upd();
-      var host=document.getElementById("calArticles");
-      if(host && window.MutationObserver){ new MutationObserver(upd).observe(host,{childList:true,subtree:true,characterData:true}); }
     })();</script>
 
     <h3 class="cal-h">The plan</h3>
@@ -2179,6 +2309,7 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
   if(b.dataset.view==="calendar")renderCalendar("calArticles");
   if(b.dataset.view==="pipeline")renderCalendar("calArticlesTop",true);
   if(b.dataset.view==="review"){renderReview();renderIdeaChips();}
+  if(b.dataset.view==="roadmap"&&typeof renderRoadmap==="function")renderRoadmap();
   maybeLoadFrame(b.dataset.view);
 }));
 { const rb=$("#reviewRefresh"); if(rb) rb.addEventListener("click",renderReview); }
