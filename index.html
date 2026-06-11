@@ -2504,11 +2504,18 @@ function renderTodo(){
     // articles published today vs goal
     const art=cal.find(r=>String(r[0]||"").slice(0,10)===today && String(r[1]||"")==="articles");
     if(art){ const g=parseInt(art[2]||"5",10)||5, n=parseInt(art[3]||"0",10)||0;
-      rows.push({n:n+"/"+g,l:"articles published today"+(n<g?" — "+(g-n)+" to go":" — goal hit! \ud83c\udf89"),alert:n<g}); }
+      const yd=day(today,-1);
+      const artY=cal.find(r=>String(r[0]||"").slice(0,10)===yd && String(r[1]||"")==="articles");
+      const bank=artY?(parseInt(String(artY[4]||"0").replace("+",""),10)||0):0;   // surplus banked BEFORE today
+      const hit=n>=g, covered=hit||n+bank>=g;
+      const lbl="articles published today"+(hit?" — goal hit! \ud83c\udf89"
+        :covered?" — bank covers it (+"+bank+" ahead) \ud83d\ude0c"
+        :" — "+(g-n)+" to go"+(bank?" (bank +"+bank+")":""));
+      rows.push({n:n+"/"+g,l:lbl,alert:!covered}); }
     // posting slots still open in the next 7 days (promo sched + approved non-promo, vs goal)
     const NP_LANE={instagram:"instagram-posts",instagramstory:"instagram-stories",facebook:"facebook-posts",facebookstory:"facebook-stories",tiktok:"tiktok"};
     const npS={}; np.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"").toLowerCase(), st=String(r[5]||"").toLowerCase();
-      if(!d||st!=="queued"&&st!=="scheduled") return; const ln=NP_LANE[pl]; if(ln) npS[d+"|"+ln]=(npS[d+"|"+ln]||0)+1; });
+      if(!d||st!=="queued") return; const ln=NP_LANE[pl]; if(ln) npS[d+"|"+ln]=(npS[d+"|"+ln]||0)+1; });   // queued only — "scheduled" already counts in col D
     let gaps=0;
     cal.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"");
       if(pl==="articles"||pl==="runway"||!d||d<=today||d>end7) return;
@@ -2630,6 +2637,10 @@ async function renderCalendar(targetId,compact){
     let npReq=0;
     if(L.split){ const r=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb])); npReq=Math.min(r?(r.npGoal||0):0, goal); }
     const npSc = L.split ? ((npSched[d]&&npSched[d][L.key])||0) : 0;
+    // posts that exist ARE capacity: an off-day or over-reservation post expands the day's goal
+    // instead of flagging "wrong slot" (fix 2026-06-11 — e.g. FB non-promo on a goal-0 Saturday)
+    goal=Math.max(goal, sched, npSc);
+    npReq=Math.min(Math.max(npReq, npSc), goal);
     return {exists:true,
       promo:{sched:Math.max(0,sched-npSc), req:Math.max(0,goal-npReq)},
       non:{sched:npSc, req:npReq}};
