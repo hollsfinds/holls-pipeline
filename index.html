@@ -1157,17 +1157,10 @@ function render(){
     else if(col===NEWCOL) items=[...pipe.filter(x=>x.type!=="roundup" && x.stage===NEWCOL), ...inbox.filter(x=>x.status==="new")];
     else if(col===MISSING) items=pipe.filter(x=>x.needsImg);   // parallel flag view — cards keep their real stage
     else items=pipe.filter(x=>x.stage===col);
-    // Fully Live: newest-live first (col S went-live stamp, written by detection + backfilled
-    // from the seen-set). Cards without a stamp sink to the bottom in row order.
-    if(col===PUBCOL) items=items.slice().sort((a,b)=>{
-      const ta=a.wentLive?Date.parse(a.wentLive):0, tb=b.wentLive?Date.parse(b.wentLive):0;
-      return (tb||0)-(ta||0) || a.row-b.row;
-    });
     let holds = (col===POOL) ? pipe.filter(x=>x.type!=="roundup" && x.grp==="HOLD") : [];
     if(searchQ){items=items.filter(matchesSearch);holds=holds.filter(matchesSearch);}
     // Fully Live also carries scheduled/queued non-promo posts, intermixed by date
     const pubNps = (col===PUBCOL) ? nonpromo.filter(n=>(n.status==="queued"||n.status==="scheduled") && (!searchQ||matchesSearchNP(n))) : [];
-    if(col===PUBCOL) items.sort((a,b)=>b.row-a.row);   // articles: newest (highest sheet row) on top
     const has = items.length || holds.length || pubNps.length;
     // any column is collapsible via its header; defaults preserved (empty + Fully Live start collapsed)
     let collapsed = colIsCollapsed(col, has);
@@ -1187,10 +1180,14 @@ function render(){
     if(!has)holder.innerHTML='<div class="empty">—</div>';
     if(col===PUBCOL){
       const z=n=>String(n).padStart(2,'0'); const td=new Date(); const todayISO=td.getFullYear()+'-'+z(td.getMonth()+1)+'-'+z(td.getDate());
+      /* ONE combined timestamp sort (Holls 2026-06-11): articles use their REAL went-live
+         stamp (col S, written by detection + backfilled); non-promo posts use their
+         scheduled date (day precision, anchored at noon). Newest first; unstamped
+         articles sink to the bottom in row order. */
       const merged=[
-        ...items.map(it=>({k:'art',it,d:todayISO,r:it.row})),
-        ...pubNps.map(n=>({k:'np',np:n,d:n.date||todayISO,r:0}))
-      ].sort((a,b)=> a.d<b.d?1 : a.d>b.d?-1 : (b.r-a.r));
+        ...items.map(it=>({k:'art',it,t:(it.wentLive?Date.parse(it.wentLive):0)||0,r:it.row})),
+        ...pubNps.map(n=>({k:'np',np:n,t:(n.date?Date.parse(n.date+"T12:00:00"):0)||0,r:0}))
+      ].sort((a,b)=> (b.t-a.t) || (b.r-a.r));
       merged.forEach(m=> holder.appendChild(m.k==='np'?nonpromoCard(m.np):pipeCard(m.it)));
     }else{
       items.forEach(it=>{
