@@ -903,7 +903,7 @@ button.todo-stat:hover{background:var(--peach)}
         var rows=S.map(function(s){return{s:s,i:info(s)};}).sort(function(a,b){return a.i.sort-b.i.sort;});
         var hot=rows.filter(function(r){return r.i.k===2;}).map(function(r){return r.s.e+" "+r.s.n;});
         var soon=rows.filter(function(r){return r.i.k===1;}).map(function(r){return r.s.e+" "+r.s.n;});
-        window._seasonHot=hot;   // the To-Do box shows the count
+        window._seasonHot=hot; window._seasonSoon=soon;   // the To-Do box shows both counts
         var out='<div style="background:rgba(248,131,120,.12);border:1px solid var(--coral,#F88378);border-radius:8px;padding:10px 12px;margin:6px 0 14px;font-size:13px">';
         out+='<b>📥 Add to On Deck now:</b> '+(hot.length?hot.join(", "):"— nothing due —");
         if(soon.length) out+='<br><span style="opacity:.7">Coming up (≤45 days): '+soon.join(", ")+'</span>';
@@ -2484,6 +2484,9 @@ function renderTodo(){
   // 📥 seasonal pushes due now (exposed by the seasonal calendar)
   const hot=(window._seasonHot||[]).length;
   if(hot) rows.push({n:hot,l:"seasonal push"+(hot>1?"es":"")+" due — add products"});
+  // 🍂 seasonal pushes coming up (<=45 days, beyond the due-now set)
+  const soon=(window._seasonSoon||[]).length;
+  if(soon) rows.push({n:soon,l:"seasonal push"+(soon>1?"es":"")+" coming up (\u226445 days)"});
   // 🗓 non-promo scheduled this week (context, not action)
   const z=n=>String(n).padStart(2,"0"), iso=d=>d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
   const now=new Date();now.setHours(0,0,0,0);
@@ -2491,14 +2494,44 @@ function renderTodo(){
   const we=new Date(ws);we.setDate(ws.getDate()+6);
   const schedWk=nonpromo.filter(n=>n.status==="scheduled" && n.date>=iso(ws) && n.date<=iso(we)).length;
   rows.push({n:schedWk,l:"non-promo scheduled this week"});
-  host.innerHTML=rows.map(r=>{
+  // ---- calendar-powered rows (async — uses the cached payload, then re-paints) ----
+  (async()=>{ try{
+    const all=await apiGet(); const cal=(all["Calendar"]||[]).slice(1); const np=(all["NonPromo"]||[]).slice(1);
+    if(!cal.length) return;
+    const today=iso(now);
+    const day=(d,n)=>{const t=new Date(d+"T00:00:00");t.setDate(t.getDate()+n);return iso(t);};
+    const end7=day(today,7);
+    // articles published today vs goal
+    const art=cal.find(r=>String(r[0]||"").slice(0,10)===today && String(r[1]||"")==="articles");
+    if(art){ const g=parseInt(art[2]||"5",10)||5, n=parseInt(art[3]||"0",10)||0;
+      rows.push({n:n+"/"+g,l:"articles published today"+(n<g?" — "+(g-n)+" to go":" — goal hit! \ud83c\udf89"),alert:n<g}); }
+    // posting slots still open in the next 7 days (promo sched + approved non-promo, vs goal)
+    const NP_LANE={instagram:"instagram-posts",instagramstory:"instagram-stories",facebook:"facebook-posts",facebookstory:"facebook-stories",tiktok:"tiktok"};
+    const npS={}; np.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"").toLowerCase(), st=String(r[5]||"").toLowerCase();
+      if(!d||st!=="queued"&&st!=="scheduled") return; const ln=NP_LANE[pl]; if(ln) npS[d+"|"+ln]=(npS[d+"|"+ln]||0)+1; });
+    let gaps=0;
+    cal.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"");
+      if(pl==="articles"||pl==="runway"||!d||d<=today||d>end7) return;
+      const g=parseInt(r[2]||"0",10)||0; if(!g) return;
+      const sch=(parseInt(r[3]||"0",10)||0)+(npS[d+"|"+pl]||0);
+      if(sch<g) gaps+=g-sch; });
+    if(gaps) rows.push({n:gaps,l:"posting slots open in the next 7 days \u2192",go:"calendar"});
+    // pinterest runway (weeks of pins scheduled ahead)
+    const run=cal.find(r=>String(r[1]||"")==="runway");
+    if(run){ const wks=parseInt(run[2]||"0",10)||0;
+      rows.push({n:wks+"w",l:"Pinterest runway (pins scheduled ahead)",alert:wks<2}); }
+    paint();
+  }catch(e){} })();
+  function paint(){ host.innerHTML=rows.map(r=>{
     const inner=`<span class="todo-num">${r.n}</span><span class="todo-lbl">${esc(r.l)}</span>`;
-    return r.go?`<button class="todo-stat${r.alert?' todo-alert':''}" data-goreview="1" title="Open Personal Posts to review">${inner}</button>`
+    return r.go?`<button class="todo-stat${r.alert?' todo-alert':''}" data-gotab="${r.go}" title="Open ${r.go==='calendar'?'the Posting Calendar':'The Group Chat'}">${inner}</button>`
       :`<div class="todo-stat${r.alert?' todo-alert':''}">${inner}</div>`;
-  }).join("");
+  }).join(""); }
+  paint();
 }
 document.addEventListener("click",e=>{
-  if(e.target.closest("[data-goreview]")){ const t=document.querySelector('.tab[data-view="review"]'); if(t)t.click(); }
+  const b=e.target.closest("[data-gotab]");
+  if(b){ const t=document.querySelector('.tab[data-view="'+b.dataset.gotab+'"]'); if(t)t.click(); }
 });
 const infopop=document.createElement("div");infopop.className="infopop";document.body.appendChild(infopop);
 function showInfo(btn){
@@ -2556,9 +2589,9 @@ async function renderCalendar(targetId,compact){
   const lz=n=>String(n).padStart(2,'0'), isoL=dt=>dt.getFullYear()+'-'+lz(dt.getMonth()+1)+'-'+lz(dt.getDate());
   const wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   // articles by date + banked balance
-  let agoal=6, latestBal=0, latestDate=''; const byDate={};
+  let agoal=5, latestBal=0, latestDate=''; const byDate={};
   artRows.forEach(r=>{ const d=String(r[0]||'').slice(0,10); if(!d) return;
-    const g=parseInt(r[2]||'6',10)||6; agoal=g;
+    const g=parseInt(r[2]||'5',10)||5; agoal=g;
     byDate[d]={goal:g, sched:parseInt(r[3]||'0',10)||0};   // articles use col D ("Scheduled" = published count); cellFor reads .sched
     if(d>=latestDate){ latestDate=d; latestBal=parseInt(String(r[4]||'0').replace('+',''),10)||0; } });
   // coverage map + furthest scheduled per platform
