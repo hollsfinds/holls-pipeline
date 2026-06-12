@@ -492,8 +492,15 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
 .ir-tag,[class*="tag"],[class*="chip"],[class*="cat"]{border-radius:4px!important}
 .col [style*="border-radius"]{border-radius:5px!important}
 .boardpill{border-radius:4px!important}
+/* v7.3: pause aligns with search's left edge; one-line card buttons; full-width cards */
+.status{display:flex!important;align-items:center!important;gap:10px!important;justify-self:stretch!important;width:280px!important;justify-content:flex-end!important;box-sizing:border-box}
+.status #pausePill{margin-right:auto!important}
+#pausePill{grid-column:unset!important;grid-row:unset!important}
+.card .acts{flex-wrap:nowrap!important;gap:5px!important}
+.card .acts .btn,.card .acts button{white-space:nowrap!important;font-size:11px!important;padding:6px 9px!important;line-height:1.1!important}
+.col .card{margin-left:0!important;margin-right:0!important;width:100%!important;box-sizing:border-box!important}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v7.2</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v7.3</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -1560,7 +1567,7 @@ function ondeckCard(it){
   else if(st==="import failed"){stCls="od-failed";stTxt="⚠ Import failed";}
   let acts="";
   if(st==="new"||st==="import failed"){
-    acts=`<div class="acts"><button class="btn coral" data-send="${it.row}">${st==="import failed"?"Retry send ▸":"Send to FreshStore ▸"}</button>
+    acts=`<div class="acts"><button class="btn coral" data-send="${it.row}">${st==="import failed"?"Retry send ▸":"Send ▸"}</button>
       <a class="btn ghost" href="${esc(it.url)}" target="_blank" rel="noopener">View ↗</a>
       <button class="btn ghost" data-remove="${it.row}" title="Remove from On Deck">✕</button></div>`;
   }else if(st==="ready to send"||st==="sending"){
@@ -1572,7 +1579,7 @@ function ondeckCard(it){
   d.innerHTML=`${img}
     <textarea class="odtitle" data-row="${it.row}" rows="2" title="Edit the cleaned title">${esc(it.title)}</textarea>
     <div class="odcats">${cats}${ncats}</div>
-    <div class="odasin">ASIN ${esc(it.asin)}</div>
+    
     <div class="odstatus ${stCls}">${stTxt}</div>
     ${note}${acts}`;
   return d;
@@ -3206,7 +3213,7 @@ try{ if(localStorage.getItem('hf_auth')==='1') startApp(); }catch(e){}
     const el = document.createElement("div");
     el.id = "pausePill";
     el.title = "Tap to pause/resume the brain's sweeps (saves Claude usage). Auto-resumes after 4h.";
-    (document.querySelector(".topbar")||document.body).appendChild(el);
+    var _st=document.querySelector(".topbar .status"); if(_st){_st.insertBefore(el,_st.firstChild);}else{(document.querySelector(".topbar")||document.body).appendChild(el);}
     let busy = false;
     el.addEventListener("click", async () => {
       if(busy) return; busy = true; el.style.opacity = .5;
