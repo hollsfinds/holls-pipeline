@@ -500,7 +500,7 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
 .card .acts .btn,.card .acts button{white-space:nowrap!important;font-size:11px!important;padding:6px 9px!important;line-height:1.1!important}
 .col .card{margin-left:0!important;margin-right:0!important;width:100%!important;box-sizing:border-box!important}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v7.3</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v8</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -641,8 +641,9 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
           var grp=items.filter(function(x){return x.status===st;});
           if(!grp.length) return;
           out+='<h3 class="cal-h" style="color:'+ST[st][1]+'">'+ST[st][0]+'</h3>';
+          out+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:start">';
           grp.forEach(function(it){
-            out+='<div class="help-card" style="margin-bottom:10px" data-rmrow="'+it.row+'">';
+            out+='<div class="help-card" style="margin-bottom:0" data-rmrow="'+it.row+'">';
             out+='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
             out+='<b style="flex:1;font-size:14px">'+esc(it.title)+'</b>';
             out+='<select class="rm-st" style="padding:5px 8px;border:1px solid var(--line);border-radius:7px;font-size:12px;background:#fff">';
@@ -650,10 +651,11 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
             out+='</select>';
             if(it.upd) out+='<span style="font-size:11px;opacity:.5">saved '+esc(fmtD(it.upd))+'</span>';
             out+='</div>';
-            out+='<textarea class="rm-notes" placeholder="Notes…" style="width:100%;margin-top:8px;min-height:54px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;font-family:inherit;line-height:1.5;resize:vertical">'+esc(it.notes)+'</textarea>';
+            out+='<textarea class="rm-notes" placeholder="Notes…" style="width:100%;margin-top:8px;min-height:110px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;line-height:1.5;resize:vertical">'+esc(it.notes)+'</textarea>';
             out+='<div style="margin-top:6px;text-align:right"><button class="btn ghost rm-save" style="font-size:12px;padding:5px 12px">Save</button></div>';
             out+='</div>';
           });
+          out+='</div>';
         });
         out+='<div class="help-card" style="margin-top:14px"><h3>Add an idea</h3>'+
           '<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rmNewT" placeholder="What’s the idea?" style="flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit">'+
@@ -872,7 +874,7 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
         }
         /* ---- insight chips (the dashboard version of "deciphering") ---- */
         if(chips.length){
-          out=`<div class="st-chips">`+chips.map(c=>`<span class="st-chip" style="border-color:${c.c};color:${c.c}">${esc(c.t)}</span>`).join("")+`</div>`+out;
+          out=out+`<div class="st-chips">`+chips.map(c=>`<span class="st-chip" style="border-color:${c.c};color:${c.c}">${esc(c.t)}</span>`).join("")+`</div>`;
         }
         const newest=rows.map(r=>r.d).sort().pop();
         out+=`<p class="cal-rule" style="margin-top:14px">Last collected: ${esc(newest)} · refreshes every ~6h via the Mac brain.</p>`;
@@ -891,7 +893,7 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
       const rb=document.getElementById("stRefresh");
       if(rb) rb.addEventListener("click",()=>{ _cache=null; renderStats(); });
       const css=document.createElement("style");
-      css.textContent=".st-chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 14px}.st-chip{font-size:12px;font-weight:800;border:1.5px solid;border-radius:20px;padding:5px 13px;background:#fff}"
+      css.textContent=".st-chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 14px}.st-chip{font-size:12px;font-weight:700;border:none;border-left:3px solid;border-radius:4px;padding:5px 11px;background:#F6F7F9}"
         +".st-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:6px 0 18px}"
         +".st-kpi{background:#fff;border:1px solid var(--line,#E0D8CF);border-radius:12px;padding:12px 14px}.st-kl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#8a7f79}.st-kn{font-size:26px;font-weight:800;color:#2C2421;margin:2px 0}.st-kd{font-size:11.5px;font-weight:700}.st-kd span{color:#a99e97;font-weight:600}.st-ks{margin-top:6px}"
         +".st-bars{display:flex;flex-direction:column;gap:8px;margin:6px 0 18px;max-width:520px}.st-bar{display:flex;align-items:center;gap:10px;font-size:12.5px}.st-bn{width:80px;font-weight:700;text-transform:capitalize}.st-bt{flex:1;background:#F1ECE7;border-radius:6px;height:16px;overflow:hidden}.st-bf{height:100%;border-radius:6px}"
@@ -1141,7 +1143,7 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
       .ns-ideahead{font-size:12px;font-weight:700;color:var(--esp,#4A3B33);opacity:.85;margin-bottom:6px;display:flex;align-items:center;gap:10px}
       .ns-refresh{font-size:12px;background:none;border:none;color:var(--teal,#2E6E6A);cursor:pointer;font-weight:700;padding:0}
       .ns-refresh:hover{text-decoration:underline}
-      .pp-sparks{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+      .pp-sparks{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
       .pp-spark{border:1px solid var(--line,#E0D8CF);border-radius:10px;padding:12px 14px;background:#FDFBF8;display:flex;flex-direction:column;gap:8px}
       .pp-spark b{font-size:13px;line-height:1.45}
       .pp-nudge{font-size:11.5px;color:#8a7f79;line-height:1.5}
