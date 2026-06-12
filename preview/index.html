@@ -513,8 +513,11 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
 body.rail-open .app{padding-left:352px!important}
 body.rail-open .topbar{padding-left:40px!important}
 @media (max-width:1100px){ #pipeSide{display:none} body.rail-open .app{padding-left:40px!important} }
+.np-upcoming{background:#F6F7F9;border-radius:10px;padding:6px 8px;margin-bottom:8px}
+.np-upcoming summary{cursor:pointer;font-size:11.5px;font-weight:800;color:#6E7681;list-style:none;padding:4px 2px}
+.np-upcoming[open] summary{margin-bottom:6px}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v10</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v10.1</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -1579,9 +1582,18 @@ function render(){
          stamp (col S, written by detection + backfilled); non-promo posts use their
          scheduled date (day precision, anchored at noon). Newest first; unstamped
          articles sink to the bottom in row order. */
+      /* scheduled-but-unposted Group Chat posts group into ONE collapsible (Holls 2026-06-12) */
+      const futureNps=pubNps.filter(n=>String(n.date||"").slice(0,10)>todayISO||String(n.status||"").toLowerCase()==="queued");
+      const liveNps=pubNps.filter(n=>futureNps.indexOf(n)<0);
+      if(futureNps.length){
+        const det=document.createElement("details"); det.className="np-upcoming";
+        det.innerHTML='<summary>📅 Scheduled Group Chat · '+futureNps.length+' upcoming</summary>';
+        futureNps.slice().sort((a,b)=>String(a.date||"")<String(b.date||"")?-1:1).forEach(n=>det.appendChild(nonpromoCard(n)));
+        holder.appendChild(det);
+      }
       const merged=[
         ...items.map(it=>({k:'art',it,t:(it.wentLive?Date.parse(it.wentLive):0)||0,r:it.row})),
-        ...pubNps.map(n=>({k:'np',np:n,t:(n.date?Date.parse(n.date+"T12:00:00"):0)||0,r:0}))
+        ...liveNps.map(n=>({k:'np',np:n,t:(n.date?Date.parse(n.date+"T12:00:00"):0)||0,r:0}))
       ].sort((a,b)=> (b.t-a.t) || (b.r-a.r));
       merged.forEach(m=> holder.appendChild(m.k==='np'?nonpromoCard(m.np):pipeCard(m.it)));
     }else{
