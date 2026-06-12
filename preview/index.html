@@ -524,7 +524,7 @@ body.rail-open .app>*:not(.topbar){margin-left:312px}
 #pipeSide .todo-box{flex:0 0 auto!important;resize:vertical;overflow:auto;min-height:110px;height:var(--todo-h,320px);max-height:75vh}
 #pipeSide .todo-box .todo-body{flex:1 1 auto;overflow-y:auto}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v10.5</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v11</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -1095,7 +1095,11 @@ body.rail-open .app>*:not(.topbar){margin-left:312px}
         var rows=S.map(function(s){return{s:s,i:info(s)};}).sort(function(a,b){return a.i.sort-b.i.sort;});
         var hot=rows.filter(function(r){return r.i.k===2;}).map(function(r){return r.s.e+" "+r.s.n;});
         var soon=rows.filter(function(r){return r.i.k===1;}).map(function(r){return r.s.e+" "+r.s.n;});
-        window._seasonHot=hot; window._seasonSoon=soon;   // the To-Do box shows both counts
+        window._seasonHot=hot; window._seasonSoon=soon;
+        var SEGC={0:["#9DB287","prep"],1:["#FBE3CE","light posting"],2:["#F6B89B","heavy posting"],3:["#E2725B","final push"]};
+        var curM2=today.getMonth();
+        window._seasonNow=S.map(function(sn){var off=((curM2-(sn.ev-3))%12+12)%12; if(off>3) return null;
+          var c=SEGC[off]; return {n:sn.e+" "+sn.n, ph:c[1], c:c[0]};}).filter(Boolean);
         /* ---- Gantt: rolling 12 months from the current month, phase-colored cells ---- */
         var SEG=[["prep","#9DB287","#3F4F33"],["light","#FBE3CE","#B5702F"],["heavy","#F6B89B","#8C4A1F"],["final","#E2725B","#fff"]];
         var SEGLBL=["prep — add products to On Deck","light posting","heavy posting","final push (★ # = last-post day)"];
@@ -2685,10 +2689,12 @@ function renderTodo(){
   if(al) rows.push({id:"alert",n:al,l:"alert"+(al>1?"s":"")+" in the Needs-You bar",alert:true});
   const waiting=nonpromo.filter(n=>n.status==="needs_review").length;
   if(waiting) rows.push({id:"npr",n:waiting,l:"Group Chat post"+(waiting>1?"s":"")+" waiting for approval →",alert:true,go:"review"});
-  rows.push({id:"pins5",n:"5",l:"share 5 pins (not your own) on Pinterest"});
+  rows.push({id:"pins5",n:"5",l:"share 5 pins (not your own) on Pinterest ↗",href:"https://www.pinterest.com/homefeed/"});
   // seasonal: ONE line that names the seasons
   const hot=window._seasonHot||[], soon=window._seasonSoon||[];
-  if(hot.length) rows.push({id:"season",n:hot.length,l:"seasonal push"+(hot.length>1?"es":"")+" active — "+hot[0]+(hot.length>1?" +"+(hot.length-1)+" more":"")+" →",alert:true,go:"calendar"});
+  const sNow=window._seasonNow||[];
+  if(sNow.length) rows.push({id:"season",n:sNow.length,custom:'<details class="todo-season"><summary style="display:flex;align-items:center;gap:7px;cursor:pointer;list-style:none"><span class="todo-num">'+sNow.length+'</span><span class="todo-lbl">seasonal pushes this month ▾</span></summary>'
+    +sNow.map(x=>'<div style="display:flex;align-items:center;gap:6px;padding:3px 2px 3px 24px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:'+x.c+';flex:0 0 auto"></span><span style="flex:1">'+esc(x.n)+'</span><b style="color:#6E7681;font-size:10px">'+esc(x.ph)+'</b></div>').join("")+'</details>',alert:!!hot.length});
   else if(soon.length) rows.push({fyi:true,l:"Seasonal up next: "+soon[0]});
   // ---- calendar-powered rows (async — cached payload, then re-paint) ----
   (async()=>{ try{
@@ -2735,7 +2741,9 @@ function renderTodo(){
     const acts=rows.filter(r=>!r.fyi), fyis=rows.filter(r=>r.fyi);
     host.innerHTML=(acts.map(r=>{
       const isDone=!!done[r.id];
-      const inner=`<input type="checkbox" class="todo-chk" data-tdid="${r.id}"${isDone?" checked":""}><span class="todo-num">${r.n}</span><span class="todo-lbl">${esc(r.l)}</span>`;
+      const lbl=r.href?`<a href="${r.href}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-decoration-color:#F8C0B8">${esc(r.l)}</a>`:esc(r.l);
+      const inner=`<input type="checkbox" class="todo-chk" data-tdid="${r.id}"${isDone?" checked":""}><span class="todo-num">${r.n}</span><span class="todo-lbl">${lbl}</span>`;
+      if(r.custom) return `<div class="todo-stat${r.alert?" todo-alert":""}" style="display:block">${r.custom}</div>`;
       const cls="todo-stat"+(r.alert&&!isDone?" todo-alert":"")+(isDone?" todo-done":"");
       return r.go?`<button class="${cls}" data-gotab="${r.go}" title="Open ${r.go==='calendar'?'the Posting Calendar':'The Group Chat'}">${inner}</button>`
         :`<div class="${cls}">${inner}</div>`;
@@ -3047,7 +3055,7 @@ async function renderReview(){
       +(function(){const taken={};nonpromo.forEach(n=>{const st=String(n.status||"").toLowerCase();if(st==="queued"||st==="scheduled")taken[String(n.date||"").slice(0,10)]=1;});
         let o="",d=new Date();for(let i=1;i<=14;i++){d.setDate(d.getDate()+(i===1?1:1));const ds=d.toISOString().slice(0,10);
           o+='<option value="'+ds+'">'+ds.slice(5).replace("-","/")+(taken[ds]?" · busy":" · open")+"</option>";}return o;})()
-      +'</select><button class="btn ghost pb-skipall">Skip story</button><span class="rv-status"></span></div></div>';
+      +'</select><label style="font-size:11px;color:#6E7681;display:inline-flex;align-items:center;gap:4px;margin:0 4px"><input type="checkbox" class="pb-stories"> ➕ also fill FB+IG story slots</label><button class="btn ghost pb-skipall">Skip story</button><span class="rv-status"></span></div></div>';
   });
   if(pending.length) html+='<div class="ns-head" style="font-size:13px;margin:14px 0 2px">💬 Group Chat Starters <span style="font-weight:600;font-size:11px;color:#8a7f79">— auto-drafted polls & trend takes (not your personal stories); approve, tweak, or skip</span></div>';
   html+='<div class="rv-grid">';
@@ -3080,6 +3088,15 @@ async function renderReview(){
                   await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"queued"}); }
           else  { await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"}); }
           const n=nonpromo.find(x=>x.row===row); if(n) n.status=pa?"queued":"skipped";
+        }
+        if(pa&&card.querySelector(".pb-stories")&&card.querySelector(".pb-stories").checked){
+          const slot=(card.querySelector(".pb-slot")||{}).value||new Date().toISOString().slice(0,10);
+          const fbTxt=(()=>{const b=[...card.querySelectorAll(".pb-plat")].find(x=>!x.querySelector("textarea").disabled);return b?b.querySelector("textarea").value:"";})();
+          const short=fbTxt.split("\n")[0].slice(0,140);
+          const bid=card.dataset.bundle||"";
+          for(const plat of ["facebookstory","instagramstory"])
+            await apiPost({sheet:"NonPromo",action:"appendRow",values:[slot,plat,"story",short,"","queued","",bid]});
+          toast("Story versions queued for "+slot+" 📲");
         }
         renderTodo(); render();
         card.style.transition="opacity .3s"; card.style.opacity="0";
