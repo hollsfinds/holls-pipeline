@@ -2484,6 +2484,8 @@ function renderTodo(){
   // 📥 seasonal pushes due now (exposed by the seasonal calendar)
   const hot=(window._seasonHot||[]).length;
   if(hot) rows.push({n:hot,l:"seasonal push"+(hot>1?"es":"")+" due — add products"});
+  // 📌 standing daily habit (Holls asked 2026-06-11): share 5 pins from other creators
+  rows.push({n:"5",l:"share 5 pins (not your own) on Pinterest — daily community habit"});
   // 🍂 seasonal pushes coming up (<=45 days, beyond the due-now set)
   const soon=(window._seasonSoon||[]).length;
   if(soon) rows.push({n:soon,l:"seasonal push"+(soon>1?"es":"")+" coming up (\u226445 days)"});
