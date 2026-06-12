@@ -630,6 +630,13 @@ button.todo-stat:hover{background:var(--peach)}
         let out="";
         const chips=[];
 
+        /* ============ MONDAY DIGEST (brain-written, Meta key monday_digest) ============ */
+        try{
+          const meta=(data.Meta||[]).reduce((m,r)=>{if(r&&r[0])m[String(r[0])]=String(r[1]||"");return m;},{});
+          if(meta.monday_digest){ const dg=safeJSON(meta.monday_digest);
+            if(dg&&dg.text) out+='<div style="background:#FBEFE4;border:1px solid #EFD9C7;border-left:4px solid var(--coral,#F88378);border-radius:10px;padding:10px 14px;margin:0 0 14px;font-size:13px;line-height:1.55"><b>📰 Monday digest'+(dg.date?' — '+esc(dg.date):'')+'</b><br>'+esc(dg.text).replace(/\n/g,"<br>")+'</div>'; }
+        }catch(e){}
+
         /* ============ THE FUNNEL — the whole business in four numbers ============ */
         {
           const pinJ=latest.pinterest&&latest.pinterest.j, fsJ=latest.freshstore&&latest.freshstore.j;
@@ -710,6 +717,14 @@ button.todo-stat:hover{background:var(--peach)}
               +kpi("Impressions",sum(l7,"imp"),sum(p7,"imp"),E.map(x=>x.imp),C.coral)
               +kpi("Outbound clicks",sum(l7,"out"),sum(p7,"out"),E.map(x=>x.out),C.amber)
               +kpi("Saves",sum(l7,"save"),sum(p7,"save"),E.map(x=>x.save),C.sage)+`</div>`;
+            if(era.design){
+              const dr=Object.entries(era.design).map(([t,v])=>({t,...v})).sort((a,b)=>(b.out-a.out)||(b.save-a.save)||(b.imp-a.imp));
+              out+=`<div style="font-weight:800;font-size:12px;margin:12px 0 4px;color:#2E6E6A">🎨 DESIGN LEADERBOARD — which looks earn clicks (30d)</div>`
+                +`<div style="display:grid;grid-template-columns:1fr 50px 60px 60px 56px;gap:2px 8px;font-size:11.5px;max-width:480px">`
+                +`<div style="font-weight:800;color:#8a7f79">design</div><div style="font-weight:800;color:#8a7f79;text-align:right">pins</div><div style="font-weight:800;color:#8a7f79;text-align:right">seen</div><div style="font-weight:800;color:#8a7f79;text-align:right">clicks</div><div style="font-weight:800;color:#8a7f79;text-align:right">saves</div>`
+                +dr.slice(0,12).map((r,i)=>`<div>${i===0&&r.out?"🏆 ":""}${esc(r.t.replace(/_/g," "))}</div><div style="text-align:right">${r.pins}</div><div style="text-align:right">${fmt(r.imp)}</div><div style="text-align:right;font-weight:800;color:#B5702F">${fmt(r.out)}</div><div style="text-align:right">${fmt(r.save)}</div>`).join("")
+                +`</div><div style="font-size:10.5px;opacity:.55;margin:4px 0 0">Fills in as new-library pins go live and gather data. Once a few designs clearly win, we re-weight the rotation.</div>`;
+            }
           }
           const D=pin.daily, last7=D.slice(-7), prev7=D.slice(-14,-7);
           out+=`<div style="font-weight:800;font-size:12px;margin:10px 0 4px;color:#8a7f79">WHOLE ACCOUNT — incl. old pins</div><div class="st-row">`
@@ -942,8 +957,17 @@ button.todo-stat:hover{background:var(--peach)}
             +'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;box-shadow:inset 0 0 0 1.5px #B0392B55;vertical-align:-1px"></span> current month (first column)</span></div>';
           return '<div style="border:1px solid #E8E1D8;border-radius:10px;background:#fff;padding:10px 12px;margin:8px 0">'+head+body+leg+'</div>';
         }
-        var out=ganttHTML();
+        var out='<div id="brainSuggest"></div>'+ganttHTML();
         el.innerHTML=out;
+        setTimeout(async function(){
+          try{ if(typeof apiGet!=="function") return;
+            var all=await apiGet(); var meta=(all.Meta||[]).reduce(function(m,r){if(r&&r[0])m[String(r[0])]=String(r[1]||"");return m;},{});
+            if(!meta.brain_suggestions) return;
+            var sg=JSON.parse(meta.brain_suggestions); if(!sg||!sg.text) return;
+            var host2=document.getElementById("brainSuggest"); if(!host2) return;
+            host2.innerHTML='<details style="background:#F3F6EF;border:1px solid #C9D6BD;border-radius:10px;padding:8px 12px;margin:6px 0 10px;font-size:12.5px" open><summary style="cursor:pointer;font-weight:800;list-style:none">💡 Brain suggestions'+(sg.date?' — '+sg.date:'')+' <span style="font-weight:400;opacity:.6">(ideas only — nothing is added without you)</span></summary><div style="margin-top:6px;line-height:1.6;white-space:pre-wrap">'+sg.text.replace(/&/g,"&amp;").replace(/</g,"&lt;")+'</div></details>';
+          }catch(e){}
+        },1800);
         el.addEventListener("click",function(e){
           var lab=e.target.closest(".sea-lab"); if(!lab) return;
           var row=el.querySelector('.sea-row[data-searow="'+lab.dataset.searow+'"]'); if(!row) return;
