@@ -524,7 +524,7 @@ body.rail-open .app>*:not(.topbar){margin-left:312px}
 #pipeSide .todo-box{flex:0 0 auto!important;resize:vertical;overflow:auto;min-height:110px;height:var(--todo-h,320px);max-height:75vh}
 #pipeSide .todo-box .todo-body{flex:1 1 auto;overflow-y:auto}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v10.4</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v10.5</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -2709,11 +2709,11 @@ function renderTodo(){
       if(!d||(st!=="queued"&&st!=="scheduled")) return; const ln=NP_LANE[pl]; if(ln) npFill[d+"|"+ln]=(npFill[d+"|"+ln]||0)+1; });
     let npGaps=0, npFirst="";
     cal.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"");
-      if(pl==="articles"||pl==="runway"||!d||d<=today||d>day(today,4)) return;
+      if(pl==="articles"||pl==="runway"||!d||d<today||d>day(today,4)) return;   // TODAY counts (fix 2026-06-12)
       const npg=parseInt(r[6]||"0",10)||0; if(!npg) return;
       const have=npFill[d+"|"+pl]||0;
       if(have<npg){ npGaps+=npg-have; if(!npFirst||d<npFirst) npFirst=d; } });
-    if(npGaps) rows.push({id:"npslots",n:npGaps,l:"non-promo slot"+(npGaps>1?"s":"")+" to fill, first on "+npFirst.slice(5).replace("-","/")+" →",alert:true,go:"review"});
+    if(npGaps) rows.push({id:"npslots",n:npGaps,l:"Chat slot"+(npGaps>1?"s":"")+" to fill, first "+(npFirst===today?"TODAY":"on "+npFirst.slice(5).replace("-","/"))+" →",alert:true,go:"review"});
     // promo posting slots open next 7 days (queued non-promo counts as filled)
     const npQ={}; np.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"").toLowerCase(), st=String(r[5]||"").toLowerCase();
       if(!d||st!=="queued") return; const ln=NP_LANE[pl]; if(ln) npQ[d+"|"+ln]=(npQ[d+"|"+ln]||0)+1; });
