@@ -505,7 +505,7 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
 .fc-btn{border:1px solid #E4E8EC;background:#fff;border-radius:6px;font-size:11px;font-weight:700;color:#6E7681;padding:4px 10px;cursor:pointer}
 .fc-btn.fc-on{background:#15181C;color:#fff;border-color:#15181C}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v8.1</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v8.2</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -769,7 +769,11 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
             ${d?`<div class="st-kd" style="color:${d.c}">${d.a} ${d.t}</div>`:""}</div>`;
           out+=`<h3 class="cal-h">💰 The funnel — how the business flowed</h3>
             <div class="st-funnel">
-            ${cell("👀","SEEN",seen==null?null:fmt(seen),"Pinterest impressions · 7 days",seenD)}
+            ${(()=>{const mt=latest.metricool&&latest.metricool.j, mi=mt&&mt.imp;
+              let sub="Pinterest impressions · 7 days";
+              if(mi){const pp=[["FB",mi.facebook],["IG",mi.instagram],["TT",mi.tiktok]].filter(x=>x[1]&&x[1].d7!=null).map(x=>x[0]+" "+fmt(x[1].d7));
+                if(pp.length) sub="Pinterest · 7d — plus "+pp.join(" · ");}
+              return cell("👀","SEEN",seen==null?null:fmt(seen),sub,seenD);})()}
             <div class="st-farrow">→</div>
             ${cell("🏠","VISITED",visited==null?null:fmt(visited),"site visits · "+visitedNote,null)}
             <div class="st-farrow">→</div>
