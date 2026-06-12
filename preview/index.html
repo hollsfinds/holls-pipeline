@@ -518,8 +518,13 @@ body.rail-open .app>*:not(.topbar){margin-left:312px}
 .np-upcoming{background:#F6F7F9;border-radius:10px;padding:6px 8px;margin-bottom:8px}
 .np-upcoming summary{cursor:pointer;font-size:11.5px;font-weight:800;color:#6E7681;list-style:none;padding:4px 2px}
 .np-upcoming[open] summary{margin-bottom:6px}
+/* rail: whole column scrolls; To-Do user-resizable (drag bottom-right corner) */
+#pipeSide{overflow-y:auto!important;scrollbar-width:thin}
+#pipeSide .side-inner{height:auto!important;min-height:0!important}
+#pipeSide .todo-box{flex:0 0 auto!important;resize:vertical;overflow:auto;min-height:110px;height:var(--todo-h,320px);max-height:75vh}
+#pipeSide .todo-box .todo-body{flex:1 1 auto;overflow-y:auto}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v10.3</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v10.4</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -3440,6 +3445,18 @@ document.addEventListener("DOMContentLoaded",function(){ setTimeout(function(){
     if(b.dataset.railgo==="reference") setTimeout(function(){var i=document.getElementById("rmNewT"); if(i){i.scrollIntoView({block:"center"});i.focus();}},650);
   });
   if(document.readyState!=="loading") setTimeout(mount,1200); else document.addEventListener("DOMContentLoaded",function(){setTimeout(mount,1200);});
+})();
+</script><script>
+/* persist the To-Do panel's resized height */
+(function(){
+  try{var h=localStorage.getItem("hf_todo_h"); if(h) document.documentElement.style.setProperty("--todo-h",h+"px");}catch(e){}
+  function watch(){
+    var box=document.querySelector("#pipeSide .todo-box"); if(!box||box._ro) return;
+    box._ro=new ResizeObserver(function(){ var hh=Math.round(box.getBoundingClientRect().height);
+      if(hh>100){ try{localStorage.setItem("hf_todo_h",hh); document.documentElement.style.setProperty("--todo-h",hh+"px");}catch(e){} } });
+    box._ro.observe(box);
+  }
+  if(document.readyState!=="loading") setTimeout(watch,1500); else document.addEventListener("DOMContentLoaded",function(){setTimeout(watch,1500);});
 })();
 </script></body>
 </html>
