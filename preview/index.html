@@ -529,7 +529,7 @@ body.rail-open .app>*:not(.topbar){margin-left:312px}
 .pb-pc .pb-open{font-style:normal;font-size:10px}
 .pb-pc:has(input:checked){background:#FFEDE3;border-color:#F8C0B8}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v12</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v12.1</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -3056,7 +3056,7 @@ async function renderReview(){
           +'<button class="pb-x" data-row="'+o.sheetRow+'" title="Skip just this platform">✕</button></div>'
           +'<textarea class="rv-cap" style="min-height:110px">'+esc(o.r[3]||"")+'</textarea></div>';
       }).join("")+'</div>'
-      +'<div class="pb-acts"><button class="btn rv-approve pb-approve">✓ Approve all</button>'
+      +'<div class="pb-acts"><button class="btn rv-approve pb-approve">✓ Approve selected</button>'
       +'<select class="pb-slot" title="Which day should this story post?"><option value="">📅 next open slot (auto)</option>'
       +(function(){const taken={};nonpromo.forEach(n=>{const st=String(n.status||"").toLowerCase();if(st==="queued"||st==="scheduled")taken[String(n.date||"").slice(0,10)]=1;});
         let o="",d=new Date();for(let i=1;i<=14;i++){d.setDate(d.getDate()+(i===1?1:1));const ds=d.toISOString().slice(0,10);
@@ -3092,13 +3092,14 @@ async function renderReview(){
         const picks={}; card.querySelectorAll(".pb-plat-ck").forEach(c=>picks[c.dataset.plat]=c.checked);
         const slot=(card.querySelector(".pb-slot")||{}).value||"";
         const blocks=[...card.querySelectorAll(".pb-plat")].filter(b=>!b.querySelector("textarea").disabled);
+        let queuedN=0, heldN=0;
         for(const b of blocks){ const row=+b.dataset.row, bpl=(b.dataset.plat||"").toLowerCase();
-          const want=pa&&picks[bpl]!==false;
-          if(want){ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:b.querySelector("textarea").value});
+          if(pa&&picks[bpl]===false){ heldN++; continue; }   // unchecked = stays here waiting, NOT skipped
+          if(pa){ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:b.querySelector("textarea").value});
                   if(slot) await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:1,value:slot});
-                  await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"queued"}); }
+                  await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"queued"}); queuedN++; }
           else  { await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"}); }
-          const n=nonpromo.find(x=>x.row===row); if(n) n.status=want?"queued":"skipped";
+          const n=nonpromo.find(x=>x.row===row); if(n) n.status=pa?"queued":"skipped";
         }
         if(pa&&(picks.facebookstory||picks.instagramstory)){
           const sslot=slot||new Date().toISOString().slice(0,10);
@@ -3110,9 +3111,12 @@ async function renderReview(){
           toast("Story version(s) queued for "+sslot+" 📲");
         }
         renderTodo(); render();
-        card.style.transition="opacity .3s"; card.style.opacity="0";
-        setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")&&!host.querySelector(".pb-card")) renderReview(); },320);
-        toast(pa?("Story approved — "+blocks.length+" posts queued 🎉"):"Story skipped.");
+        if(pa&&heldN>0){ toast(queuedN+" queued for "+(slot||"next slot")+" 🎉 "+heldN+" platform"+(heldN>1?"s":"")+" still here waiting."); renderReview(); }
+        else{
+          card.style.transition="opacity .3s"; card.style.opacity="0";
+          setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")&&!host.querySelector(".pb-card")) renderReview(); },320);
+          toast(pa?("Story approved — "+queuedN+" post"+(queuedN===1?"":"s")+" queued 🎉"):"Story skipped.");
+        }
       }catch(err){ st.textContent=""; (pa||ps).disabled=false; toast("Save failed: "+(err&&err.message||err)); }
       return; }
     // ----- single-card actions (engagement / trending / legacy) -----
