@@ -517,7 +517,7 @@ body.rail-open .topbar{padding-left:40px!important}
 .np-upcoming summary{cursor:pointer;font-size:11.5px;font-weight:800;color:#6E7681;list-style:none;padding:4px 2px}
 .np-upcoming[open] summary{margin-bottom:6px}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v10.1</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v10.2</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -3375,5 +3375,51 @@ document.addEventListener("DOMContentLoaded",function(){ setTimeout(function(){
   if(hp){ var h2=document.createElement("h3"); h2.className="cal-h"; h2.textContent="❓ Help"; ref.appendChild(h2);
     while(hp.firstChild) ref.appendChild(hp.firstChild); hp.remove(); }
 },400); });
+</script><script>
+/* ===== rail extras: business pulse + quick actions (Holls 2026-06-12) ===== */
+(function(){
+  function mount(){
+    var inner=document.querySelector("#pipeSide .side-inner"); if(!inner||document.getElementById("railPulse")) return;
+    var first=inner.firstElementChild;
+    var pulse=document.createElement("section"); pulse.className="todo-box"; pulse.id="railPulse"; pulse.style.flex="0 0 auto";
+    pulse.innerHTML='<div class="side-h">📈 Pulse · 7 days</div><div class="todo-body" id="railPulseBody" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px"><span class="todo-empty">loading…</span></div>';
+    var quick=document.createElement("section"); quick.className="todo-box"; quick.id="railQuick"; quick.style.flex="0 0 auto";
+    quick.innerHTML='<div class="todo-body" style="display:flex;flex-direction:row;gap:6px;padding:8px"><button class="btn coral" data-railgo="review" style="flex:1;font-size:11.5px;padding:7px 6px">✍ Tell a story</button><button class="btn ghost" data-railgo="reference" style="flex:1;font-size:11.5px;padding:7px 6px">💡 Roadmap idea</button></div>';
+    inner.insertBefore(pulse,first); inner.insertBefore(quick,first);
+    fill();
+    setInterval(fill,300000);
+  }
+  function num(n){n=+n||0;return n>=1000?(n/1000).toFixed(1)+"k":String(n);}
+  async function fill(){
+    try{
+      var all=await apiGet(); var body=document.getElementById("railPulseBody"); if(!body) return;
+      var rows=(all.Stats||[]).slice(4).map(function(r){var j=null;try{j=JSON.parse(r[2]||"null")}catch(e){};return {d:String(r[0]||"").slice(0,10),src:String(r[1]||""),j:j};}).filter(function(x){return x.src&&x.j;});
+      var latest={}; rows.forEach(function(r){ if(!latest[r.src]||r.d>=latest[r.src].d) latest[r.src]=r; });
+      var pin=latest.pinterest&&latest.pinterest.j, fs2=latest.freshstore&&latest.freshstore.j, mt=latest.metricool&&latest.metricool.j;
+      var seen=0;
+      if(pin&&pin.newEra&&pin.newEra.daily){ pin.newEra.daily.slice(-7).forEach(function(x){seen+=x.imp||0;}); }
+      var mi=(mt&&mt.imp)||{}; ["facebook","instagram","tiktok"].forEach(function(k){ if(mi[k]&&mi[k].d7) seen+=mi[k].d7; });
+      var fsh=rows.filter(function(r){return r.src==="freshstore"&&r.j.traffic&&r.j.traffic.totalVisits!=null;}).sort(function(a,b){return a.d<b.d?-1:1;});
+      var visited=null;
+      if(fsh.length>1){ var wk=fsh.filter(function(r){return r.d<=new Date(Date.now()-7*86400000).toISOString().slice(0,10);}).pop();
+        if(wk) visited=(fsh[fsh.length-1].j.traffic.totalVisits||0)-(wk.j.traffic.totalVisits||0); }
+      if(visited==null&&fsh.length) visited=fsh[fsh.length-1].j.traffic.totalVisits||0;
+      var clicked=null;
+      if(fs2&&fs2.traffic&&fs2.traffic.clicksByDay){ clicked=0; var cb=fs2.traffic.clicksByDay, cut=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
+        for(var k in cb){ if(k>=cut) clicked+=cb[k]||0; } }
+      var amr=rows.filter(function(r){return r.src==="amazon";}).sort(function(a,b){return a.d<b.d?-1:1;});
+      var earned=amr.length?("$"+(+(amr[amr.length-1].j.earnings||0)).toFixed(0)):"—";
+      function cell(l,v,c){return '<div style="background:#F6F7F9;border-radius:6px;padding:5px 3px;text-align:center"><div style="font-size:8.5px;font-weight:800;letter-spacing:.5px;color:#8A929B">'+l+'</div><div style="font-family:Sora,sans-serif;font-weight:800;font-size:13px;color:'+c+'">'+v+'</div></div>';}
+      body.innerHTML=cell("SEEN",num(seen),"#F87E72")+cell("VISIT",visited==null?"—":num(visited),"#2FA9A4")+cell("CLICK",clicked==null?"—":num(clicked),"#B5702F")+cell("EARN",earned,"#5E6E50");
+    }catch(e){}
+  }
+  document.addEventListener("click",function(e){
+    var b=e.target.closest("[data-railgo]"); if(!b) return;
+    var t=document.querySelector('.tab[data-view="'+b.dataset.railgo+'"]'); if(t)t.click();
+    if(b.dataset.railgo==="review") setTimeout(function(){var o=document.getElementById("ppOwn"); if(o){o.scrollIntoView({block:"center"});o.click();}},650);
+    if(b.dataset.railgo==="reference") setTimeout(function(){var i=document.getElementById("rmNewT"); if(i){i.scrollIntoView({block:"center"});i.focus();}},650);
+  });
+  if(document.readyState!=="loading") setTimeout(mount,1200); else document.addEventListener("DOMContentLoaded",function(){setTimeout(mount,1200);});
+})();
 </script></body>
 </html>
