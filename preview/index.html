@@ -523,8 +523,13 @@ body.rail-open .app>*:not(.topbar){margin-left:312px}
 #pipeSide .side-inner{height:auto!important;min-height:0!important}
 #pipeSide .todo-box{flex:0 0 auto!important;resize:vertical;overflow:auto;min-height:110px;height:var(--todo-h,320px);max-height:75vh}
 #pipeSide .todo-box .todo-body{flex:1 1 auto;overflow-y:auto}
+.pb-chips{display:inline-flex;gap:5px;flex-wrap:wrap;margin:0 4px}
+.pb-pc{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:#3A4047;background:#F6F7F9;border:1px solid #E4E8EC;border-radius:6px;padding:3px 7px;cursor:pointer;user-select:none}
+.pb-pc input{margin:0;width:11px;height:11px;accent-color:#F87E72}
+.pb-pc .pb-open{font-style:normal;font-size:10px}
+.pb-pc:has(input:checked){background:#FFEDE3;border-color:#F8C0B8}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v11.1</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v12</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -3046,7 +3051,7 @@ async function renderReview(){
       +'<div class="pb-sub">"'+esc(first)+'…" · tweak any wording right here, kill a platform with ✕, then approve the lot.</div>'
       +'<div class="pb-plats">'+set.map(o=>{
         const pl=String(o.r[1]||"").toLowerCase();
-        return '<div class="pb-plat" data-row="'+o.sheetRow+'"><div class="pb-plathead">'+(PEMO[pl]||"📣")+' '+esc(pl)
+        return '<div class="pb-plat" data-row="'+o.sheetRow+'" data-plat="'+esc(pl)+'"><div class="pb-plathead">'+(PEMO[pl]||"📣")+' '+esc(pl)
           +(isImg(o.r[4])?'':' <span class="rv-cardbadge">🖼 card</span>')
           +'<button class="pb-x" data-row="'+o.sheetRow+'" title="Skip just this platform">✕</button></div>'
           +'<textarea class="rv-cap" style="min-height:110px">'+esc(o.r[3]||"")+'</textarea></div>';
@@ -3056,7 +3061,10 @@ async function renderReview(){
       +(function(){const taken={};nonpromo.forEach(n=>{const st=String(n.status||"").toLowerCase();if(st==="queued"||st==="scheduled")taken[String(n.date||"").slice(0,10)]=1;});
         let o="",d=new Date();for(let i=1;i<=14;i++){d.setDate(d.getDate()+(i===1?1:1));const ds=d.toISOString().slice(0,10);
           o+='<option value="'+ds+'">'+ds.slice(5).replace("-","/")+(taken[ds]?" · busy":" · open")+"</option>";}return o;})()
-      +'</select><label style="font-size:11px;color:#6E7681;display:inline-flex;align-items:center;gap:4px;margin:0 4px"><input type="checkbox" class="pb-stories"> ➕ also fill FB+IG story slots</label><button class="btn ghost pb-skipall">Skip story</button><span class="rv-status"></span></div></div>';
+      +'</select><span class="pb-chips">'
+      +[["facebook","FB"],["instagram","IG"],["tiktok","TT"],["facebookstory","FB story"],["instagramstory","IG story"]].map(pc=>
+        '<label class="pb-pc"><input type="checkbox" class="pb-plat-ck" data-plat="'+pc[0]+'"'+(pc[0].indexOf("story")<0?" checked":"")+'><span>'+pc[1]+'</span><i class="pb-open"></i></label>').join("")
+      +'</span><button class="btn ghost pb-skipall">Skip story</button><span class="rv-status"></span></div></div>';
   });
   if(pending.length) html+='<div class="ns-head" style="font-size:13px;margin:14px 0 2px">💬 Group Chat Starters <span style="font-weight:600;font-size:11px;color:#8a7f79">— auto-drafted polls & trend takes (not your personal stories); approve, tweak, or skip</span></div>';
   html+='<div class="rv-grid">';
@@ -3081,23 +3089,25 @@ async function renderReview(){
     if(pa||ps){ const card=(pa||ps).closest(".pb-card"), st=card.querySelector(".rv-status");
       (pa||ps).disabled=true; st.textContent="Saving…";
       try{
+        const picks={}; card.querySelectorAll(".pb-plat-ck").forEach(c=>picks[c.dataset.plat]=c.checked);
+        const slot=(card.querySelector(".pb-slot")||{}).value||"";
         const blocks=[...card.querySelectorAll(".pb-plat")].filter(b=>!b.querySelector("textarea").disabled);
-        for(const b of blocks){ const row=+b.dataset.row;
-          if(pa){ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:b.querySelector("textarea").value});
-                  const slot=(card.querySelector(".pb-slot")||{}).value||"";
+        for(const b of blocks){ const row=+b.dataset.row, bpl=(b.dataset.plat||"").toLowerCase();
+          const want=pa&&picks[bpl]!==false;
+          if(want){ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:b.querySelector("textarea").value});
                   if(slot) await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:1,value:slot});
                   await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"queued"}); }
           else  { await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"}); }
-          const n=nonpromo.find(x=>x.row===row); if(n) n.status=pa?"queued":"skipped";
+          const n=nonpromo.find(x=>x.row===row); if(n) n.status=want?"queued":"skipped";
         }
-        if(pa&&card.querySelector(".pb-stories")&&card.querySelector(".pb-stories").checked){
-          const slot=(card.querySelector(".pb-slot")||{}).value||new Date().toISOString().slice(0,10);
+        if(pa&&(picks.facebookstory||picks.instagramstory)){
+          const sslot=slot||new Date().toISOString().slice(0,10);
           const fbTxt=(()=>{const b=[...card.querySelectorAll(".pb-plat")].find(x=>!x.querySelector("textarea").disabled);return b?b.querySelector("textarea").value:"";})();
           const short=fbTxt.split("\n")[0].slice(0,140);
           const bid=card.dataset.bundle||"";
-          for(const plat of ["facebookstory","instagramstory"])
-            await apiPost({sheet:"NonPromo",action:"appendRow",values:[slot,plat,"story",short,"","queued","",bid]});
-          toast("Story versions queued for "+slot+" 📲");
+          for(const plat of ["facebookstory","instagramstory"]) if(picks[plat])
+            await apiPost({sheet:"NonPromo",action:"appendRow",values:[sslot,plat,"story",short,"","queued","",bid]});
+          toast("Story version(s) queued for "+sslot+" 📲");
         }
         renderTodo(); render();
         card.style.transition="opacity .3s"; card.style.opacity="0";
@@ -3475,6 +3485,28 @@ document.addEventListener("DOMContentLoaded",function(){ setTimeout(function(){
     box._ro.observe(box);
   }
   if(document.readyState!=="loading") setTimeout(watch,1500); else document.addEventListener("DOMContentLoaded",function(){setTimeout(watch,1500);});
+})();
+</script><script>
+/* bundle chips: show ○ open / ✓ filled for the picked date */
+(function(){
+  const LANE={facebook:"facebook-posts",instagram:"instagram-posts",tiktok:"tiktok",facebookstory:"facebook-stories",instagramstory:"instagram-stories"};
+  function refresh(card){
+    const sel=card.querySelector(".pb-slot"); if(!sel) return;
+    const d=sel.value||new Date().toISOString().slice(0,10);
+    const cal=((window._allTabs&&window._allTabs.Calendar)||[]).slice(1), np=((window._allTabs&&window._allTabs.NonPromo)||[]).slice(1);
+    const quota={}; cal.forEach(r=>{const dd=String(r[0]||"").slice(0,10),pl=String(r[1]||""),q=parseInt(r[6]||"0",10)||0; if(dd===d&&q) quota[pl]=q;});
+    const fill={}; np.forEach(r=>{const dd=String(r[0]||"").slice(0,10),pl=String(r[1]||"").toLowerCase(),st=String(r[5]||"").toLowerCase();
+      if(dd===d&&(st==="queued"||st==="scheduled")){const ln=LANE[pl]; if(ln) fill[ln]=(fill[ln]||0)+1;}});
+    card.querySelectorAll(".pb-plat-ck").forEach(c=>{
+      const ln=LANE[c.dataset.plat], q=quota[ln]||0, f=fill[ln]||0, i=c.parentElement.querySelector(".pb-open");
+      if(!i) return;
+      i.textContent=q? (f<q?"○":"✓") : "·";
+      i.title=q? (f<q?(q-f)+" open on "+d:"filled on "+d) : "no slot modeled "+d;
+      i.style.color=f<q&&q?"#B5702F":"#ADB4BC";
+    });
+  }
+  document.addEventListener("change",e=>{ if(e.target.closest(".pb-slot")){const c=e.target.closest(".pb-card"); if(c) refresh(c);} });
+  new MutationObserver(()=>{ document.querySelectorAll(".pb-card").forEach(c=>{ if(!c._chipinit){c._chipinit=1; refresh(c);} }); }).observe(document.body,{childList:true,subtree:true});
 })();
 </script></body>
 </html>
