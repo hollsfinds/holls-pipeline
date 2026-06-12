@@ -506,7 +506,7 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
 .fc-btn.fc-on{background:#15181C;color:#fff;border-color:#15181C}
 .pb-slot{padding:7px 10px;border:1px solid #E4E8EC;border-radius:7px;font-size:12px;background:#fff;color:#1B1F24}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v9.1</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v9.2</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -1321,7 +1321,7 @@ async function apiGet(){
   const r = await fetch(EXEC_URL + "?token=" + encodeURIComponent(API_TOKEN));
   const j = await r.json();
   if(!j.ok) throw new Error(j.error || "read failed");
-  _cache = j.data; _cacheT = Date.now();
+  _cache = j.data; _cacheT = Date.now(); window._allTabs=_cache;
   return _cache;
 }
 async function apiPost(body){
@@ -2833,7 +2833,7 @@ async function renderCalendar(targetId,compact){
     return 'gap'; }
   // the lane rows (column header + one row per lane) for a given ISO date — shared by both views
   function laneRowsHTML(d){
-    let h='<div class="dc-colh"><span class="dc-lbl"></span><span class="dc-ch">Pro</span><span class="dc-ch">Non</span></div>';
+    let h='<div class="dc-colh"><span class="dc-lbl"></span><span class="dc-ch">Pro</span><span class="dc-ch">Chat</span></div>';
     lanes.forEach(L=>{ const s=laneSplit(L,d);
       if(!L.split){
         // articles + pinterest: full-width bubble (same size as social), number on the Pro side, Non side blank
@@ -3060,7 +3060,12 @@ function upcomingHtml(body){
   const up=body.map((r,i)=>({r,i})).filter(o=>{const s=String(o.r[5]||"").toLowerCase();return (s==="scheduled"||s==="queued") && String(o.r[0]||"").slice(0,10)>=today;})
     .sort((a,b)=>String(a.r[0]).slice(0,10)<String(b.r[0]).slice(0,10)?-1:1).slice(0,12);
   if(!up.length) return "";
-  const LANES=[["facebook","FB"],["instagram","IG"],["tiktok","TT"],["facebookstory","FB story"],["instagramstory","IG story"]];
+  // lane order matches the Calendar page; ○ marks an open non-promo slot (quota with no post yet)
+  const LANES=[["facebook","FB Posts","facebook-posts"],["facebookstory","FB Story","facebook-stories"],["instagram","IG Posts","instagram-posts"],["instagramstory","IG Story","instagram-stories"],["tiktok","TikTok","tiktok"]];
+  const npQuota={};
+  try{ ((window._allTabs&&window._allTabs.Calendar)||[]).slice(1).forEach(r=>{
+    const d=String(r[0]||"").slice(0,10), pl=String(r[1]||""), q=parseInt(r[6]||"0",10)||0;
+    if(d&&q) npQuota[d+"|"+pl]=q; }); }catch(e){}
   const days=[];{const d=new Date();for(let i=0;i<14;i++){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}}
   const cellMap={};up.forEach(o=>{const k=String(o.r[0]).slice(0,10)+"|"+String(o.r[1]||"").toLowerCase();
     (cellMap[k]=cellMap[k]||[]).push(String(o.r[5]).toLowerCase()==="queued"?"⏳":"✓");});
@@ -3068,9 +3073,9 @@ function upcomingHtml(body){
     +'<div style="display:grid;grid-template-columns:80px repeat(14,1fr);gap:2px;align-items:center;font-size:10px;margin-top:6px">'
     +'<div></div>'+days.map((d,i)=>'<div style="text-align:center;font-weight:800;color:'+(i===0?'#B0392B':'#8A929B')+'">'+d.slice(8)+'</div>').join("");
   LANES.forEach(L=>{ g+='<div style="font-weight:700;color:#6E7681;font-size:10.5px">'+L[1]+'</div>'
-    +days.map(d=>{const c=cellMap[d+"|"+L[0]];
-      return '<div style="height:18px;border-radius:3px;background:'+(c?'#DCEFEE':'#F6F7F9')+';text-align:center;line-height:18px;font-size:10px" title="'+(c?L[1]+" "+d+" — "+c.length+" post(s)":"")+'">'+(c?(c.length>1?c.length:c[0]):"")+'</div>';}).join(""); });
-  g+='</div><div style="font-size:10px;color:#ADB4BC;margin-top:4px">✓ scheduled · ⏳ approved, awaiting scheduling</div></div>';
+    +days.map(d=>{const c=cellMap[d+"|"+L[0]]; const openSlot=!c&&(npQuota[d+"|"+L[2]]||0)>0;
+      return '<div style="height:18px;border-radius:3px;background:'+(c?'#DCEFEE':'#F6F7F9')+';text-align:center;line-height:18px;font-size:10px;color:'+(openSlot?'#ADB4BC':'#1B1F24')+'" title="'+(c?L[1]+" "+d+" — "+c.length+" post(s)":(openSlot?L[1]+" "+d+" — open slot":""))+'">'+(c?(c.length>1?c.length:c[0]):(openSlot?"○":""))+'</div>';}).join(""); });
+  g+='</div><div style="font-size:10px;color:#ADB4BC;margin-top:4px">✓ scheduled · ⏳ approved, awaiting scheduling · ○ open slot</div></div>';
   return g;
 }
 /* ===== Idea Bank sparks + capture (2026-06-11 revamp) =====
