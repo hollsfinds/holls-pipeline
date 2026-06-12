@@ -2944,7 +2944,7 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
   if(b.dataset.view==="calendar")renderCalendar("calArticles");
   if(b.dataset.view==="pipeline")renderCalendar("calArticlesTop",true);
   if(b.dataset.view==="review"){renderReview();renderSparks();}
-  if(b.dataset.view==="roadmap"&&typeof renderRoadmap==="function")renderRoadmap();
+  if((b.dataset.view==="roadmap"||b.dataset.view==="reference")&&typeof renderRoadmap==="function")renderRoadmap();
   if(b.dataset.view==="stats"&&typeof renderStats==="function")renderStats();
   maybeLoadFrame(b.dataset.view);
 }));
