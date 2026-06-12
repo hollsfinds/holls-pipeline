@@ -531,7 +531,7 @@ body.rail-open .app>*:not(.topbar){margin-left:312px}
 /* cards flush with the column header width */
 .cards{padding:8px 0 4px!important}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v12.3</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v12.4</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -1675,7 +1675,7 @@ function ondeckCard(it){
     <textarea class="odtitle" data-row="${it.row}" rows="2" title="Edit the cleaned title">${esc(it.title)}</textarea>
     <div class="odcats">${cats}${ncats}</div>
     
-    <div class="odstatus ${stCls}">${stTxt}</div>
+    ${st==="new"?"":`<div class="odstatus ${stCls}">${stTxt}</div>`}
     ${note}${acts}`;
   return d;
 }
