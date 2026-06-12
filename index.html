@@ -908,76 +908,50 @@ button.todo-stat:hover{background:var(--peach)}
         var hot=rows.filter(function(r){return r.i.k===2;}).map(function(r){return r.s.e+" "+r.s.n;});
         var soon=rows.filter(function(r){return r.i.k===1;}).map(function(r){return r.s.e+" "+r.s.n;});
         window._seasonHot=hot; window._seasonSoon=soon;   // the To-Do box shows both counts
-        var col={Foundation:["#EBEFE6","#5E6E50"],Build:["#FFE7D6","#B5702F"],Peak:["#FAD9D3","#B0392B"]};
-        function phases(sn){
-          var h='<div style="padding:6px 10px 8px 30px;border-top:1px dashed #EDE6DE">';
-          sn.ph.forEach(function(p){
-            var c=col[p[0]]||["#eee","#555"];
-            h+='<div style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;font-size:12px">'
-              +'<span style="flex:none;background:'+c[0]+';color:'+c[1]+';font-weight:700;border-radius:4px;padding:2px 0;width:80px;text-align:center">'+p[0]+'</span>'
-              +'<span style="flex:none;width:110px;opacity:.7">'+p[1]+'</span>'
-              +'<span style="flex:1">'+p[2]+'</span></div>';
-          });
-          return h+'</div>';
-        }
-        function rowHTML(r){
-          var sn=r.s, i=r.i;
-          var pill=i.pill?'<span style="background:'+i.c+';color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px;white-space:nowrap;margin-left:auto">'+i.pill+'</span>':'<span style="margin-left:auto;opacity:.45;font-size:11px;white-space:nowrap">On Deck by '+i.lbl+'</span>';
-          return '<details style="border:1px solid '+(i.k===2?'var(--coral,#F88378)':'#E8E1D8')+';border-radius:8px;background:#fff;margin:4px 0">'
-            +'<summary style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;font-size:13px;list-style:none">'
-            +'<span style="opacity:.5;font-size:10px">▸</span><b>'+sn.e+' '+sn.n+'</b>'
-            +'<span style="color:var(--teal,#2E6E6A);font-weight:700;font-size:12px;white-space:nowrap">'+sn.d+'</span>'
-            +(i.pill?'<span style="opacity:.45;font-size:11px;white-space:nowrap">· On Deck by '+i.lbl+'</span>':'')
-            +pill+'</summary>'+phases(sn)+'</details>';
-        }
-        function group(title,list,open){
-          if(!list.length) return '';
-          var inner=list.map(rowHTML).join('');
-          if(open) return '<div style="margin:10px 0 2px;font-size:12px;font-weight:800;color:#7a6f66;letter-spacing:.4px">'+title+' ('+list.length+')</div>'+inner;
-          return '<details style="margin:10px 0 2px"><summary style="cursor:pointer;font-size:12px;font-weight:800;color:#7a6f66;letter-spacing:.4px;list-style:none">▸ '+title+' ('+list.length+') — click to show</summary>'+inner+'</details>';
-        }
-        var now2=rows.filter(function(r){return r.i.k===2;}),
-            next2=rows.filter(function(r){return r.i.k===1;}),
-            later2=rows.filter(function(r){return r.i.k===0;});
-        /* ---- Gantt: Jan–Dec, one row per season, phase-colored month cells ---- */
-        var SEG=[["prep","#EBEFE6","#5E6E50"],["light","#FBE3CE","#B5702F"],["heavy","#F6B89B","#8C4A1F"],["final","#E2725B","#fff"]];
+        /* ---- Gantt: rolling 12 months from the current month, phase-colored cells ---- */
+        var SEG=[["prep","#9DB287","#3F4F33"],["light","#FBE3CE","#B5702F"],["heavy","#F6B89B","#8C4A1F"],["final","#E2725B","#fff"]];
+        var SEGLBL=["prep — add products to On Deck","light posting","heavy posting","final push (★ event)"];
         var curM=today.getMonth();
         function ganttHTML(){
-          var head='<div style="display:grid;grid-template-columns:150px repeat(12,1fr);gap:2px;align-items:center;margin:2px 0">'
-            +'<div></div>'+months.map(function(mn,mi){
-              return '<div style="text-align:center;font-size:10px;font-weight:800;color:'+(mi===curM?'#B0392B':'#a89c93')+'">'+mn.slice(0,1)+'</div>';}).join('')+'</div>';
-          var byNext=S.map(function(sn){return {sn:sn, u:(sn.ev-curM+12)%12, act:rows.find(function(r){return r.s===sn;}).i.k===2};})
-                      .sort(function(a,b){return a.u-b.u;});
-          var body=byNext.map(function(o){
-            var sn=o.sn, segm={};   // month -> seg index
+          var GRID='display:grid;grid-template-columns:200px repeat(12,1fr);gap:2px;align-items:center;margin:2px 0';
+          var head='<div style="'+GRID+'"><div></div>'+Array.from({length:12},function(_,i){
+              var mi=(curM+i)%12;
+              return '<div style="text-align:center;font-size:9.5px;font-weight:800;color:'+(i===0?'#B0392B':'#a89c93')+'">'+months[mi].slice(0,3)+'</div>';}).join('')+'</div>';
+          var byNext=S.map(function(sn){var u=(sn.ev-curM+12)%12;
+              return {sn:sn,u:u,act:(rows.find(function(r){return r.s===sn;}).i.k===2)||u===0};})
+            .sort(function(a,b){return a.u-b.u;});
+          var body=byNext.map(function(o,ri){
+            var sn=o.sn, segm={};
             for(var k2=0;k2<4;k2++) segm[((sn.ev-3+k2)%12+12)%12]=k2;
-            var cells=months.map(function(_,mi){
-              var sg=segm[mi];
+            var cells=Array.from({length:12},function(_,i){
+              var mi=(curM+i)%12, sg=segm[mi];
               var base='height:16px;border-radius:3px;';
-              if(mi===curM) base+='box-shadow:inset 0 0 0 1.5px #B0392B66;';
-              if(sg===undefined) return '<div style="'+base+'background:#F4EFE9"></div>';
+              if(i===0) base+='box-shadow:inset 0 0 0 1.5px #B0392B55;';
+              if(sg===undefined) return '<div style="'+base+'background:#FAF6F1"></div>';
               var c=SEG[sg];
               var star=(sg===3)?'<span style="font-size:9px;color:'+c[2]+';line-height:16px;display:block;text-align:center">★</span>':'';
-              return '<div title="'+sn.n+' — '+["prep (add products)","light posting","heavy posting","final push / event"][sg]+'" style="'+base+'background:'+c[1]+'">'+star+'</div>';
+              return '<div title="'+sn.n+' — '+SEGLBL[sg]+'" style="'+base+'background:'+c[1]+'">'+star+'</div>';
             }).join('');
-            var lab='<div style="font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:4px;'+(o.act?'font-weight:800;color:#B0392B':'color:#6d6258')+'">'+(o.act?'🔥 ':'')+sn.e+' '+sn.n+'</div>';
-            return '<div style="display:grid;grid-template-columns:150px repeat(12,1fr);gap:2px;align-items:center;margin:2px 0">'+lab+cells+'</div>';
+            var lab='<div class="sea-lab" data-searow="'+ri+'" style="font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 4px 2px 2px;cursor:pointer;border-radius:5px;'+(o.act?'font-weight:800;color:#B0392B':'color:#6d6258')+'" title="Click to highlight this row">'+(o.act?'🔥 ':'')+sn.e+' '+sn.n+'</div>';
+            return '<div class="sea-row" data-searow="'+ri+'" style="'+GRID+';border-radius:6px;padding:1px 2px">'+lab+cells+'</div>';
           }).join('');
           var leg='<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10.5px;margin:6px 0 2px;color:#7a6f66">'
-            +SEG.map(function(c,ci){return '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+c[1]+';vertical-align:-1px"></span> '+["prep — add products to On Deck","light posting","heavy posting","final push (★ event)"][ci]+'</span>';}).join('')
-            +'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;box-shadow:inset 0 0 0 1.5px #B0392B66;vertical-align:-1px"></span> current month</span></div>';
+            +SEG.map(function(c,ci){return '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+c[1]+';vertical-align:-1px"></span> '+SEGLBL[ci]+'</span>';}).join('')
+            +'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;box-shadow:inset 0 0 0 1.5px #B0392B55;vertical-align:-1px"></span> current month (first column)</span></div>';
           return '<div style="border:1px solid #E8E1D8;border-radius:10px;background:#fff;padding:10px 12px;margin:8px 0">'+head+body+leg+'</div>';
         }
         var out='<div style="background:rgba(248,131,120,.12);border:1px solid var(--coral,#F88378);border-radius:8px;padding:8px 12px;margin:6px 0 4px;font-size:13px">'
           +'<b>📥 Add to On Deck now:</b> '+(hot.length?hot.join(", "):"— nothing due —")
           +(soon.length?'<br><span style="opacity:.7">Coming up (≤45 days): '+soon.join(", ")+'</span>':'')+'</div>'
-          +ganttHTML()
-          +'<details style="margin:8px 0"><summary style="cursor:pointer;font-size:12px;font-weight:800;color:#7a6f66;letter-spacing:.4px;list-style:none">▸ SEASON-BY-SEASON PLANS — click to open</summary>'
-          +group('🔥 WORK ON NOW',now2,true)
-          +group('🟠 NEXT UP (≤45 DAYS)',next2,true)
-          +group('🗓 LATER THIS YEAR',later2,true)
-          +'</details>';
+          +ganttHTML();
         el.innerHTML=out;
+        el.addEventListener("click",function(e){
+          var lab=e.target.closest(".sea-lab"); if(!lab) return;
+          var row=el.querySelector('.sea-row[data-searow="'+lab.dataset.searow+'"]'); if(!row) return;
+          var on=row.dataset.hl==="1";
+          el.querySelectorAll(".sea-row").forEach(function(r){r.dataset.hl="";r.style.background="";r.style.boxShadow="";});
+          if(!on){ row.dataset.hl="1"; row.style.background="#FFF3E0"; row.style.boxShadow="0 0 0 1.5px #E2725B"; }
+        });
       }
       /* ---- seasonal focus bar (derived from the SAME data — no drift) ---- */
       var bar=document.getElementById("seasonFocusBar");
