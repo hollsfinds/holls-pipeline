@@ -499,14 +499,16 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
 .card .acts{flex-wrap:nowrap!important;gap:5px!important}
 .card .acts .btn,.card .acts button{white-space:nowrap!important;font-size:11px!important;padding:6px 9px!important;line-height:1.1!important}
 .col .card{margin-left:0!important;margin-right:0!important;width:100%!important;box-sizing:border-box!important}
-.st-fcwrap{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 18px}
+.st-fcwrap{display:flex;gap:6px;margin:0 0 18px;flex-wrap:wrap}
+.st-fchart{flex:1;min-width:150px}
+.st-fcsp{flex:0 0 20px}
 .st-fchart{background:#fff;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 4px 14px rgba(16,24,40,.05);padding:10px 12px}
 .st-fclbl{font-size:10px;font-weight:800;letter-spacing:1px;color:#8A929B;margin-bottom:6px}
 .fc-btn{border:1px solid #E4E8EC;background:#fff;border-radius:6px;font-size:11px;font-weight:700;color:#6E7681;padding:4px 10px;cursor:pointer}
 .fc-btn.fc-on{background:#15181C;color:#fff;border-color:#15181C}
 .pb-slot{padding:7px 10px;border:1px solid #E4E8EC;border-radius:7px;font-size:12px;background:#fff;color:#1B1F24}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v9.3</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v9.4</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -768,11 +770,12 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
             ${d?`<div class="st-kd" style="color:${d.c}">${d.a} ${d.t}</div>`:""}</div>`;
           out+=`<h3 class="cal-h">💰 The funnel — how the business flowed</h3>
             <div class="st-funnel">
-            ${(()=>{const mt=latest.metricool&&latest.metricool.j, mi=mt&&mt.imp;
-              let sub="Pinterest impressions · 7 days";
-              if(mi){const pp=[["FB",mi.facebook],["IG",mi.instagram],["TT",mi.tiktok]].filter(x=>x[1]&&x[1].d7!=null).map(x=>x[0]+" "+fmt(x[1].d7));
-                if(pp.length) sub="Pinterest · 7d — plus "+pp.join(" · ");}
-              return cell("👀","SEEN",seen==null?null:fmt(seen),sub,seenD);})()}
+            ${(()=>{const mt=latest.metricool&&latest.metricool.j, mi=(mt&&mt.imp)||{};
+              const plats=[["Pinterest",seen],["Facebook",mi.facebook&&mi.facebook.d7],["Instagram",mi.instagram&&mi.instagram.d7],["TikTok",mi.tiktok&&mi.tiktok.d7]];
+              const tot=plats.reduce((a,x)=>a+(+x[1]||0),0);
+              const grid='<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:8px">'
+                +plats.map(x=>'<div style="background:#F6F7F9;border-radius:6px;padding:5px 4px"><div style="font-size:9px;font-weight:800;letter-spacing:.6px;color:#8A929B">'+x[0].toUpperCase()+'</div><div style="font-family:Sora,sans-serif;font-weight:800;font-size:15px">'+(x[1]==null?"—":fmt(+x[1]||0))+'</div></div>').join("")+'</div>';
+              return '<div class="st-fcell"><div class="st-femo">👀</div><div class="st-flab">SEEN</div><div class="st-fnum">'+fmt(tot)+'</div><div class="st-fsub">all platforms · 7 days</div>'+grid+'</div>';})()}
             <div class="st-farrow">→</div>
             ${cell("🏠","VISITED",visited==null?null:fmt(visited),"site visits · "+visitedNote,null)}
             <div class="st-farrow">→</div>
@@ -792,7 +795,7 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
           _ser.clicked=Object.keys(_cbd).sort().map(k=>({d:k,v:_cbd[k]||0}));
           _ser.earned=rows.filter(r=>r.src==="amazon").sort((a,b)=>a.d<b.d?-1:1).map(r=>({d:r.d,v:+(r.j.earnings||0)}));
           const _cut=n=>{const t=new Date(Date.now()-n*86400000).toISOString().slice(0,10);return a=>a.filter(x=>x.d>=t);};
-          const _RANGES={"7d":_cut(7),"30d":_cut(30),"90d":_cut(90),"All":a=>a};
+          const _RANGES={"7d":_cut(7),"30d":_cut(30),"90d":_cut(90),"All":a=>a.filter(x=>x.d>="2026-06-01")};
           function _chart(arr,color,label){
             if(!arr.length) return `<div class="st-fchart"><div class="st-fclbl">${label}</div><div style="font-size:11px;color:#ADB4BC;padding:18px 0;text-align:center">no data yet</div></div>`;
             const w=260,h=64,max=Math.max(...arr.map(x=>x.v),1);
@@ -803,7 +806,8 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
           window._fcRender=function(rg){
             const f=_RANGES[rg]||_RANGES["All"];
             const el=document.getElementById("fcCharts"); if(!el) return;
-            el.innerHTML=_chart(f(_ser.seen),"#F87E72","SEEN")+_chart(f(_ser.visited),"#2FA9A4","VISITED")+_chart(f(_ser.clicked),"#B5702F","CLICKED")+_chart(f(_ser.earned),"#5E6E50","EARNED $");
+            const sp='<div class="st-fcsp"></div>';
+            el.innerHTML=_chart(f(_ser.seen),"#F87E72","SEEN")+sp+_chart(f(_ser.visited),"#2FA9A4","VISITED")+sp+_chart(f(_ser.clicked),"#B5702F","CLICKED")+sp+_chart(f(_ser.earned),"#5E6E50","EARNED $");
             document.querySelectorAll("[data-fcrg]").forEach(b=>b.classList.toggle("fc-on",b.dataset.fcrg===rg));
           };
           out+=`<div style="display:flex;justify-content:flex-end;gap:6px;margin:-8px 0 6px">${Object.keys(_RANGES).map(r=>`<button data-fcrg="${r}" class="fc-btn${r==="All"?" fc-on":""}">${r}</button>`).join("")}</div>
@@ -2637,7 +2641,7 @@ function renderTodo(){
   const al=window._alertCount||0;
   if(al) rows.push({id:"alert",n:al,l:"alert"+(al>1?"s":"")+" in the Needs-You bar",alert:true});
   const waiting=nonpromo.filter(n=>n.status==="needs_review").length;
-  if(waiting) rows.push({id:"npr",n:waiting,l:"non-promo waiting for review →",alert:true,go:"review"});
+  if(waiting) rows.push({id:"npr",n:waiting,l:"Group Chat post"+(waiting>1?"s":"")+" waiting for approval →",alert:true,go:"review"});
   rows.push({id:"pins5",n:"5",l:"share 5 pins (not your own) on Pinterest"});
   // seasonal: ONE line that names the seasons
   const hot=window._seasonHot||[], soon=window._seasonSoon||[];
