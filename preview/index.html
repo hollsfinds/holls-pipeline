@@ -524,7 +524,7 @@ body.rail-open .app>*:not(.topbar){margin-left:312px}
 #pipeSide .todo-box{flex:0 0 auto!important;resize:vertical;overflow:auto;min-height:110px;height:var(--todo-h,320px);max-height:75vh}
 #pipeSide .todo-box .todo-body{flex:1 1 auto;overflow-y:auto}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v11</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v11.1</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -2693,8 +2693,9 @@ function renderTodo(){
   // seasonal: ONE line that names the seasons
   const hot=window._seasonHot||[], soon=window._seasonSoon||[];
   const sNow=window._seasonNow||[];
-  if(sNow.length) rows.push({id:"season",n:sNow.length,custom:'<details class="todo-season"><summary style="display:flex;align-items:center;gap:7px;cursor:pointer;list-style:none"><span class="todo-num">'+sNow.length+'</span><span class="todo-lbl">seasonal pushes this month ▾</span></summary>'
-    +sNow.map(x=>'<div style="display:flex;align-items:center;gap:6px;padding:3px 2px 3px 24px;font-size:11px"><span style="width:10px;height:10px;border-radius:2px;background:'+x.c+';flex:0 0 auto"></span><span style="flex:1">'+esc(x.n)+'</span><b style="color:#6E7681;font-size:10px">'+esc(x.ph)+'</b></div>').join("")+'</details>',alert:!!hot.length});
+  if(sNow.length) rows.push({id:"season",n:sNow.length,custom:'<details class="todo-season"><summary style="display:flex;align-items:center;gap:7px;cursor:pointer;list-style:none"><input type="checkbox" class="todo-chk" data-tdid="season" onclick="event.stopPropagation()"><span class="todo-num">'+sNow.length+'</span><span class="todo-lbl">seasonal pushes this month ▾</span></summary>'
+    +sNow.map(x=>{const dark=(x.ph==="final push");
+      return '<div style="display:flex;align-items:center;gap:6px;padding:3px 2px 3px 24px;font-size:11px"><span style="flex:1">'+esc(x.n)+'</span><b style="background:'+x.c+';color:'+(dark?"#fff":"#3F4A38")+';font-size:10px;padding:2px 8px;border-radius:4px;white-space:nowrap">'+esc(x.ph)+'</b></div>';}).join("")+'</details>',alert:!!hot.length});
   else if(soon.length) rows.push({fyi:true,l:"Seasonal up next: "+soon[0]});
   // ---- calendar-powered rows (async — cached payload, then re-paint) ----
   (async()=>{ try{
