@@ -506,7 +506,7 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
 .fc-btn.fc-on{background:#15181C;color:#fff;border-color:#15181C}
 .pb-slot{padding:7px 10px;border:1px solid #E4E8EC;border-radius:7px;font-size:12px;background:#fff;color:#1B1F24}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v9</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v9.1</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -522,10 +522,8 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
       <button class="tab active" data-view="pipeline">Pipeline</button>
       <button class="tab" data-view="calendar">Calendar</button>
       <button class="tab" data-view="review">Group Chat</button>
-      <button class="tab" data-view="roadmap">Roadmap</button>
       <button class="tab" data-view="stats">Stats</button>
-      <button class="tab" data-view="reference">Reference Tool</button>
-      <button class="tab" data-view="help">Help</button>
+      <button class="tab" data-view="reference">Reference</button>
     </div>
     <input id="boardSearch" type="search" placeholder="Search articles & products…" autocomplete="off" style="margin-left:auto;width:240px;padding:7px 11px;border:1px solid var(--line);border-radius:9px;font-size:13px;font-family:inherit;background:#fff;color:var(--ink)">
     <div class="status" id="status"><span class="led"></span><span id="statusText">Connecting…</span></div>
@@ -3337,5 +3335,14 @@ document.addEventListener("DOMContentLoaded",function(){ setTimeout(function(){
     }
   });
 },900); });
-</script><script>document.addEventListener("click",function(e){var b=e.target.closest("[data-fcrg]");if(b&&window._fcRender)window._fcRender(b.dataset.fcrg);});</script></body>
+</script><script>document.addEventListener("click",function(e){var b=e.target.closest("[data-fcrg]");if(b&&window._fcRender)window._fcRender(b.dataset.fcrg);});</script><script>
+document.addEventListener("DOMContentLoaded",function(){ setTimeout(function(){
+  var ref=document.getElementById("view-reference"), hp=document.getElementById("view-help"), rm=document.getElementById("view-roadmap");
+  if(!ref) return;
+  if(rm){ var h1=document.createElement("h3"); h1.className="cal-h"; h1.textContent="🗺 Roadmap"; ref.appendChild(h1);
+    while(rm.firstChild) ref.appendChild(rm.firstChild); rm.remove(); }
+  if(hp){ var h2=document.createElement("h3"); h2.className="cal-h"; h2.textContent="❓ Help"; ref.appendChild(h2);
+    while(hp.firstChild) ref.appendChild(hp.firstChild); hp.remove(); }
+},400); });
+</script></body>
 </html>
