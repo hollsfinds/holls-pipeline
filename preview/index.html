@@ -510,14 +510,16 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
 /* global left rail (To-Do + calendar) on every tab */
 #pipeSide{position:fixed!important;left:18px;top:92px;bottom:14px;width:300px;overflow-y:auto;z-index:45;background:transparent}
 #pipeSide.collapsed{width:auto;bottom:auto}
-body.rail-open .app{padding-left:352px!important}
-body.rail-open .topbar{padding-left:40px!important}
+body.rail-open .app{padding-left:40px!important}
+body.rail-open .app>*:not(.topbar){margin-left:312px}
+.rail-box{background:#fff;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 4px 14px rgba(16,24,40,.05);overflow:hidden}
+.rail-box .side-h{padding:8px 12px;font-weight:800;font-size:13px;border-bottom:1px solid #F0F2F4;font-family:'Sora',sans-serif}
 @media (max-width:1100px){ #pipeSide{display:none} body.rail-open .app{padding-left:40px!important} }
 .np-upcoming{background:#F6F7F9;border-radius:10px;padding:6px 8px;margin-bottom:8px}
 .np-upcoming summary{cursor:pointer;font-size:11.5px;font-weight:800;color:#6E7681;list-style:none;padding:4px 2px}
 .np-upcoming[open] summary{margin-bottom:6px}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v10.2</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v10.3</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -812,11 +814,29 @@ body.rail-open .topbar{padding-left:40px!important}
             return `<div class="st-fchart"><div class="st-fclbl">${label} <span style="float:right;color:#ADB4BC;font-weight:600">peak ${fmt(max)}</span></div>
               <svg width="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/></svg></div>`;
           }
+          // per-platform SEEN lines: pinterest = real daily; FB/IG/TT = trend of each snapshot's 7-day total
+          const _mtH=rows.filter(r=>r.src==="metricool"&&r.j.imp).sort((a,b)=>a.d<b.d?-1:1);
+          const _net=k=>_mtH.map(r=>({d:r.d,v:(r.j.imp[k]&&r.j.imp[k].d7)||0}));
+          const _serSeen={Pinterest:{c:"#E60023",pts:_ser.seen},Facebook:{c:"#1877F2",pts:_net("facebook")},Instagram:{c:"#C13584",pts:_net("instagram")},TikTok:{c:"#161823",pts:_net("tiktok")}};
+          function _chartMulti(f,label){
+            const w=260,h=84; let max=1,minD=null,maxD=null,lines=[];
+            const totalMap={};
+            Object.entries(_serSeen).forEach(([nm,o])=>{const a=f(o.pts); if(!a.length){lines.push({nm,c:o.c,a:[]});return;}
+              a.forEach(x=>{max=Math.max(max,x.v); totalMap[x.d]=(totalMap[x.d]||0)+x.v; if(!minD||x.d<minD)minD=x.d; if(!maxD||x.d>maxD)maxD=x.d;});
+              lines.push({nm,c:o.c,a});});
+            const tot=Object.keys(totalMap).sort().map(d=>({d,v:totalMap[d]})); tot.forEach(x=>max=Math.max(max,x.v));
+            const X=a=>a.map((x,i)=>`${(a.length<2?w/2:i/(a.length-1)*w).toFixed(1)},${(h-6-(x.v/max)*(h-16)).toFixed(1)}`).join(" ");
+            const poly=(a,c,wd,dash)=>a.length?(a.length===1?`<circle cx="${w/2}" cy="${(h-6-(a[0].v/max)*(h-16)).toFixed(1)}" r="3" fill="${c}"/>`:`<polyline points="${X(a)}" fill="none" stroke="${c}" stroke-width="${wd}"${dash?' stroke-dasharray="4 3"':''} stroke-linejoin="round"/>`):"";
+            const leg=lines.map(l=>`<span style="color:${l.c};font-weight:700">●&nbsp;${l.nm.slice(0,2).toUpperCase()}</span>`).join(" ")+` <span style="color:#6E7681;font-weight:700">┅ total</span>`;
+            return `<div class="st-fchart"><div class="st-fclbl">${label} <span style="float:right;color:#ADB4BC;font-weight:600">peak ${fmt(max)}</span></div>
+              <svg width="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${lines.map(l=>poly(l.a,l.c,1.8)).join("")}${poly(tot,"#6E7681",2,true)}</svg>
+              <div style="display:flex;justify-content:space-between;font-size:8.5px;color:#ADB4BC"><span>${minD?minD.slice(5).replace("-","/"):""}</span><span style="font-size:9px">${leg}</span><span>${maxD?maxD.slice(5).replace("-","/"):""}</span></div></div>`;
+          }
           window._fcRender=function(rg){
             const f=_RANGES[rg]||_RANGES["All"];
             const el=document.getElementById("fcCharts"); if(!el) return;
             const sp='<div class="st-fcsp"></div>';
-            el.innerHTML=_chart(f(_ser.seen),"#F87E72","SEEN")+sp+_chart(f(_ser.visited),"#2FA9A4","VISITED")+sp+_chart(f(_ser.clicked),"#B5702F","CLICKED")+sp+_chart(f(_ser.earned),"#5E6E50","EARNED $");
+            el.innerHTML=_chartMulti(f,"SEEN")+sp+_chart(f(_ser.visited),"#2FA9A4","VISITED")+sp+_chart(f(_ser.clicked),"#B5702F","CLICKED")+sp+_chart(f(_ser.earned),"#5E6E50","EARNED $");
             document.querySelectorAll("[data-fcrg]").forEach(b=>b.classList.toggle("fc-on",b.dataset.fcrg===rg));
           };
           out+=`<div style="display:flex;justify-content:flex-end;gap:6px;margin:-8px 0 6px">${Object.keys(_RANGES).map(r=>`<button data-fcrg="${r}" class="fc-btn${r==="All"?" fc-on":""}">${r}</button>`).join("")}</div>
@@ -3381,10 +3401,10 @@ document.addEventListener("DOMContentLoaded",function(){ setTimeout(function(){
   function mount(){
     var inner=document.querySelector("#pipeSide .side-inner"); if(!inner||document.getElementById("railPulse")) return;
     var first=inner.firstElementChild;
-    var pulse=document.createElement("section"); pulse.className="todo-box"; pulse.id="railPulse"; pulse.style.flex="0 0 auto";
+    var pulse=document.createElement("section"); pulse.className="rail-box"; pulse.id="railPulse"; pulse.style.flex="0 0 auto";
     pulse.innerHTML='<div class="side-h">📈 Pulse · 7 days</div><div class="todo-body" id="railPulseBody" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px"><span class="todo-empty">loading…</span></div>';
-    var quick=document.createElement("section"); quick.className="todo-box"; quick.id="railQuick"; quick.style.flex="0 0 auto";
-    quick.innerHTML='<div class="todo-body" style="display:flex;flex-direction:row;gap:6px;padding:8px"><button class="btn coral" data-railgo="review" style="flex:1;font-size:11.5px;padding:7px 6px">✍ Tell a story</button><button class="btn ghost" data-railgo="reference" style="flex:1;font-size:11.5px;padding:7px 6px">💡 Roadmap idea</button></div>';
+    var quick=document.createElement("section"); quick.className="rail-box"; quick.id="railQuick"; quick.style.flex="0 0 auto";
+    quick.innerHTML='<div class="todo-body" style="display:flex;flex-direction:row;gap:6px;padding:8px"><button class="btn coral" data-railgo="review" style="flex:1;font-size:11px;padding:4px 6px">✍ Tell a story</button><button class="btn ghost" data-railgo="reference" style="flex:1;font-size:11px;padding:4px 6px">💡 Roadmap idea</button></div>';
     inner.insertBefore(pulse,first); inner.insertBefore(quick,first);
     fill();
     setInterval(fill,300000);
