@@ -529,7 +529,7 @@ body.rail-open .app>*:not(.topbar){margin-left:312px}
 .pb-pc .pb-open{font-style:normal;font-size:10px}
 .pb-pc:has(input:checked){background:#FFEDE3;border-color:#F8C0B8}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v12.1</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v12.2</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
@@ -3064,7 +3064,7 @@ async function renderReview(){
       +'</select><span class="pb-chips">'
       +[["facebook","FB"],["instagram","IG"],["tiktok","TT"],["facebookstory","FB story"],["instagramstory","IG story"]].map(pc=>
         '<label class="pb-pc"><input type="checkbox" class="pb-plat-ck" data-plat="'+pc[0]+'"'+(pc[0].indexOf("story")<0?" checked":"")+'><span>'+pc[1]+'</span><i class="pb-open"></i></label>').join("")
-      +'</span><button class="btn ghost pb-skipall">Skip story</button><span class="rv-status"></span></div></div>';
+      +'</span><label style="font-size:10.5px;color:#6E7681;display:inline-flex;align-items:center;gap:4px;margin:0 2px" title="If checked, unchecked platforms stay on this card for another day instead of being skipped"><input type="checkbox" class="pb-keep" style="margin:0;width:11px;height:11px;accent-color:#2FA9A4"> 💾 save rest for later</label><button class="btn ghost pb-skipall">Skip story</button><span class="rv-status"></span></div></div>';
   });
   if(pending.length) html+='<div class="ns-head" style="font-size:13px;margin:14px 0 2px">💬 Group Chat Starters <span style="font-weight:600;font-size:11px;color:#8a7f79">— auto-drafted polls & trend takes (not your personal stories); approve, tweak, or skip</span></div>';
   html+='<div class="rv-grid">';
@@ -3094,7 +3094,13 @@ async function renderReview(){
         const blocks=[...card.querySelectorAll(".pb-plat")].filter(b=>!b.querySelector("textarea").disabled);
         let queuedN=0, heldN=0;
         for(const b of blocks){ const row=+b.dataset.row, bpl=(b.dataset.plat||"").toLowerCase();
-          if(pa&&picks[bpl]===false){ heldN++; continue; }   // unchecked = stays here waiting, NOT skipped
+          const keep=!!(card.querySelector(".pb-keep")&&card.querySelector(".pb-keep").checked);
+          if(pa&&picks[bpl]===false){
+            if(keep){ heldN++; continue; }                            // 💾 saved for another day
+            await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"});  // default: done with these
+            const nn=nonpromo.find(x=>x.row===row); if(nn) nn.status="skipped";
+            continue;
+          }
           if(pa){ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:b.querySelector("textarea").value});
                   if(slot) await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:1,value:slot});
                   await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"queued"}); queuedN++; }
