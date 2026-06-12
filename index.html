@@ -258,16 +258,20 @@ button{font-family:inherit;cursor:pointer}
 .side-inner{display:flex;flex-direction:column;gap:12px;min-height:0;flex:1 1 auto}
 .todo-box{flex:1 1 auto;min-height:90px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .todo-box .side-h{padding:10px 12px;font-weight:800;font-size:13px;color:var(--espresso);border-bottom:1px solid var(--line);background:#faf7f5}
-.todo-box .todo-body{padding:12px;overflow-y:auto;flex:1 1 auto}
+.todo-box .todo-body{padding:8px 10px;overflow-y:auto;flex:1 1 auto}
 .todo-empty{color:#c8bfb9;font-size:12px;font-style:italic;margin:0}
-.todo-body{display:flex;flex-direction:column;gap:8px}
-.todo-stat{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:1px solid var(--line);background:#faf7f5;border-radius:9px;padding:8px 10px;font:inherit;cursor:default}
+.todo-body{display:flex;flex-direction:column;gap:4px}
+.todo-stat{display:flex;align-items:center;gap:7px;width:100%;text-align:left;border:1px solid var(--line);background:#faf7f5;border-radius:7px;padding:4px 8px;font:inherit;cursor:default}
 button.todo-stat{cursor:pointer}
 button.todo-stat:hover{background:var(--peach)}
 .todo-stat.todo-alert{background:#FBE0DC;border-color:#E8C4BE}
-.todo-num{font-weight:800;font-size:18px;color:var(--espresso);min-width:22px;text-align:center}
+.todo-num{font-weight:800;font-size:13px;color:var(--espresso);min-width:16px;text-align:center}
+.todo-chk{accent-color:var(--coral,#F88378);margin:0;cursor:pointer;flex:0 0 auto;width:13px;height:13px}
+.todo-done .todo-lbl{text-decoration:line-through;opacity:.45}
+.todo-done .todo-num{opacity:.45}
+.todo-fyi{font-size:10.5px;color:#a89c93;font-style:italic;padding:1px 4px;line-height:1.35}
 .todo-alert .todo-num{color:#B0392B}
-.todo-lbl{font-size:12px;color:#7a6f66;line-height:1.3}
+.todo-lbl{font-size:11px;color:#7a6f66;line-height:1.3}
 .side-cal{flex:0 0 auto;background:#FBEFE4;border:1px solid #EFD9C7;border-radius:12px;padding:10px;box-shadow:0 7px 14px -9px rgba(0,0,0,.18)}
 .cal-side-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
 .cal-side-title{font-weight:800;font-size:13px;color:var(--espresso)}
@@ -2468,77 +2472,85 @@ function renderAlerts(){
    Aggregates every action waiting on a human, computed from data already loaded. */
 function renderTodo(){
   const host=$(".todo-box .todo-body"); if(!host) return;
-  const rows=[];
-  // 🖼 image sets awaiting her review (previews present, not mid-regen)
-  const imgReview=pipe.filter(p=>p.stage===REVIEWCOL && p.imgPreviews && !(p.imgReview&&p.imgReview.status==="regen")).length;
-  if(imgReview) rows.push({n:imgReview,l:"image set"+(imgReview>1?"s":"")+" to review",alert:true});
-  // 🚀 articles attached + waiting on her publish click
-  const toPub=pipe.filter(p=>p.stage===FSPUB).length;
-  if(toPub) rows.push({n:toPub,l:"article"+(toPub>1?"s":"")+" ready to publish",alert:true});
-  // ⚠ alert-bar items (set by renderAlerts — runs before this)
-  const al=window._alertCount||0;
-  if(al) rows.push({n:al,l:"alert"+(al>1?"s":"")+" in the Needs-You bar",alert:true});
-  // 📝 non-promo review queue (click-through preserved)
-  const waiting=nonpromo.filter(n=>n.status==="needs_review").length;
-  rows.push({n:waiting,l:"non-promo waiting for review"+(waiting?" →":""),alert:!!waiting,go:"review"});
-  // 📥 seasonal pushes due now (exposed by the seasonal calendar)
-  const hot=(window._seasonHot||[]).length;
-  if(hot) rows.push({n:hot,l:"seasonal push"+(hot>1?"es":"")+" due — add products"});
-  // 📌 standing daily habit (Holls asked 2026-06-11): share 5 pins from other creators
-  rows.push({n:"5",l:"share 5 pins (not your own) on Pinterest — daily community habit"});
-  // 🍂 seasonal pushes coming up (<=45 days, beyond the due-now set)
-  const soon=(window._seasonSoon||[]).length;
-  if(soon) rows.push({n:soon,l:"seasonal push"+(soon>1?"es":"")+" coming up (\u226445 days)"});
-  // 🗓 non-promo scheduled this week (context, not action)
   const z=n=>String(n).padStart(2,"0"), iso=d=>d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
-  const now=new Date();now.setHours(0,0,0,0);
-  const ws=new Date(now);ws.setDate(now.getDate()-now.getDay());
-  const we=new Date(ws);we.setDate(ws.getDate()+6);
-  const schedWk=nonpromo.filter(n=>n.status==="scheduled" && n.date>=iso(ws) && n.date<=iso(we)).length;
-  rows.push({n:schedWk,l:"non-promo scheduled this week"});
-  // ---- calendar-powered rows (async — uses the cached payload, then re-paints) ----
+  const now=new Date();now.setHours(0,0,0,0); const today=iso(now);
+  const rows=[];   // {id,n,l,alert,go} action rows; {fyi:true,l} info rows. Zero-count rows are NOT shown.
+  const imgReview=pipe.filter(p=>p.stage===REVIEWCOL && p.imgPreviews && !(p.imgReview&&p.imgReview.status==="regen")).length;
+  if(imgReview) rows.push({id:"img",n:imgReview,l:"image set"+(imgReview>1?"s":"")+" to review",alert:true});
+  const toPub=pipe.filter(p=>p.stage===FSPUB).length;
+  if(toPub) rows.push({id:"pub",n:toPub,l:"article"+(toPub>1?"s":"")+" ready to publish",alert:true});
+  const al=window._alertCount||0;
+  if(al) rows.push({id:"alert",n:al,l:"alert"+(al>1?"s":"")+" in the Needs-You bar",alert:true});
+  const waiting=nonpromo.filter(n=>n.status==="needs_review").length;
+  if(waiting) rows.push({id:"npr",n:waiting,l:"non-promo waiting for review →",alert:true,go:"review"});
+  rows.push({id:"pins5",n:"5",l:"share 5 pins (not your own) on Pinterest"});
+  // seasonal: ONE line that names the seasons
+  const hot=window._seasonHot||[], soon=window._seasonSoon||[];
+  if(hot.length) rows.push({id:"season",n:hot.length,l:"seasonal — work on: "+hot.join(", ")+(soon.length?" · next up: "+soon[0]:""),alert:true});
+  else if(soon.length) rows.push({fyi:true,l:"Seasonal up next: "+soon.slice(0,3).join(", ")});
+  // ---- calendar-powered rows (async — cached payload, then re-paint) ----
   (async()=>{ try{
     const all=await apiGet(); const cal=(all["Calendar"]||[]).slice(1); const np=(all["NonPromo"]||[]).slice(1);
     if(!cal.length) return;
-    const today=iso(now);
     const day=(d,n)=>{const t=new Date(d+"T00:00:00");t.setDate(t.getDate()+n);return iso(t);};
-    const end7=day(today,7);
-    // articles published today vs goal
+    // articles today vs goal (bank-aware): action only when actually behind
     const art=cal.find(r=>String(r[0]||"").slice(0,10)===today && String(r[1]||"")==="articles");
     if(art){ const g=parseInt(art[2]||"5",10)||5, n=parseInt(art[3]||"0",10)||0;
-      const yd=day(today,-1);
-      const artY=cal.find(r=>String(r[0]||"").slice(0,10)===yd && String(r[1]||"")==="articles");
-      const bank=artY?(parseInt(String(artY[4]||"0").replace("+",""),10)||0):0;   // surplus banked BEFORE today
-      const hit=n>=g, covered=hit||n+bank>=g;
-      const lbl="articles published today"+(hit?" — goal hit! \ud83c\udf89"
-        :covered?" — bank covers it (+"+bank+" ahead) \ud83d\ude0c"
-        :" — "+(g-n)+" to go"+(bank?" (bank +"+bank+")":""));
-      rows.push({n:n+"/"+g,l:lbl,alert:!covered}); }
-    // posting slots still open in the next 7 days (promo sched + approved non-promo, vs goal)
+      const artY=cal.find(r=>String(r[0]||"").slice(0,10)===day(today,-1) && String(r[1]||"")==="articles");
+      const bank=artY?(parseInt(String(artY[4]||"0").replace("+",""),10)||0):0;
+      if(n>=g) rows.push({fyi:true,l:"Articles today: "+n+"/"+g+" — goal hit 🎉"});
+      else if(n+bank>=g) rows.push({fyi:true,l:"Articles today: "+n+"/"+g+" — bank covers it (+"+bank+" ahead)"});
+      else rows.push({id:"art",n:(g-n),l:"article"+(g-n>1?"s":"")+" to publish today ("+n+"/"+g+(bank?", bank +"+bank:"")+")",alert:true}); }
     const NP_LANE={instagram:"instagram-posts",instagramstory:"instagram-stories",facebook:"facebook-posts",facebookstory:"facebook-stories",tiktok:"tiktok"};
-    const npS={}; np.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"").toLowerCase(), st=String(r[5]||"").toLowerCase();
-      if(!d||st!=="queued") return; const ln=NP_LANE[pl]; if(ln) npS[d+"|"+ln]=(npS[d+"|"+ln]||0)+1; });   // queued only — "scheduled" already counts in col D
+    // non-promo slots needing a post soon (48h+ heads-up: scan tomorrow..+4 days)
+    const npFill={}; np.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"").toLowerCase(), st=String(r[5]||"").toLowerCase();
+      if(!d||(st!=="queued"&&st!=="scheduled")) return; const ln=NP_LANE[pl]; if(ln) npFill[d+"|"+ln]=(npFill[d+"|"+ln]||0)+1; });
+    let npGaps=0, npFirst="";
+    cal.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"");
+      if(pl==="articles"||pl==="runway"||!d||d<=today||d>day(today,4)) return;
+      const npg=parseInt(r[6]||"0",10)||0; if(!npg) return;
+      const have=npFill[d+"|"+pl]||0;
+      if(have<npg){ npGaps+=npg-have; if(!npFirst||d<npFirst) npFirst=d; } });
+    if(npGaps) rows.push({id:"npslots",n:npGaps,l:"non-promo slot"+(npGaps>1?"s":"")+" to fill, first on "+npFirst.slice(5).replace("-","/")+" →",alert:true,go:"review"});
+    // promo posting slots open next 7 days (queued non-promo counts as filled)
+    const npQ={}; np.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"").toLowerCase(), st=String(r[5]||"").toLowerCase();
+      if(!d||st!=="queued") return; const ln=NP_LANE[pl]; if(ln) npQ[d+"|"+ln]=(npQ[d+"|"+ln]||0)+1; });
     let gaps=0;
     cal.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"");
-      if(pl==="articles"||pl==="runway"||!d||d<=today||d>end7) return;
+      if(pl==="articles"||pl==="runway"||!d||d<=today||d>day(today,7)) return;
       const g=parseInt(r[2]||"0",10)||0; if(!g) return;
-      const sch=(parseInt(r[3]||"0",10)||0)+(npS[d+"|"+pl]||0);
+      const sch=(parseInt(r[3]||"0",10)||0)+(npQ[d+"|"+pl]||0);
       if(sch<g) gaps+=g-sch; });
-    if(gaps) rows.push({n:gaps,l:"posting slots open in the next 7 days \u2192",go:"calendar"});
-    // pinterest runway (weeks of pins scheduled ahead)
+    if(gaps) rows.push({id:"slots",n:gaps,l:"posting slots open in the next 7 days →",go:"calendar"});
+    // FYI footer lines (informational, not to-dos)
     const run=cal.find(r=>String(r[1]||"")==="runway");
     if(run){ const wks=parseInt(run[2]||"0",10)||0;
-      rows.push({n:wks+"w",l:"Pinterest runway (pins scheduled ahead)",alert:wks<2}); }
+      rows.push({fyi:true,l:"Pinterest runway: "+wks+" weeks of pins scheduled"+(wks<2?" — getting low!":"")}); }
     paint();
   }catch(e){} })();
-  function paint(){ host.innerHTML=rows.map(r=>{
-    const inner=`<span class="todo-num">${r.n}</span><span class="todo-lbl">${esc(r.l)}</span>`;
-    return r.go?`<button class="todo-stat${r.alert?' todo-alert':''}" data-gotab="${r.go}" title="Open ${r.go==='calendar'?'the Posting Calendar':'The Group Chat'}">${inner}</button>`
-      :`<div class="todo-stat${r.alert?' todo-alert':''}">${inner}</div>`;
-  }).join(""); }
+  function paint(){
+    let done={}; try{done=JSON.parse(localStorage.getItem("todoDone:"+today)||"{}")}catch(e){}
+    const acts=rows.filter(r=>!r.fyi), fyis=rows.filter(r=>r.fyi);
+    host.innerHTML=(acts.map(r=>{
+      const isDone=!!done[r.id];
+      const inner=`<input type="checkbox" class="todo-chk" data-tdid="${r.id}"${isDone?" checked":""}><span class="todo-num">${r.n}</span><span class="todo-lbl">${esc(r.l)}</span>`;
+      const cls="todo-stat"+(r.alert&&!isDone?" todo-alert":"")+(isDone?" todo-done":"");
+      return r.go?`<button class="${cls}" data-gotab="${r.go}" title="Open ${r.go==='calendar'?'the Posting Calendar':'The Group Chat'}">${inner}</button>`
+        :`<div class="${cls}">${inner}</div>`;
+    }).join("")||'<p class="todo-empty">Nothing needs you right now 🎉</p>')
+      +fyis.map(r=>`<div class="todo-fyi">${esc(r.l)}</div>`).join("");
+  }
   paint();
 }
 document.addEventListener("click",e=>{
+  const c=e.target.closest(".todo-chk");
+  if(c){ e.stopPropagation();
+    const z=n=>String(n).padStart(2,"0"), d=new Date(), key="todoDone:"+d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
+    let done={}; try{done=JSON.parse(localStorage.getItem(key)||"{}")}catch(err){}
+    if(c.checked) done[c.dataset.tdid]=1; else delete done[c.dataset.tdid];
+    localStorage.setItem(key,JSON.stringify(done));
+    const row=c.closest(".todo-stat"); if(row){ row.classList.toggle("todo-done",c.checked); if(c.checked) row.classList.remove("todo-alert"); }
+    return; }
   const b=e.target.closest("[data-gotab]");
   if(b){ const t=document.querySelector('.tab[data-view="'+b.dataset.gotab+'"]'); if(t)t.click(); }
 });
