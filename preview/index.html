@@ -465,8 +465,13 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
 .col{padding:6px 6px 4px!important}
 .col .card{margin:0 0 7px!important;width:auto!important}
 .card{padding:10px 12px!important}
+/* status row cleanup: heartbeat hidden unless stalled; pause pill compact, inline */
+#brainPill{display:none!important}
+#brainPill[data-state=stall]{display:flex!important}
+#pausePill{padding:5px 10px!important;font-size:11px!important;border-color:#E4E8EC!important}
+.topbar{flex-wrap:nowrap!important}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v6.1</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v6.2</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
