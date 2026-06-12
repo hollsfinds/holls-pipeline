@@ -406,10 +406,13 @@ button.todo-stat:hover{background:var(--peach)}
 body{font-family:'Inter',-apple-system,sans-serif!important;background:#FFF!important;letter-spacing:-0.011em;color:#1B1F24}
 h1,h2,h3,.cal-h{letter-spacing:-0.03em!important;font-weight:800!important;color:#15181C!important}
 .cal-h{font-size:19px!important;margin-top:26px!important}
-/* tabs -> modern pills: active = ink, inactive = ghost */
-.tab{border-radius:99px!important;padding:8px 18px!important;font-weight:700!important;border:1px solid transparent!important;background:transparent!important;color:#6E7681!important;transition:all .15s}
-.tab:hover{background:#F3F5F7!important;color:#1B1F24!important}
-.tab.active,.tab[aria-selected="true"]{background:#15181C!important;color:#fff!important;box-shadow:0 6px 16px rgba(16,24,40,.18)!important}
+/* tabs -> editorial: quiet text, ink underline on active. No pills. */
+.tab{border-radius:0!important;padding:10px 4px!important;margin:0 10px!important;font-weight:600!important;border:none!important;border-bottom:2.5px solid transparent!important;background:transparent!important;color:#6E7681!important;transition:color .15s,border-color .15s}
+.tab:hover{background:transparent!important;color:#15181C!important}
+.tab.active,.tab[aria-selected="true"]{background:transparent!important;color:#15181C!important;border-bottom-color:#15181C!important;box-shadow:none!important}
+/* every pill-shaped chip becomes a sharp, quiet tag */
+[class*="pill"],.cornertag{border-radius:5px!important;font-weight:600!important;text-transform:none!important;letter-spacing:0!important}
+.boardpill{border-radius:6px!important}
 /* board columns: cool gray wells, clean headers */
 .col{background:#F7F8FA!important;border:none!important;border-radius:16px!important;padding:14px!important}
 .col-h{font-size:11px!important;font-weight:800!important;letter-spacing:1.2px!important;text-transform:uppercase!important;color:#6E7681!important}
@@ -422,8 +425,14 @@ h1,h2,h3,.cal-h{letter-spacing:-0.03em!important;font-weight:800!important;color
 .todo-box .side-h{background:#fff!important;border-bottom:1px solid #F0F2F4!important;letter-spacing:-0.01em}
 .todo-stat{background:#F7F8FA!important;border:none!important;border-radius:10px!important}
 button.todo-stat:hover{background:#FFEDE3!important}
-/* buttons: rounded-full, confident */
-button:not(.tab):not(.todo-stat){border-radius:10px!important;font-weight:700!important}
+/* buttons: composed, not bubbly */
+button:not(.tab):not(.todo-stat){border-radius:8px!important;font-weight:600!important}
+/* sharper geometry overall — grown-up corners */
+.card{border-radius:10px!important}
+.col{border-radius:12px!important}
+.todo-box,.help-card,.st-fcell,.st-det{border-radius:12px!important}
+.todo-stat{border-radius:8px!important}
+details{border-radius:10px!important}
 /* breathing room */
 .board{gap:14px!important}
 .boardwrap{padding:6px 4px!important}
@@ -433,7 +442,7 @@ button:not(.tab):not(.todo-stat){border-radius:10px!important;font-weight:700!im
 /* kill remaining warm washes */
 .lead{font-weight:800!important;letter-spacing:-0.02em!important}
 </style></head>
-<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v2</div>
+<body><div style="position:fixed;bottom:14px;right:14px;z-index:9999;background:#F87E72;color:#fff;font-weight:800;font-size:12px;padding:6px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.2)">🎨 RESKIN PREVIEW v3</div>
 <div id="hfgate"><div class="box">
   <span class="dot"></span>
   <h2>Holls Finds Pipeline</h2>
