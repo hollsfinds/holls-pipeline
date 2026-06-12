@@ -939,13 +939,44 @@ button.todo-stat:hover{background:var(--peach)}
         var now2=rows.filter(function(r){return r.i.k===2;}),
             next2=rows.filter(function(r){return r.i.k===1;}),
             later2=rows.filter(function(r){return r.i.k===0;});
+        /* ---- Gantt: Jan–Dec, one row per season, phase-colored month cells ---- */
+        var SEG=[["prep","#EBEFE6","#5E6E50"],["light","#FBE3CE","#B5702F"],["heavy","#F6B89B","#8C4A1F"],["final","#E2725B","#fff"]];
+        var curM=today.getMonth();
+        function ganttHTML(){
+          var head='<div style="display:grid;grid-template-columns:150px repeat(12,1fr);gap:2px;align-items:center;margin:2px 0">'
+            +'<div></div>'+months.map(function(mn,mi){
+              return '<div style="text-align:center;font-size:10px;font-weight:800;color:'+(mi===curM?'#B0392B':'#a89c93')+'">'+mn.slice(0,1)+'</div>';}).join('')+'</div>';
+          var byNext=S.map(function(sn){return {sn:sn, u:(sn.ev-curM+12)%12, act:rows.find(function(r){return r.s===sn;}).i.k===2};})
+                      .sort(function(a,b){return a.u-b.u;});
+          var body=byNext.map(function(o){
+            var sn=o.sn, segm={};   // month -> seg index
+            for(var k2=0;k2<4;k2++) segm[((sn.ev-3+k2)%12+12)%12]=k2;
+            var cells=months.map(function(_,mi){
+              var sg=segm[mi];
+              var base='height:16px;border-radius:3px;';
+              if(mi===curM) base+='box-shadow:inset 0 0 0 1.5px #B0392B66;';
+              if(sg===undefined) return '<div style="'+base+'background:#F4EFE9"></div>';
+              var c=SEG[sg];
+              var star=(sg===3)?'<span style="font-size:9px;color:'+c[2]+';line-height:16px;display:block;text-align:center">★</span>':'';
+              return '<div title="'+sn.n+' — '+["prep (add products)","light posting","heavy posting","final push / event"][sg]+'" style="'+base+'background:'+c[1]+'">'+star+'</div>';
+            }).join('');
+            var lab='<div style="font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:4px;'+(o.act?'font-weight:800;color:#B0392B':'color:#6d6258')+'">'+(o.act?'🔥 ':'')+sn.e+' '+sn.n+'</div>';
+            return '<div style="display:grid;grid-template-columns:150px repeat(12,1fr);gap:2px;align-items:center;margin:2px 0">'+lab+cells+'</div>';
+          }).join('');
+          var leg='<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10.5px;margin:6px 0 2px;color:#7a6f66">'
+            +SEG.map(function(c,ci){return '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+c[1]+';vertical-align:-1px"></span> '+["prep — add products to On Deck","light posting","heavy posting","final push (★ event)"][ci]+'</span>';}).join('')
+            +'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;box-shadow:inset 0 0 0 1.5px #B0392B66;vertical-align:-1px"></span> current month</span></div>';
+          return '<div style="border:1px solid #E8E1D8;border-radius:10px;background:#fff;padding:10px 12px;margin:8px 0">'+head+body+leg+'</div>';
+        }
         var out='<div style="background:rgba(248,131,120,.12);border:1px solid var(--coral,#F88378);border-radius:8px;padding:8px 12px;margin:6px 0 4px;font-size:13px">'
           +'<b>📥 Add to On Deck now:</b> '+(hot.length?hot.join(", "):"— nothing due —")
           +(soon.length?'<br><span style="opacity:.7">Coming up (≤45 days): '+soon.join(", ")+'</span>':'')+'</div>'
-          +'<div style="font-size:11px;opacity:.55;margin:2px 0 6px">Click any season to see its Foundation → Build → Peak plan.</div>'
+          +ganttHTML()
+          +'<details style="margin:8px 0"><summary style="cursor:pointer;font-size:12px;font-weight:800;color:#7a6f66;letter-spacing:.4px;list-style:none">▸ SEASON-BY-SEASON PLANS — click to open</summary>'
           +group('🔥 WORK ON NOW',now2,true)
           +group('🟠 NEXT UP (≤45 DAYS)',next2,true)
-          +group('🗓 LATER THIS YEAR',later2,false);
+          +group('🗓 LATER THIS YEAR',later2,true)
+          +'</details>';
         el.innerHTML=out;
       }
       /* ---- seasonal focus bar (derived from the SAME data — no drift) ---- */
