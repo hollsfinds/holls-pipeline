@@ -816,74 +816,74 @@ button.todo-stat:hover{background:var(--peach)}
          (heavy at 0–1 months out, ramp at 2, prep at 3). Repeats yearly.
          NOTE Easter / Mother's Day / Thanksgiving float — update dateLabel each year. */
       var S=[
-        {n:"Prime Day",e:"🛒",d:"Jun 23–26 (’26 — earlier than usual!)",dl:{m:5,d:13},ev:5,ph:[
+        {n:"Prime Day",e:"🛒",d:"Jun 23–26 (’26 — earlier than usual!)",dl:{m:5,d:13},ev:5,evd:{m:5,d:23},ph:[
           ["Foundation","now","Deal-ready roundups of products ALREADY live on the site"],
           ["Build","Jun 20–22","Teaser pins + “what I’m watching” content"],
           ["Peak","Jun 23–26","Daily Prime Day finds — NO prices/percent-off in copy (TOS)"]]},
-        {n:"Father’s Day",e:"👔",d:"Jun 21 (3rd Sun)",dl:{m:5,d:10},ev:5,ph:[
+        {n:"Father’s Day",e:"👔",d:"Jun 21 (3rd Sun)",dl:{m:5,d:10},ev:5,evd:{m:5,d:21},ph:[
           ["Build","1–2 wks out","Gifts-for-him roundups: office, garage-chic, grill-adjacent"],
           ["Peak","final wk","Last-minute gifts with Prime shipping angle"]]},
-        {n:"July 4th / Americana",e:"🎆",d:"Jul 4",dl:{m:5,d:17},ev:6,ph:[
+        {n:"July 4th / Americana",e:"🎆",d:"Jul 4",dl:{m:5,d:17},ev:6,evd:{m:6,d:4},ph:[
           ["Foundation","4–3 wks · mid-Jun","Patio refresh + outdoor entertaining basics (light)"],
           ["Build","2 wks · late Jun","Americana decor, red/white/blue tablescapes"],
           ["Peak","final wk","Last-minute party finds, drinkware, quick decor (daily)"]]},
-        {n:"Summer entertaining / patio",e:"☀️",d:"Jun–Aug",dl:{m:5,d:1},ev:6,ph:[
+        {n:"Summer entertaining / patio",e:"☀️",d:"Jun–Aug",dl:{m:5,d:1},ev:6,evd:{m:7,d:31},ph:[
           ["Foundation","early Jun","Patio setup, outdoor rugs + lighting"],
           ["Build","Jun–Jul","Hosting, serveware, cooling finds"],
           ["Peak","Jul–Aug","Cookout, pool + bug-season must-haves"]]},
-        {n:"Back-to-school / teen room",e:"✏️",d:"peak mid-Aug",dl:{m:5,d:17},ev:7,ph:[
+        {n:"Back-to-school / teen room",e:"✏️",d:"peak mid-Aug",dl:{m:5,d:17},ev:7,evd:{m:7,d:15},ph:[
           ["Foundation","8–6 wks · Jul","Dorm + teen-room inspo, storage basics"],
           ["Build","5–3 wks · late Jul","Desk setups, lighting, organization"],
           ["Peak","2 wks · early–mid Aug","Last-minute dorm checklists + deals"]]},
-        {n:"Fall / harvest decor",e:"🍂",d:"peak Sep–Oct",dl:{m:6,d:18},ev:8,ph:[
+        {n:"Fall / harvest decor",e:"🍂",d:"peak Sep–Oct",dl:{m:6,d:18},ev:8,evd:{m:9,d:31},ph:[
           ["Foundation","Aug","Early-fall transition, neutral textiles"],
           ["Build","early Sep","Pumpkins, wreaths, candles"],
           ["Peak","late Sep–Oct","Full harvest decor + cozy layering"]]},
-        {n:"Prime Big Deal Days",e:"🛍️",d:"early–mid Oct (TBA)",dl:{m:8,d:1},ev:9,ph:[
+        {n:"Prime Big Deal Days",e:"🛍️",d:"early–mid Oct (TBA)",dl:{m:8,d:1},ev:9,evd:{m:9,d:8},ph:[
           ["Foundation","Sep","Fall decor + organization products live and indexed"],
           ["Build","late Sep","Teaser pins, “fall finds I’m watching”"],
           ["Peak","event days","Deal-day roundups — same TOS rules as Prime Day"]]},
-        {n:"Halloween",e:"🎃",d:"Oct 31",dl:{m:7,d:18},ev:9,ph:[
+        {n:"Halloween",e:"🎃",d:"Oct 31",dl:{m:7,d:18},ev:9,evd:{m:9,d:31},ph:[
           ["Foundation","8 wks · Sep","Chic (not cheesy) Halloween inspo"],
           ["Build","5–3 wks · late Sep–mid Oct","Porch + entry decor, lighting"],
           ["Peak","final 2 wks · late Oct","Last-minute + party + doormats (daily)"]]},
-        {n:"Thanksgiving / hosting",e:"🦃",d:"Nov 26 (’26 · 4th Thu)",dl:{m:8,d:17},ev:10,ph:[
+        {n:"Thanksgiving / hosting",e:"🦃",d:"Nov 26 (’26 · 4th Thu)",dl:{m:8,d:17},ev:10,evd:{m:10,d:26},ph:[
           ["Foundation","8 wks · Oct","Tablescape inspo + hosting basics"],
           ["Build","Nov","Linens, serveware, centerpieces"],
           ["Peak","final wk · ~Nov 19–26","Last-minute table + host gifts"]]},
-        {n:"Christmas / holiday decor",e:"🎄",d:"Dec 25",dl:{m:8,d:17},ev:11,ph:[
+        {n:"Christmas / holiday decor",e:"🎄",d:"Dec 25",dl:{m:8,d:17},ev:11,evd:{m:11,d:25},ph:[
           ["Foundation","10–7 wks · early Oct","Gift guides, holiday recipes, budgeting pins (light)"],
           ["Build","6–3 wks · late Oct–Nov","Tree + decor, stockings, hosting, gift roundups"],
           ["Peak","final 2 wks · Dec","Last-minute gifts, quick DIYs, wrapping tips, holiday outfit inspo (daily)"]]},
-        {n:"Holiday gift guides",e:"🎁",d:"Black Fri (Nov 27) → Dec 24",dl:{m:9,d:1},ev:11,ph:[
+        {n:"Holiday gift guides",e:"🎁",d:"Black Fri (Nov 27) → Dec 24",dl:{m:9,d:1},ev:11,evd:{m:11,d:24},ph:[
           ["Foundation","Jul–Oct","Pinterest plans EARLY — seed evergreen gift pins from July"],
           ["Build","early–mid Nov","Bundle + under-$50 roundups"],
           ["Peak","Black Fri–mid Dec","Deal content + ship-by-date urgency (no prices in copy)"]]},
-        {n:"Winter cozy / hygge",e:"🧣",d:"Dec–Feb",dl:{m:10,d:1},ev:0,ph:[
+        {n:"Winter cozy / hygge",e:"🧣",d:"Dec–Feb",dl:{m:10,d:1},ev:0,evd:{m:1,d:28},ph:[
           ["Foundation","Nov","Cozy textiles + ambiance basics"],
           ["Build","Dec–Jan","Layering, candles, warm-drink setups"],
           ["Peak","Jan–Feb","Hibernation + cozy-night content (post-holiday filler)"]]},
-        {n:"New Year refresh / org",e:"🗂️",d:"Jan 1",dl:{m:10,d:17},ev:0,ph:[
+        {n:"New Year refresh / org",e:"🗂️",d:"Jan 1",dl:{m:10,d:17},ev:0,evd:{m:0,d:15},ph:[
           ["Foundation","Dec","Organization inspo + reset mindset"],
           ["Build","late Dec","Storage, closet, pantry finds"],
           ["Peak","Jan 1–15","New-year reset checklists + declutter"]]},
-        {n:"Valentine’s Day",e:"💐",d:"Feb 14",dl:{m:11,d:22},ev:1,ph:[
+        {n:"Valentine’s Day",e:"💐",d:"Feb 14",dl:{m:11,d:22},ev:1,evd:{m:1,d:14},ph:[
           ["Foundation","5 wks · Jan 5","Cozy + romantic decor inspo"],
           ["Build","3 wks · late Jan","Pink/red accents + gift ideas"],
           ["Peak","final wk · early Feb","Last-minute gifts + at-home date setups"]]},
-        {n:"Spring refresh / cleaning",e:"🌷",d:"Mar–Apr",dl:{m:0,d:18},ev:2,ph:[
+        {n:"Spring refresh / cleaning",e:"🌷",d:"Mar–Apr",dl:{m:0,d:18},ev:2,evd:{m:3,d:30},ph:[
           ["Foundation","Feb","Lighten-up inspo + declutter"],
           ["Build","Feb–Mar","Faux florals, light textiles, organization"],
           ["Peak","Mar–Apr","Full spring-refresh roundups"]]},
-        {n:"Easter / spring table",e:"🐰",d:"Mar 28 (’27)",dl:{m:1,d:8},ev:2,ph:[
+        {n:"Easter / spring table",e:"🐰",d:"Mar 28 (’27)",dl:{m:1,d:8},ev:2,evd:{m:2,d:28},ph:[
           ["Foundation","6 wks · mid-Feb","Pastel + spring-table inspo"],
           ["Build","4–2 wks · early Mar","Tablescape + decor finds"],
           ["Peak","final wk · late Mar","Last-minute table + basket finds"]]},
-        {n:"Mother’s Day",e:"💝",d:"May 9 (’27 · 2nd Sun)",dl:{m:2,d:18},ev:4,ph:[
+        {n:"Mother’s Day",e:"💝",d:"May 9 (’27 · 2nd Sun)",dl:{m:2,d:18},ev:4,evd:{m:4,d:9},ph:[
           ["Foundation","6 wks · Apr","Gift-for-Mom guides"],
           ["Build","4–2 wks · mid–late Apr","Self-care, home gifts, jewelry"],
           ["Peak","final wk · early May","Last-minute + ship-by urgency"]]},
-        {n:"Late spring / patio prep",e:"🪴",d:"May–Jun",dl:{m:3,d:1},ev:5,ph:[
+        {n:"Late spring / patio prep",e:"🪴",d:"May–Jun",dl:{m:3,d:1},ev:5,evd:{m:5,d:30},ph:[
           ["Foundation","Apr","Patio-prep inspo"],
           ["Build","late Apr–May","Outdoor furniture refresh, planters"],
           ["Peak","May–Jun","Full summer-ready (loops into July 4th)"]]}
@@ -913,10 +913,11 @@ button.todo-stat:hover{background:var(--peach)}
         var SEGLBL=["prep — add products to On Deck","light posting","heavy posting","final push (★ event)"];
         var curM=today.getMonth();
         function ganttHTML(){
-          var GRID='display:grid;grid-template-columns:200px repeat(12,1fr);gap:2px;align-items:center;margin:2px 0';
+          var GRID='display:grid;grid-template-columns:200px repeat(12,1fr) 58px;gap:2px;align-items:center;margin:2px 0';
+          function lastPost(sn){ if(!sn.evd) return ''; var y=today.getFullYear(), t=new Date(y,sn.evd.m,sn.evd.d); if(t<today) t=new Date(y+1,sn.evd.m,sn.evd.d); t.setDate(t.getDate()-7); return months[t.getMonth()].slice(0,3)+' '+t.getDate(); }
           var head='<div style="'+GRID+'"><div></div>'+Array.from({length:12},function(_,i){
               var mi=(curM+i)%12;
-              return '<div style="text-align:center;font-size:9.5px;font-weight:800;color:'+(i===0?'#B0392B':'#a89c93')+'">'+months[mi].slice(0,3)+'</div>';}).join('')+'</div>';
+              return '<div style="text-align:center;font-size:9.5px;font-weight:800;color:'+(i===0?'#B0392B':'#a89c93')+'">'+months[mi].slice(0,3)+'</div>';}).join('')+'<div style="text-align:right;font-size:9px;font-weight:800;color:#a89c93;white-space:nowrap">LAST POST</div></div>';
           var byNext=S.map(function(sn){var u=(sn.ev-curM+12)%12;
               return {sn:sn,u:u,act:(rows.find(function(r){return r.s===sn;}).i.k===2)||u===0};})
             .sort(function(a,b){return a.u-b.u;});
@@ -933,7 +934,8 @@ button.todo-stat:hover{background:var(--peach)}
               return '<div title="'+sn.n+' — '+SEGLBL[sg]+'" style="'+base+'background:'+c[1]+'">'+star+'</div>';
             }).join('');
             var lab='<div class="sea-lab" data-searow="'+ri+'" style="font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 4px 2px 2px;cursor:pointer;border-radius:5px;'+(o.act?'font-weight:800;color:#B0392B':'color:#6d6258')+'" title="Click to highlight this row">'+(o.act?'🔥 ':'')+sn.e+' '+sn.n+'</div>';
-            return '<div class="sea-row" data-searow="'+ri+'" style="'+GRID+';border-radius:6px;padding:1px 2px">'+lab+cells+'</div>';
+            var lp='<div style="text-align:right;font-size:10px;font-weight:700;color:#B0392B;white-space:nowrap" title="Post your last '+sn.n+' content by this date (1 week before the event)">'+lastPost(sn)+'</div>';
+            return '<div class="sea-row" data-searow="'+ri+'" style="'+GRID+';border-radius:6px;padding:1px 2px">'+lab+cells+lp+'</div>';
           }).join('');
           var leg='<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:10.5px;margin:6px 0 2px;color:#7a6f66">'
             +SEG.map(function(c,ci){return '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+c[1]+';vertical-align:-1px"></span> '+SEGLBL[ci]+'</span>';}).join('')
