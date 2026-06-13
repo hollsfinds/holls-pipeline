@@ -2388,6 +2388,8 @@ function packGroups(pack){
     const pushVers=(label,v)=>{const arr=asList(v);arr.forEach((t,i)=>{if(t)groups.push({heading:arr.length>1?label+" #"+(i+1):label,fields:[{label:"",text:t}]});});};
     pushVers("Instagram caption",pack.instagram);
     pushVers("Facebook post",pack.facebook);
+    pushVers("Instagram Reel",pack.instagramReel);
+    pushVers("Facebook Reel",pack.facebookReel);
     pushVers("Instagram Story",pack.instagramStory);
     pushVers("Facebook Story",pack.facebookStory);
     // TikTok Photo Mode carousel (article-tied). pack.tiktok = [{caption,frames}] (or string); pack.tiktokFrames = ordered image URLs.
@@ -2715,7 +2717,7 @@ function renderTodo(){
       const g = hfPinGap(cal, 14);   // open Pinterest pin slots over next 14 days ≈ articles to publish (10-day spacing ⇒ ~1 pin per new article near-term)
       if(g<=0) rows.push({fyi:true,l:"Articles: 2-week pin runway full 🎉 ("+n+" published today)"});
       else rows.push({id:"art",n:g,l:"article"+(g>1?"s":"")+" to publish — fills your 2-week pin runway ("+n+" done today)",alert:true}); }
-    const NP_LANE={instagram:"instagram-posts",instagramstory:"instagram-stories",facebook:"facebook-posts",facebookstory:"facebook-stories",tiktok:"tiktok"};
+    const NP_LANE={instagram:"instagram-posts",instagramstory:"instagram-stories",instagramreel:"instagram-reels",facebook:"facebook-posts",facebookstory:"facebook-stories",facebookreel:"facebook-reels",tiktok:"tiktok"};
     // non-promo slots needing a post soon (48h+ heads-up: scan tomorrow..+4 days)
     const npFill={}; np.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"").toLowerCase(), st=String(r[5]||"").toLowerCase();
       if(!d||(st!=="queued"&&st!=="scheduled")) return; const ln=NP_LANE[pl]; if(ln) npFill[d+"|"+ln]=(npFill[d+"|"+ln]||0)+1; });
@@ -2854,7 +2856,7 @@ async function renderCalendar(targetId,compact){
     (map[d]=map[d]||{})[pl]={goal:parseInt(r[2]||'0',10)||0, sched:s, npGoal:parseInt(r[6]||'0',10)||0};   // col G = non-promo required
     if(s>0 && (!furthest[pl]||d>furthest[pl])) furthest[pl]=d; });
   // non-promo SCHEDULED tally from the NonPromo tab — count queued+scheduled, mapped to a lane
-  const NP_LANE={instagram:'instagram-posts',instagramstory:'instagram-stories',facebook:'facebook-posts',facebookstory:'facebook-stories',tiktok:'tiktok'};
+  const NP_LANE={instagram:'instagram-posts',instagramstory:'instagram-stories',instagramreel:'instagram-reels',facebook:'facebook-posts',facebookstory:'facebook-stories',facebookreel:'facebook-reels',tiktok:'tiktok'};
   const npSched={};   // npSched[date][laneKey] = count
   (npRows||[]).slice(1).forEach(r=>{ const d=String(r[0]||'').slice(0,10), pl=String(r[1]||'').toLowerCase(), st=String(r[5]||'').toLowerCase();
     if(!d) return; if(st!=='queued'&&st!=='scheduled') return; const lane=NP_LANE[pl]; if(!lane) return;
@@ -2863,9 +2865,11 @@ async function renderCalendar(targetId,compact){
     {key:"articles",n:"Articles",art:true},
     {key:"pinterest",n:"Pinterest"},
     {key:"facebook-posts",n:"FB Posts",fb:"facebook",split:true},
-    {key:"facebook-stories",n:"FB Story",dg:2,split:true},
+    {key:"facebook-reels",n:"FB Reel",split:true},
+    {key:"facebook-stories",n:"FB Story",dg:2,split:true,chat:true},
     {key:"instagram-posts",n:"IG Posts",fb:"instagram",split:true},
-    {key:"instagram-stories",n:"IG Story",dg:2,split:true},
+    {key:"instagram-reels",n:"IG Reel",split:true},
+    {key:"instagram-stories",n:"IG Story",dg:2,split:true,chat:true},
     {key:"tiktok",n:"TikTok",split:true}
   ];
   const cellFor=rec=>{ if(!rec) return {cls:'unk',txt:'·'};
@@ -2882,7 +2886,7 @@ async function renderCalendar(targetId,compact){
       if(r){goal=r.goal;sched=r.sched;} else if(L.dg!=null){goal=L.dg;sched=0;} else {exists=false;} }
     if(!exists) return {exists:false};
     let npReq=0;
-    if(L.split){ const r=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb])); npReq=Math.min(r?(r.npGoal||0):0, goal); }
+    if(L.split){ const r=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb])); npReq=Math.min(r?(r.npGoal||0):0, goal); if(!r && L.chat) npReq=goal; }
     const npSc = L.split ? ((npSched[d]&&npSched[d][L.key])||0) : 0;
     // posts that exist ARE capacity: an off-day or over-reservation post expands the day's goal
     // instead of flagging "wrong slot" (fix 2026-06-11 — e.g. FB non-promo on a goal-0 Saturday)
@@ -3169,7 +3173,7 @@ function upcomingHtml(body){
     .sort((a,b)=>String(a.r[0]).slice(0,10)<String(b.r[0]).slice(0,10)?-1:1).slice(0,12);
   if(!up.length) return "";
   // lane order matches the Calendar page; ○ marks an open non-promo slot (quota with no post yet)
-  const LANES=[["facebook","FB Posts","facebook-posts"],["facebookstory","FB Story","facebook-stories"],["instagram","IG Posts","instagram-posts"],["instagramstory","IG Story","instagram-stories"],["tiktok","TikTok","tiktok"]];
+  const LANES=[["facebook","FB Posts","facebook-posts"],["facebookreel","FB Reel","facebook-reels"],["facebookstory","FB Story","facebook-stories"],["instagram","IG Posts","instagram-posts"],["instagramreel","IG Reel","instagram-reels"],["instagramstory","IG Story","instagram-stories"],["tiktok","TikTok","tiktok"]];
   const npQuota={};
   try{ ((window._allTabs&&window._allTabs.Calendar)||[]).slice(1).forEach(r=>{
     const d=String(r[0]||"").slice(0,10), pl=String(r[1]||""), q=parseInt(r[6]||"0",10)||0;
@@ -3518,7 +3522,7 @@ document.addEventListener("DOMContentLoaded",function(){ setTimeout(function(){
 </script><script>
 /* bundle chips: show ○ open / ✓ filled for the picked date */
 (function(){
-  const LANE={facebook:"facebook-posts",instagram:"instagram-posts",tiktok:"tiktok",facebookstory:"facebook-stories",instagramstory:"instagram-stories"};
+  const LANE={facebook:"facebook-posts",instagram:"instagram-posts",tiktok:"tiktok",facebookstory:"facebook-stories",instagramstory:"instagram-stories",facebookreel:"facebook-reels",instagramreel:"instagram-reels"};
   function refresh(card){
     const sel=card.querySelector(".pb-slot"); if(!sel) return;
     const d=sel.value||new Date().toISOString().slice(0,10);
