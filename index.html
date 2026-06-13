@@ -3002,6 +3002,9 @@ document.addEventListener("click",e=>{
   window.addEventListener("resize",()=>{ if(stored===null){ const c=window.innerWidth<1280; if(c!==collapsed){collapsed=c;apply(c);} } });
   // GLOBAL RAIL: lift the sidebar out of the Pipeline view so it shows on every tab
   document.body.appendChild(side);
+  function placeRail(){ const tb=document.querySelector(".topbar");
+    if(tb) side.style.top=(tb.getBoundingClientRect().height+12)+"px"; }
+  placeRail(); window.addEventListener("resize",placeRail); setTimeout(placeRail,800);
 })();
 
 /* ---------- tabs + tray ---------- */
