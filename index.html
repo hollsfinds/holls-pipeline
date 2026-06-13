@@ -1193,7 +1193,7 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
       </div>
       <div class="cal-card" style="border-color:var(--coral)">
         <h4>⏱️ Fill rate</h4>
-        <p class="cal-rule"><b>Pinterest pins/day = 6 × articles/day.</b> ~2.5 published articles/day keeps the 15/day calendar full; publish more and the runway fills further ahead.</p>
+        <p class="cal-rule"><b>Article goal is derived from open pin slots.</b> The board counts open Pinterest slots over the next 2 weeks and shows how many articles to publish to keep that runway full — recomputed daily, so it self-corrects as you publish.</p>
       </div>
     </div>
   </section>
@@ -2711,12 +2711,10 @@ function renderTodo(){
     const day=(d,n)=>{const t=new Date(d+"T00:00:00");t.setDate(t.getDate()+n);return iso(t);};
     // articles today vs goal (bank-aware): action only when actually behind
     const art=cal.find(r=>String(r[0]||"").slice(0,10)===today && String(r[1]||"")==="articles");
-    if(art){ const g=parseInt(art[2]||"5",10)||5, n=parseInt(art[3]||"0",10)||0;
-      const artY=cal.find(r=>String(r[0]||"").slice(0,10)===day(today,-1) && String(r[1]||"")==="articles");
-      const bank=artY?(parseInt(String(artY[4]||"0").replace("+",""),10)||0):0;
-      if(n>=g) rows.push({fyi:true,l:"Articles today: "+n+"/"+g+" — goal hit 🎉"});
-      else if(n+bank>=g) rows.push({fyi:true,l:"Articles today: "+n+"/"+g+" — bank covers it (+"+bank+" ahead)"});
-      else rows.push({id:"art",n:(g-n),l:"article"+(g-n>1?"s":"")+" to publish today ("+n+"/"+g+(bank?", bank +"+bank:"")+")",alert:true}); }
+    { const n = art ? (parseInt(art[3]||"0",10)||0) : 0;   // articles published today (Sheet mirrors Metricool/pipeline)
+      const g = hfPinGap(cal, 14);   // open Pinterest pin slots over next 14 days ≈ articles to publish (10-day spacing ⇒ ~1 pin per new article near-term)
+      if(g<=0) rows.push({fyi:true,l:"Articles: 2-week pin runway full 🎉 ("+n+" published today)"});
+      else rows.push({id:"art",n:g,l:"article"+(g>1?"s":"")+" to publish — fills your 2-week pin runway ("+n+" done today)",alert:true}); }
     const NP_LANE={instagram:"instagram-posts",instagramstory:"instagram-stories",facebook:"facebook-posts",facebookstory:"facebook-stories",tiktok:"tiktok"};
     // non-promo slots needing a post soon (48h+ heads-up: scan tomorrow..+4 days)
     const npFill={}; np.forEach(r=>{ const d=String(r[0]||"").slice(0,10), pl=String(r[1]||"").toLowerCase(), st=String(r[5]||"").toLowerCase();
@@ -2808,6 +2806,23 @@ function maybeLoadFrame(view){
   catch(e){el.replaceWith(Object.assign(document.createElement("div"),{className:"ph",innerHTML:"<h2>Couldn't load tool</h2><p>"+esc(e.message||"")+"</p>"}));}
 }
 
+/* Derived article goal: open Pinterest pin slots over the next `days` (default 14).
+   Near-term, 10-day same-URL spacing means a new article drops only ~1 pin into the
+   window, so open-pin-slots ≈ articles-to-publish. Recompute each load ⇒ self-correcting.
+   `rows` = header-less Calendar rows. Reads the ramping pin cap (col C) vs scheduled (col D). */
+function hfPinGap(rows, days){
+  days = days || 14;
+  const lz = n => String(n).padStart(2,'0');
+  const t0 = new Date(); t0.setHours(0,0,0,0);
+  const win = {};
+  for(let i=0;i<days;i++){ const d=new Date(t0); d.setDate(t0.getDate()+i); win[d.getFullYear()+'-'+lz(d.getMonth()+1)+'-'+lz(d.getDate())]=true; }
+  let gap = 0;
+  (rows||[]).forEach(r=>{ if(String(r[1]||'').toLowerCase()!=='pinterest') return;
+    const d=String(r[0]||'').slice(0,10); if(!win[d]) return;
+    const cap=parseInt(r[2]||'0',10)||0, have=parseInt(r[3]||'0',10)||0;
+    if(cap>have) gap += cap-have; });
+  return gap;
+}
 /* ---------- posting calendar (live) ---------- */
 async function renderCalendar(targetId,compact){
   const art=document.getElementById(targetId||"calArticles");
@@ -2862,7 +2877,7 @@ async function renderCalendar(targetId,compact){
   // split goal+scheduled for a lane on a day into promo & non-promo halves
   function laneSplit(L,d){
     let goal=0,sched=0,exists=true;
-    if(L.art){ const r=byDate[d]; if(r){goal=r.goal;sched=r.sched;}else{exists=false;} }
+    if(L.art){ const r=byDate[d]; const pc=(map[d]&&map[d]['pinterest']&&map[d]['pinterest'].goal)||0; const pace=pc?Math.round(pc/6):1; if(r){goal=Math.max(pace,r.goal);sched=r.sched;}else{goal=pace;sched=0;} }
     else { let r=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb]));
       if(r){goal=r.goal;sched=r.sched;} else if(L.dg!=null){goal=L.dg;sched=0;} else {exists=false;} }
     if(!exists) return {exists:false};
@@ -2940,10 +2955,9 @@ async function renderCalendar(targetId,compact){
     return;
   }
   // banked note
-  const aheadDays=agoal?(latestBal/agoal):0; let note;
-  if(latestBal>0) note='<div class="cal-note ahead">🎉 You\'re <b>+'+latestBal+' article'+(latestBal===1?'':'s')+' ahead</b> of goal — about <b>'+aheadDays.toFixed(1)+' days</b> of runway banked.</div>';
-  else if(latestBal<0) note='<div class="cal-note behind">You\'re <b>'+Math.abs(latestBal)+' behind</b> goal — publish '+Math.abs(latestBal)+' extra to catch back up.</div>';
-  else note='<div class="cal-note even">On goal pace — nothing banked ahead yet. 👌</div>';
+  const _gap=hfPinGap(body,14); const _runWk=runRow?(parseInt(runRow[2]||'0',10)||0):0; let note;
+  if(_gap<=0) note='<div class="cal-note ahead">🎉 Your <b>2-week pin runway is full</b>'+(_runWk?' — <b>'+_runWk+' week'+(_runWk===1?'':'s')+'</b> of pins scheduled total':'')+'. Nothing to publish to stay ahead. 👌</div>';
+  else note='<div class="cal-note behind">Publish <b>'+_gap+' article'+(_gap===1?'':'s')+'</b> to fill your 2-week pin runway'+(_runWk?' (currently <b>'+_runWk+' week'+(_runWk===1?'':'s')+'</b> scheduled)':'')+'.</div>';
   let warnHtml='';
   if(runRow){ const wk=parseInt(runRow[2]||'0',10)||0, far=parseInt(runRow[3]||'0',10)||0, furthestD=esc(runRow[0]||'');
     if(wk>12) warnHtml='<div class="cal-warn">⚠️ Runway extends '+wk+' weeks (to '+furthestD+'). '+far+' pin'+(far===1?'':'s')+' scheduled 12+ weeks out — worth re-checking those products are still in stock before they post.</div>'; }
