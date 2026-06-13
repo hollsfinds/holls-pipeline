@@ -1519,7 +1519,7 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-star
   const row=+b.dataset.star, it=pipe.find(p=>p.row===row); if(!it) return;
   const next=!it.forceAll;
   b.style.opacity=".5";
-  try{ await apiPost({sheet:"Pipeline",action:"updateCell",row:row,col:20,value:next?"TRUE":""});
+  try{ await apiPost({sheet:"Pipeline",action:"updateCell",row:row,col:20,value:next?"yes":""});
     it.forceAll=next; render(); toast(next?"⭐ Forced onto every platform — IG/FB posts + reels + stories + TikTok":"Force-all removed"); }
   catch(err){ b.style.opacity="1"; toast("Save failed: "+(err&&err.message||err)); }
 });
@@ -1592,7 +1592,7 @@ async function load(){
     $("#board").innerHTML='<div class="empty" style="padding:30px">'+esc(e.message||"Load failed")+'</div>';
   }
 }
-const truthy=v=>["1","true","yes","y","✓","x"].includes((v||"").trim().toLowerCase());
+const truthy=v=>["1","true","yes","y","✓","x"].includes(String(v==null?"":v).trim().toLowerCase());
 
 /* ---------- render ---------- */
 function render(){
