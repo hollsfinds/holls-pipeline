@@ -3113,8 +3113,11 @@ async function renderReview(){
   pending.forEach(o=>{ const dt=o.r[0],pl=o.r[1],ty=o.r[2],cap=o.r[3],img=o.r[4]; const tc=tcol(ty);
     // chat REELS carry a hosted .mp4 in ImageRef → show a video preview + route approval to the reel scheduler
     const isVid=/\.mp4(\?|$)/i.test(String(img||"")); const reel=isVid||/reel/i.test(String(pl||""));
+    // raw.githubusercontent serves .mp4 as application/octet-stream + nosniff → <video> won't play.
+    // GitHub Pages (<owner>.github.io/<repo>/…) serves it as video/mp4 → plays inline. Convert for the preview.
+    const vsrc=String(img||"").replace(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/[^/]+\//,"https://$1.github.io/$2/");
     html+='<div class="rv-card'+(reel?' rv-reel':'')+'" data-row="'+o.sheetRow+'"'+(reel?' data-reel="1"':'')+'>';
-    if(isVid) html+='<div class="rv-thumb rv-vid"><video src="'+esc(img)+'" controls muted loop playsinline preload="metadata"></video></div>';
+    if(isVid) html+='<div class="rv-thumb rv-vid"><video src="'+esc(vsrc)+'" controls preload="metadata" playsinline></video></div>';
     else if(isImg(img)) html+='<div class="rv-thumb"><img src="'+esc(img)+'" alt="" loading="lazy"></div>';
     html+='<div class="rv-body"><div class="rv-meta"><span class="rv-tag" style="background:'+tc[0]+';color:'+tc[1]+'">'+esc(ty||"post")+'</span><span class="rv-plat">'+esc(pl||"")+'</span>'+(reel?'<span class="rv-cardbadge">🎬 Chat reel</span>':(isImg(img)?'':'<span class="rv-cardbadge">🖼 branded card</span>'))+'<span class="rv-date">'+esc(String(dt||"").slice(0,10))+'</span></div>';
     html+='<textarea class="rv-cap">'+esc(cap||"")+'</textarea>';
