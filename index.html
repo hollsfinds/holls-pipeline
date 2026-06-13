@@ -3057,6 +3057,46 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
 }));
 { const rb=$("#reviewRefresh"); if(rb) rb.addEventListener("click",()=>{ _cache=null; renderReview(); renderSparks(); }); }
 /* ---------- NonPromo review lane (separate tab for now) ---------- */
+/* ===== On Deck — reel ideas (always 5; Choose → draft a reel · Snooze ~2wk · Deny forever) =====
+   Stored as NonPromo rows marked Platform "(reeldeck)" (reel-deck.js maintains the 5 + a hidden ready buffer). */
+function onDeckCard(n){
+  const key=String(n.imgRef||"").split("|")[0].trim();
+  return '<div class="deck-card" data-deckrow="'+n.row+'">'
+    +'<div class="deck-ty">'+esc(n.type||"idea")+'</div>'
+    +'<div class="deck-title">'+esc(n.caption||key)+'</div>'
+    +'<div class="deck-acts">'
+    +'<button class="btn coral sm" data-deck="choose" data-row="'+n.row+'" title="Draft this into a chat reel — you still approve it before it posts">✓ Choose</button>'
+    +'<button class="btn ghost sm" data-deck="snooze" data-row="'+n.row+'" title="Bring it back in ~2 weeks">😴 Snooze</button>'
+    +'<button class="btn ghost sm deck-deny" data-deck="deny" data-row="'+n.row+'" title="Reject for good — never surface this idea again">✕ Deny</button>'
+    +'</div></div>';
+}
+function onDeckHtml(){
+  const deck=(nonpromo||[]).filter(n=>n.platform==="(reeldeck)" && n.status==="deck").slice(0,5);
+  if(!deck.length) return "";
+  return '<div class="ns-head" style="font-size:13px;margin:4px 0 8px">🎬 On Deck — reel ideas '
+    +'<span style="font-weight:600;font-size:11px;color:#8a7f79">— 5 fresh reel-ready ideas. <b>Choose</b> drafts one into a reel (you still approve it), <b>Snooze</b> ~2 weeks, <b>Deny</b> forever.</span></div>'
+    +'<div class="deck-grid">'+deck.map(onDeckCard).join("")+'</div>';
+}
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-deck]"); if(!b) return;
+  const act=b.dataset.deck, row=+b.dataset.row, card=b.closest(".deck-card");
+  b.disabled=true;
+  try{
+    if(act==="choose"){ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"chosen"}); toast("Drafting a reel from this idea 🎬 — it'll appear below to approve on the next sweep."); }
+    else if(act==="snooze"){ const until=new Date(Date.now()+14*86400000).toISOString().slice(0,10);
+      await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:1,value:until});
+      await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"snoozed"}); toast("Snoozed — back in ~2 weeks 😴"); }
+    else if(act==="deny"){ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"denied"}); toast("Denied for good — won't surface this one again ✕"); }
+    const n=nonpromo.find(x=>x.row===row); if(n) n.status=(act==="choose"?"chosen":act==="snooze"?"snoozed":"denied");
+    // immediate backfill: promote a hidden "ready" reel idea into the deck so it's back to 5 right away
+    const ready=nonpromo.find(x=>x.platform==="(reeldeck)" && x.status==="ready");
+    if(ready){ await apiPost({sheet:"NonPromo",action:"updateCell",row:ready.row,col:6,value:"deck"}); ready.status="deck"; }
+    if(card){ card.style.transition="opacity .25s"; card.style.opacity="0"; setTimeout(()=>renderReview(),260); } else renderReview();
+  }catch(err){ b.disabled=false; toast("Action failed: "+(err&&err.message||err)); }
+});
+{ const css=document.createElement("style");
+  css.textContent=".deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:16px}.deck-card{border:1px solid var(--line,#E0D8CF);border-radius:12px;background:#fff;padding:12px 13px;display:flex;flex-direction:column;gap:8px}.deck-ty{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9a7b1f;background:#fff4d6;align-self:flex-start;padding:2px 8px;border-radius:20px}.deck-title{font-size:13.5px;font-weight:650;color:var(--ink,#2C2421);line-height:1.25}.deck-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}.deck-acts .btn.sm{font-size:11px;padding:4px 9px}.deck-deny{color:#c0534a}";
+  document.head.appendChild(css); }
 async function renderReview(){
   const host=$("#reviewLane"); if(!host) return;
   host.innerHTML='<p class="muted">Loading…</p>';
@@ -3079,10 +3119,10 @@ async function renderReview(){
   const bundles={}; const pending=[];
   allPending.forEach(o=>{ const b=String(o.r[7]||"").trim();
     if(b && String(o.r[2]||"").toLowerCase()==="personal"){ (bundles[b]=bundles[b]||[]).push(o); } else pending.push(o); });
-  if(!allPending.length){ host.innerHTML=draftHtml+'<div class="rv-empty">'+(drafting.length?('Nothing to review just yet — your '+drafting.length+' submitted '+(drafting.length===1?'story is':'stories are')+' drafting above. ✍'):'🎉 Nothing waiting for review. New posts show up here as the pipeline queues them.')+'</div>'+upcomingHtml(body); return; }
+  if(!allPending.length){ host.innerHTML=onDeckHtml()+draftHtml+'<div class="rv-empty">'+(drafting.length?('Nothing to review just yet — your '+drafting.length+' submitted '+(drafting.length===1?'story is':'stories are')+' drafting above. ✍'):'🎉 Nothing waiting for review. New posts show up here as the pipeline queues them.')+'</div>'+upcomingHtml(body); return; }
   const tcol=t=>({personal:["#FAD9D3","#B0392B"],value:["#EBEFE6","#5E6E50"],engagement:["#FFE7D6","#B5702F"],trending:["#E7E0F0","#6B5B95"]})[String(t||"").toLowerCase()]||["#eee","#555"];
   const isImg=s=>/^https?:\/\//i.test(String(s||""));
-  let html=draftHtml;
+  let html=onDeckHtml()+draftHtml;
   const PEMO={facebook:"📘",instagram:"📸",tiktok:"🎵"};
   if(Object.keys(bundles).length) html+='<div class="ns-head" style="font-size:13px;margin:4px 0 8px">📖 Your stories</div>';
   Object.keys(bundles).forEach(bid=>{
