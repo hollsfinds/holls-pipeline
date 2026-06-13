@@ -1513,6 +1513,19 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-chgboard]"
 { const css=document.createElement("style");
   css.textContent=".boardpill{display:inline-flex;align-items:center;gap:4px;margin:4px 0 2px;font-size:10.5px;font-weight:700;color:#2E6E6A;background:#EAF4F3;border:1px solid #CDE4E2;border-radius:20px;padding:3px 10px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.boardpill:hover{background:#DCEEEC}.boardpill.bp-auto{color:#8a7f79;background:#F4F1EE;border-color:#E5DED8}";
   document.head.appendChild(css); }
+/* ⭐ Force-all toggle: write Pipeline col T (1-based 20 = ForceAll), flip the flag, re-render. */
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-star]");if(!b)return;
+  e.stopPropagation();
+  const row=+b.dataset.star, it=pipe.find(p=>p.row===row); if(!it) return;
+  const next=!it.forceAll;
+  b.style.opacity=".5";
+  try{ await apiPost({sheet:"Pipeline",action:"updateCell",row:row,col:20,value:next?"TRUE":""});
+    it.forceAll=next; render(); toast(next?"⭐ Forced onto every platform — IG/FB posts + reels + stories + TikTok":"Force-all removed"); }
+  catch(err){ b.style.opacity="1"; toast("Save failed: "+(err&&err.message||err)); }
+});
+{ const css=document.createElement("style");
+  css.textContent=".badge.b-star{background:#fff4d6;color:#9a7b1f;border:1px solid #f0d98a;cursor:pointer}.badge.b-star:hover{background:#ffeebf}.badge.b-star.on{background:#ffd966;color:#5c4708;border-color:#e6b800}";
+  document.head.appendChild(css); }
 /* product photo: inbox cards carry .img; pipe cards look it up from the matching Inbox row */
 function imgOf(it){
   if(it.img) return it.img;
@@ -1554,7 +1567,7 @@ async function load(){
     const iv=valuesOf(inb), pv=valuesOf(pip), sv=soc?valuesOf(soc):[];
     inbox=iv.slice(1).map((r,i)=>({row:i+2,date:r[0]||"",name:r[1]||"",url:r[2]||"",img:r[3]||"",desc:r[4]||"",status:(r[5]||"new").trim().toLowerCase()})).filter(x=>x.name||x.url);
     pipe=pv.slice(1).map((r,i)=>{let st=(r[2]||NEWCOL).trim();if(STAGE_REMAP[st])st=STAGE_REMAP[st];return{row:i+2,id:r[0]||"",type:(r[1]||"single").trim().toLowerCase(),stage:st,
-      artA:truthy(r[3]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",grp:(r[8]||"").trim(),needsImg:truthy(r[9]),pubA:truthy(r[10]),sched:truthy(r[11]),angle:(r[12]||""),imgPreviews:safeJSON(r[13]),imgSummary:safeJSON(r[14]),imgReview:safeJSON(r[15]),imgStatus:(r[16]||""),boardSel:(r[17]||""),wentLive:(r[18]||"")};}).filter(x=>x.id);
+      artA:truthy(r[3]),discA:truthy(r[5]),artUrl:r[6]||"",notes:r[7]||"",grp:(r[8]||"").trim(),needsImg:truthy(r[9]),pubA:truthy(r[10]),sched:truthy(r[11]),angle:(r[12]||""),imgPreviews:safeJSON(r[13]),imgSummary:safeJSON(r[14]),imgReview:safeJSON(r[15]),imgStatus:(r[16]||""),boardSel:(r[17]||""),wentLive:(r[18]||""),forceAll:truthy(r[19])};}).filter(x=>x.id);
     // self-heal: a card parked in Attaching Images whose review flag (col P) has cleared = the brain finished the upload → advance it to FreshStore Publish (backup for the brain's own advance)
     pipe.filter(x=>x.stage===ATTACHING && !x.imgReview).forEach(x=>{
       x.stage=FSPUB;
@@ -2020,6 +2033,10 @@ function pipeCard(it){
     else rdz=`<span class="badge b-undecided" data-assign="${it.row}">⚑ Set roundup</span>`;
   }
   const flagTag = "";   // ⚠ Images badge retired with the Missing Images column
+  // ⭐ Force-all-platforms toggle (writes Pipeline col T / ForceAll). When on, the schedulers guarantee this
+  //    article a slot on EVERY platform (IG/FB posts + reels + stories + TikTok), jump it to the front of the
+  //    recency queue, and always render its reel — exempt from reel-sampling cap-out (daily caps still apply).
+  const starTag = `<span class="badge b-star${it.forceAll?' on':''}" data-star="${it.row}" title="${it.forceAll?'Forced onto every platform (IG/FB posts + reels + stories + TikTok). Click to unset.':'Force this article onto every platform — guaranteed IG/FB posts + reels + stories + TikTok. Click to set.'}">${it.forceAll?'⭐ All platforms':'☆ Force all'}</span>`;
   const spinTag = it.angle?'<span class="badge b-spin" title="Your input added">💬 spin</span>':'';
   const gate=(on,lbl,key)=>`<button class="gate ${on?'on':''}" data-gate="${key}" data-row="${it.row}">${on?'✓ ':''}${lbl}</button>`;
   const discBadge = it.discA?'<span class="badge b-ok">Disclosure ✓</span>':'';
@@ -2099,7 +2116,7 @@ function pipeCard(it){
     d.className = "card collapsible"+(open?" open":"");
     d.innerHTML=`<div class="chead">${thumb}<div class="ttl">${esc(cardTitleOf(it))}</div><span class="ccaret">${open?'▾':'▸'}</span></div>
       <div class="cbody">
-        <div class="badges">${tb}${memTag}${rdz}${flagTag}${spinTag}${dupTag}</div>
+        <div class="badges">${tb}${memTag}${rdz}${flagTag}${spinTag}${starTag}${dupTag}</div>
         ${prodPillHTML(it)}${boardPillHTML(it)}
         ${controls}
         ${scheduledDatesHTML(it)}
@@ -2107,7 +2124,7 @@ function pipeCard(it){
     return d;
   }
   d.innerHTML=`<div class="chead">${thumb}<div class="ttl">${esc(cardTitleOf(it))}</div></div>
-    <div class="badges">${tb}${memTag}${rdz}${flagTag}${spinTag}${dupTag}</div>
+    <div class="badges">${tb}${memTag}${rdz}${flagTag}${spinTag}${starTag}${dupTag}</div>
     ${prodPillHTML(it)}${boardPillHTML(it)}
     ${controls}`;
   return d;
