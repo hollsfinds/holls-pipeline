@@ -14,7 +14,7 @@
     --good:#2FA9A4; --warn:#F87E72;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  body{margin:0;font-family:'Raleway',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
        background:var(--bg);color:var(--ink);line-height:1.45;font-size:14px}
   header{background:#fff;color:var(--ink);padding:13px 26px;display:flex;align-items:center;gap:11px;
          border-bottom:1px solid var(--line);position:sticky;top:0;z-index:60}
@@ -127,6 +127,8 @@
   .pp-pcard .pm{font-size:11px;color:var(--muted);margin-top:3px;display:flex;justify-content:space-between}
   .pp-pcard .pp{font-weight:800;color:var(--espresso)}
   .pp-more{width:100%;border:1px dashed var(--line);background:#fff;border-radius:9px;padding:6px;font-size:12px;font-weight:700;color:var(--teal);cursor:pointer;font-family:inherit}
+  .pp-step{font-family:'Sora',sans-serif;font-size:13px;font-weight:800;color:var(--espresso);margin:18px 2px 9px}
+  .pp-step:first-child{margin-top:2px}
 </style>
 </head>
 <body>
@@ -137,6 +139,7 @@
 
   <div id="ppbanner"></div>
 
+  <div class="pp-step">Step 1 · Pick a lane</div>
   <div class="lanes" id="lanes">
     <div class="lane active" data-lane="idea">💡 My idea</div>
     <div class="lane" data-lane="evergreen">🛋️ Evergreen room</div>
@@ -146,6 +149,7 @@
     <div class="lane" data-lane="roundup">🧺 Roundup</div>
   </div>
 
+  <div class="pp-step" id="step2label">Step 2 · Type a product type, then hit Find products</div>
   <div class="searchbar">
     <input id="kw" placeholder="Type a product idea or keyword — e.g. rattan serving tray" />
     <button class="btn" id="go">Find products</button>
@@ -168,7 +172,8 @@
     <span id="count" style="color:var(--muted)"></span>
   </div>
 
-  <div id="results"><div class="empty"><b>1.</b> Pick a lane or type a product type &nbsp;→&nbsp; <b>2.</b> Real Amazon products, auto-filtered (★4.3+ · 100+ reviews) &amp; scored 0–100 &nbsp;→&nbsp; <b>3.</b> Tap to keep, copy the links</div></div>
+  <div class="pp-step" id="step3label" style="display:none">Step 3 · Tap to keep your favorites</div>
+  <div id="results"></div>
   <div class="gatedout" id="gatedout" style="display:none"></div>
   <div id="more" style="text-align:center;margin:22px 0 6px"></div>
 </div>
@@ -297,12 +302,12 @@ async function roundupTheme(theme){
     }
     const maxv=Math.max(0,...ranked.map(r=>r.v||0));
     let h=`<div class="pp-subnote">🧺 <b>${esc(theme)}</b> — build your roundup ${AIB}<span class="pp-ai" style="background:var(--coral)">trend-ranked</span><button class="pp-refresh" data-refresh="theme">🔄 reshuffle</button></div>`;
-    h+=`<div class="pp-sectlabel">🎨 Step 1 · coordinating style (optional) — applies to every search</div>`;
+    h+=`<div class="pp-sectlabel">🎨 Step 3 · coordinating style (optional) — applies to every search</div>`;
     h+=`<div class="pp-stylebox"><div class="pp-stylewrap"><input id="ppstyle" class="pp-styleinput" placeholder="type a style, e.g. checkered" value="">`;
     h+=ranked.map(r=>`<button class="pp-chip pp-stylechip" data-style="${String(r.s).replace(/"/g,'&quot;')}">${(r.v!=null&&maxv>0&&r.v===maxv)?'🔥 ':''}${esc(String(r.s))}</button>`).join('');
     h+=`</div></div>`;
     ROUNDUP_TYPES=types;
-    h+=`<div class="pp-sectlabel">🛍️ Step 2 · build your set</div>`;
+    h+=`<div class="pp-sectlabel">🛍️ Step 4 · build your set</div>`;
     h+=`<div class="pp-chips" style="align-items:center"><button class="btn" id="ppbuildboard">▦ Build the board — 5 picks per piece</button><span class="hint" style="margin:0">${types.length} pieces · ~${types.length} Amazon lookups</span></div>`;
     h+=`<div class="pp-subnote" style="margin-top:4px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--espresso)">${types.map(t=>esc(t)).join(' · ')}</div>`;
     sub.innerHTML=h;
@@ -345,6 +350,7 @@ function renderBoard(){
   document.getElementById('results').innerHTML=h;
   document.getElementById('sortbar').style.display='none';
   document.getElementById('more').innerHTML='';
+  const _s3=document.getElementById('step3label'); if(_s3) _s3.style.display='none';
 }
 function boardPick(v){
   const i=v.indexOf('|'); const name=v.slice(0,i), asin=v.slice(i+1);
@@ -423,6 +429,7 @@ function scoreProduct(p,demandScore){
 }
 
 function render(){
+  const s3=document.getElementById('step3label'); if(s3) s3.style.display=LAST.length?'block':'none';
   const sort=document.getElementById('sort').value;
   let list=LAST.slice();
   const cmp={score:(a,b)=>b._score-a._score,reviews:(a,b)=>b.reviews-a.reviews,rating:(a,b)=>b.rating-a.rating,
@@ -515,6 +522,7 @@ async function run(){
   QUERY=kw; PAGE=1; FAILED=0; LAST=[];
   const go=document.getElementById('go');go.disabled=true;go.textContent="Searching…";
   document.getElementById('more').innerHTML='';
+  document.getElementById('step3label').style.display='none';
   document.getElementById('results').innerHTML='<div class="empty">Pulling real Amazon products + demand…</div>';
   document.getElementById('demandcard').style.display='none';
   document.getElementById('gatedout').style.display='none';
@@ -555,6 +563,10 @@ document.getElementById('lanes').addEventListener('click',e=>{
   const l=e.target.closest('.lane'); if(!l||l.classList.contains('soon'))return;
   document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active')); l.classList.add('active');
   const lane=l.dataset.lane, sub=document.getElementById('ppsub');
+  const labels={idea:'Step 2 · Type a product type, then hit Find products',evergreen:'Step 2 · Pick a room',seasonal:'Step 2 · Pick a seasonal push',trending:'Step 2 · Pick a trending idea',gap:'Step 2 · Pick a gap to fill',roundup:'Step 2 · Pick a roundup theme'};
+  document.getElementById('step2label').textContent=labels[lane]||'Step 2';
+  document.querySelector('.searchbar').style.display=lane==='idea'?'flex':'none';
+  document.getElementById('step3label').style.display='none';
   if(lane!=='roundup') { ROUNDUP_THEME=null; refreshTray(); }
   if(lane==='evergreen') showRooms();
   else if(lane==='seasonal') showSeasonal();
