@@ -79,6 +79,17 @@
   .sortbar{display:flex;gap:8px;align-items:center;margin:14px 2px 2px;font-size:13px}
   .sortbar select{padding:6px 10px;border-radius:9px;border:1px solid var(--line);background:#fff}
   .empty{color:var(--muted);font-size:14px;padding:30px 2px}
+  /* lane sub-panels (Evergreen rooms / Seasonal pushes) */
+  #ppsub{margin:0 0 6px}
+  .pp-subnote{font-size:12.5px;color:var(--muted);margin:2px 2px 8px;font-weight:600}
+  .pp-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+  .pp-chip{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 12px;font-size:13px;
+           font-weight:600;cursor:pointer;color:var(--espresso);font-family:inherit}
+  .pp-chip:hover{border-color:var(--coral)}
+  .pp-chip.urgent{border-color:var(--coral);background:#fff4f1}
+  .pp-due{color:var(--muted);font-size:11px;font-weight:700;margin-left:4px}
+  .pp-chip.urgent .pp-due{color:var(--coral)}
+  .pp-back{border:none;background:none;color:var(--teal);font-weight:700;cursor:pointer;font-family:inherit;font-size:12.5px;padding:0;margin-right:6px}
 </style>
 </head>
 <body>
@@ -90,9 +101,9 @@
   <div class="lanes" id="lanes">
     <div class="lane active" data-lane="idea">💡 My idea</div>
     <div class="lane" data-lane="evergreen">🛋️ Evergreen room</div>
-    <div class="lane soon" title="Wires in when ported to the board">🗓️ Seasonal (soon)</div>
-    <div class="lane soon" title="Wires in when ported to the board">🔥 Trending (soon)</div>
-    <div class="lane soon" title="Wires in when ported to the board">🕳️ Coverage gap (soon)</div>
+    <div class="lane" data-lane="seasonal">🗓️ Seasonal</div>
+    <div class="lane soon" title="Needs the brain (Anthropic key)">🔥 Trending (soon)</div>
+    <div class="lane soon" title="Needs the brain (Anthropic key)">🕳️ Coverage gap (soon)</div>
   </div>
 
   <div class="searchbar">
@@ -100,6 +111,7 @@
     <button class="btn" id="go">Find products</button>
   </div>
   <div class="hint">Tip: search a <b>broad product type</b> ("rattan tray", "boho table lamp"), not an ultra-long-tail pin phrase — that's where demand data is meaningful.</div>
+  <div id="ppsub"></div>
 
   <div class="meters" id="meters"></div>
 
@@ -145,6 +157,43 @@ function api(action,params){
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
 function esc(s){return (s||"").replace(/&quot;/g,'"').replace(/&#x27;|&#039;/g,"'").replace(/&amp;/g,'&');}
 function salesNum(s){const m=(s||"").match(/([\d,.]+)\s*K?\+?\s*bought/i);if(!m)return 0;let n=parseFloat(m[1].replace(/,/g,''));if(/K/i.test(m[0]))n*=1000;return n||0;}
+
+/* ---- LANE: Evergreen room → product types (home + fashion) ---- */
+const ROOMS={
+ "Entryway":["console table decor","entryway mirror","key holder","table lamp","runner rug","wall hooks"],
+ "Living room":["coffee table tray","throw pillow covers","area rug","throw blanket","table lamp","wall art","candle holder"],
+ "Bedroom":["duvet cover","nightstand decor","table lamp","throw blanket","wall art","jewelry dish"],
+ "Kitchen":["canister set","dish towels","wood cutting board","fruit bowl","counter organizer","coffee station decor"],
+ "Bathroom":["bath mat","towel set","vanity tray","soap dispenser","woven storage basket","shower curtain"],
+ "Home office":["desk organizer","desk lamp","bookends","wall art","desk mat","file storage box"],
+ "Closet / Fashion":["crossbody bag","layered necklace","straw tote bag","maxi dress","ankle boots","silk scarf","sunglasses"]
+};
+/* ---- LANE: Seasonal pushes (deadline = when to add to On Deck; 0-based month) ---- */
+const SEASONS=[
+ {n:"July 4th / Americana",e:"🎆",dl:[5,17],seed:"americana decor"},
+ {n:"Summer patio",e:"☀️",dl:[5,1],seed:"outdoor rug"},
+ {n:"Back-to-school / teen room",e:"✏️",dl:[5,17],seed:"desk organizer"},
+ {n:"Fall / harvest",e:"🍂",dl:[6,18],seed:"fall decor"},
+ {n:"Halloween",e:"🎃",dl:[7,18],seed:"halloween decor"},
+ {n:"Thanksgiving / hosting",e:"🦃",dl:[8,17],seed:"fall table runner"},
+ {n:"Christmas / holiday",e:"🎄",dl:[8,17],seed:"christmas decor"},
+ {n:"Holiday gift guides",e:"🎁",dl:[9,1],seed:"gift ideas under 50"},
+ {n:"Winter cozy / hygge",e:"🧣",dl:[10,1],seed:"chunky knit throw blanket"}
+];
+function daysUntil(m,d){const now=new Date(),y=now.getFullYear();let t=new Date(y,m,d);if(t<now)t=new Date(y+1,m,d);return Math.round((t-now)/864e5);}
+function showRooms(){
+  document.getElementById('ppsub').innerHTML='<div class="pp-subnote">Pick a room (it suggests proven product types — tap one to search):</div><div class="pp-chips">'+
+    Object.keys(ROOMS).map(r=>`<button class="pp-chip" data-room="${r}">${r}</button>`).join('')+'</div>';
+}
+function showTypes(room){
+  document.getElementById('ppsub').innerHTML=`<div class="pp-subnote"><button class="pp-back" data-back="1">← rooms</button><b>${room}</b> — pick a product type:</div><div class="pp-chips">`+
+    ROOMS[room].map(t=>`<button class="pp-chip" data-seed="${t}">${t}</button>`).join('')+'</div>';
+}
+function showSeasonal(){
+  const sorted=SEASONS.map(s=>Object.assign({du:daysUntil(s.dl[0],s.dl[1])},s)).sort((a,b)=>a.du-b.du);
+  document.getElementById('ppsub').innerHTML='<div class="pp-subnote">What to seed NOW — sorted by your "add to On Deck by" deadline:</div><div class="pp-chips">'+
+    sorted.map(s=>`<button class="pp-chip${s.du<=21?' urgent':''}" data-seed="${s.seed}">${s.e} ${s.n}<span class="pp-due">${s.du<=21?'⏰ add now':'in '+s.du+'d'}</span></button>`).join('')+'</div>';
+}
 
 /* ---- DEMAND: derive a rising/steady/declining read + 0-20 score from a single-keyword curve ---- */
 function analyzeDemand(result){
@@ -297,8 +346,16 @@ document.getElementById('results').addEventListener('click',e=>{
 document.getElementById('lanes').addEventListener('click',e=>{
   const l=e.target.closest('.lane'); if(!l||l.classList.contains('soon'))return;
   document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active')); l.classList.add('active');
-  document.getElementById('kw').placeholder = l.dataset.lane==='evergreen'
-    ? 'Name a room or category — e.g. entryway console decor' : 'Type a product idea or keyword — e.g. rattan serving tray';
+  const lane=l.dataset.lane, sub=document.getElementById('ppsub');
+  if(lane==='evergreen') showRooms();
+  else if(lane==='seasonal') showSeasonal();
+  else sub.innerHTML='';
+});
+document.getElementById('ppsub').addEventListener('click',e=>{
+  const room=e.target.closest('[data-room]'); if(room){ showTypes(room.dataset.room); return; }
+  if(e.target.closest('[data-back]')){ showRooms(); return; }
+  const seed=e.target.closest('[data-seed]');
+  if(seed){ document.getElementById('kw').value=seed.dataset.seed; run(); }
 });
 document.getElementById('copy').onclick=()=>{navigator.clipboard.writeText(Object.keys(PICKS).map(a=>PICKS[a].url).join('\n'));toast('Copied '+Object.keys(PICKS).length+' URLs');};
 document.getElementById('clear').onclick=()=>{PICKS={};render();refreshTray();};
