@@ -90,6 +90,9 @@
   .pp-due{color:var(--muted);font-size:11px;font-weight:700;margin-left:4px}
   .pp-chip.urgent .pp-due{color:var(--coral)}
   .pp-back{border:none;background:none;color:var(--teal);font-weight:700;cursor:pointer;font-family:inherit;font-size:12.5px;padding:0;margin-right:6px}
+  #ppbanner{display:none;background:#fff4f1;border:1px solid var(--coral);color:var(--espresso);
+            border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:13px;font-weight:600}
+  #ppbanner a{color:var(--coral);font-weight:800}
 </style>
 </head>
 <body>
@@ -97,6 +100,8 @@
   <span class="dot"></span><h1>Holls Finds — Product Picker</h1><span class="obsessed">obsessed.</span>
 </header>
 <div class="wrap">
+
+  <div id="ppbanner"></div>
 
   <div class="lanes" id="lanes">
     <div class="lane active" data-lane="idea">💡 My idea</div>
@@ -149,7 +154,7 @@
 const API="https://script.google.com/macros/s/AKfycbzYObvkhNOLKGnF6kMmlL3dEjEGziThotCmzz-dzswVMw3aqKRZAnXj6fxy8MX8bj6U/exec";
 const TOKEN="holls-pipeline-2026";
 const BRIDGE="https://script.google.com/macros/s/AKfycbxPkObU7vxVtY4ZseyenU46h9IQKQStnJMr4XaoQOO3JZLF1-Wtg91yp1Uj5qVNBRhh/exec";
-let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={};
+let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null;
 
 function api(action,params){
   const q=new URLSearchParams(Object.assign({token:TOKEN,action},params));
@@ -306,9 +311,20 @@ function refreshTray(){
 }
 
 function renderMeters(){
-  document.getElementById('meters').innerHTML=
-    `Amazon quota: <b>${QUOTA.remaining??'?'} / ${QUOTA.limit??'?'}</b> left this month`+
-    (DEMCOST!=null?` &nbsp;·&nbsp; demand call cost: <b>$${DEMCOST}</b>`:'');
+  let s=`Amazon quota: <b>${QUOTA.remaining??'?'} / ${QUOTA.limit??'?'}</b> left this month`;
+  if(DFSBAL!=null) s+=` &nbsp;·&nbsp; DataForSEO: <b>$${Number(DFSBAL).toFixed(2)}</b>`;
+  if(DEMCOST!=null) s+=` &nbsp;·&nbsp; last demand call: <b>$${DEMCOST}</b>`;
+  document.getElementById('meters').innerHTML=s;
+}
+function maybeWarn(){
+  const b=document.getElementById('ppbanner');
+  if(DFSBAL!=null && DFSBAL<5){
+    b.style.display='block';
+    b.innerHTML=`⚠️ <b>DataForSEO is running low</b> — only $${Number(DFSBAL).toFixed(2)} left. Top up to keep demand data flowing → <a href="https://app.dataforseo.com/" target="_blank">add funds at app.dataforseo.com</a>`;
+  } else { b.style.display='none'; }
+}
+async function loadBalance(){
+  try{ const r=await api('balance'); if(r&&r.ok&&r.balance!=null){ DFSBAL=Number(r.balance); renderMeters(); maybeWarn(); } }catch(e){}
 }
 function ingest(prod,append){
   const raw=(prod&&prod.products)||[];
@@ -357,6 +373,7 @@ async function run(){
       <div style="font-size:12.5px;color:var(--muted)">${DEMAND.known?('Trend over the past year'+(DEMAND.peakMonth?` · peaks around <b>${DEMAND.peakMonth}</b>`:'')):'Too long-tail for Google trend data — try a broader term, or trust your eye. Using a neutral demand score.'}</div>${spark}`;
     // products → gates → score
     DEMCOST = dem&&dem.api_cost;
+    if(DFSBAL!=null && DEMCOST){ DFSBAL=Math.max(0,DFSBAL-DEMCOST); maybeWarn(); }
     ingest(prod,false);
   }catch(e){
     document.getElementById('results').innerHTML='<div class="empty">Something hiccupped: '+esc(String(e.message||e))+'. (If this is a CORS error, open from the board instead.)</div>';
@@ -393,6 +410,7 @@ document.getElementById('ppsub').addEventListener('click',e=>{
 });
 document.getElementById('copy').onclick=()=>{navigator.clipboard.writeText(Object.keys(PICKS).map(a=>PICKS[a].url).join('\n'));toast('Copied '+Object.keys(PICKS).length+' URLs');};
 document.getElementById('clear').onclick=()=>{PICKS={};render();refreshTray();};
+loadBalance();  // show DataForSEO balance + low-balance warning on open
 </script>
 </body>
 </html>
