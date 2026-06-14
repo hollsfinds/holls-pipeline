@@ -99,6 +99,9 @@
   .pp-stylechip.on{background:var(--teal);border-color:var(--teal);color:#fff}
   .pp-ai{display:inline-block;background:var(--teal);color:#fff;font-size:9px;font-weight:800;border-radius:5px;
          padding:1px 5px;margin-left:5px;vertical-align:middle;letter-spacing:.4px;text-transform:uppercase}
+  .pp-refresh{border:none;background:none;color:var(--teal);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px}
+  .pp-season{border:1px solid var(--line);background:#fff;border-radius:9px;padding:5px 10px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--espresso);font-family:inherit}
+  .pp-season.on{background:var(--coral);border-color:var(--coral);color:#fff}
 </style>
 </head>
 <body>
@@ -122,7 +125,6 @@
     <input id="kw" placeholder="Type a product idea or keyword — e.g. rattan serving tray" />
     <button class="btn" id="go">Find products</button>
   </div>
-  <div class="hint">Search <b>broad product types</b> ("rattan tray"), not long-tail pin phrases — that's where demand data is real.</div>
   <div id="ppsub"></div>
 
   <div class="meters" id="meters"></div>
@@ -162,7 +164,7 @@ const API="https://script.google.com/macros/s/AKfycbzYObvkhNOLKGnF6kMmlL3dEjEGzi
 const TOKEN="holls-pipeline-2026";
 const BRIDGE="https://script.google.com/macros/s/AKfycbxPkObU7vxVtY4ZseyenU46h9IQKQStnJMr4XaoQOO3JZLF1-Wtg91yp1Uj5qVNBRhh/exec";
 const AIB='<span class="pp-ai">AI</span>';
-let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null, ROUNDUP_THEME=null, ROUNDUP_STYLE='';
+let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null, ROUNDUP_THEME=null, ROUNDUP_STYLE='', ROUNDUP_SEASON='';
 
 function api(action,params){
   const q=new URLSearchParams(Object.assign({token:TOKEN,action},params));
@@ -227,16 +229,22 @@ async function coverageGap(){
   aiChips('gap',{have});
 }
 /* ---- LANE: Roundup builder (brain picks a theme → product types → coordinated set) ---- */
-async function showThemes(){
-  ROUNDUP_THEME=null; refreshTray();
+async function showThemes(season){
+  ROUNDUP_THEME=null; ROUNDUP_SEASON=season||''; refreshTray();
   const sub=document.getElementById('ppsub');
   sub.innerHTML='<div class="pp-subnote">🧠 Dreaming up roundup themes…</div>';
   try{
-    const r=await api('aiSuggest',{mode:'themes'});
+    const r=await api('aiSuggest', ROUNDUP_SEASON?{mode:'themes',context:ROUNDUP_SEASON}:{mode:'themes'});
     const sug=(r&&r.suggestions)||[];
     if(!sug.length){ sub.innerHTML='<div class="pp-subnote">No themes — tap the lane again.</div>'; return; }
-    sub.innerHTML='<div class="pp-subnote">Pick a roundup theme '+AIB+' — the brain breaks it into products:</div><div class="pp-chips">'+
-      sug.map(s=>`<button class="pp-chip" data-theme="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+'</div>';
+    const seasons=SEASONS.map(s=>Object.assign({du:daysUntil(s.dl[0],s.dl[1])},s)).sort((a,b)=>a.du-b.du).slice(0,6);
+    let h=`<div class="pp-subnote">Seed from a season <span style="font-weight:500">(optional — Seasonal + Roundup combo)</span>:</div><div class="pp-chips">`;
+    h+=`<button class="pp-season${ROUNDUP_SEASON?'':' on'}" data-season="">None</button>`;
+    h+=seasons.map(s=>`<button class="pp-season${ROUNDUP_SEASON===s.n?' on':''}" data-season="${String(s.n).replace(/"/g,'&quot;')}">${s.e} ${esc(s.n)}</button>`).join('');
+    h+=`</div>`;
+    h+=`<div class="pp-subnote">${ROUNDUP_SEASON?('🧺 '+esc(ROUNDUP_SEASON)+' roundup themes '):'Pick a roundup theme '}${AIB} — tap one to build it<button class="pp-refresh" data-refresh="themes">🔄 new ideas</button></div>`;
+    h+=`<div class="pp-chips">`+sug.map(s=>`<button class="pp-chip" data-theme="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+`</div>`;
+    sub.innerHTML=h;
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
 }
 async function roundupTheme(theme){
@@ -260,7 +268,7 @@ async function roundupTheme(theme){
       }catch(e){}
     }
     const maxv=Math.max(0,...ranked.map(r=>r.v||0));
-    let h=`<div class="pp-subnote">🧺 <b>${esc(theme)}</b> — make them matchy ${AIB}<span class="pp-ai" style="background:var(--coral)">trend-ranked</span>, then tap each type:</div>`;
+    let h=`<div class="pp-subnote">🧺 <b>${esc(theme)}</b> — make them matchy ${AIB}<span class="pp-ai" style="background:var(--coral)">trend-ranked</span>, then tap each type<button class="pp-refresh" data-refresh="theme">🔄 reshuffle</button></div>`;
     h+=`<div class="pp-stylewrap"><input id="ppstyle" class="pp-styleinput" placeholder="style word, e.g. checkered" value="">`;
     h+=ranked.map(r=>`<button class="pp-chip pp-stylechip" data-style="${String(r.s).replace(/"/g,'&quot;')}">${(r.v!=null&&maxv>0&&r.v===maxv)?'🔥 ':''}${esc(String(r.s))}</button>`).join('');
     h+=`</div>`;
@@ -462,6 +470,8 @@ document.getElementById('lanes').addEventListener('click',e=>{
   else sub.innerHTML='';
 });
 document.getElementById('ppsub').addEventListener('click',e=>{
+  const season=e.target.closest('[data-season]'); if(season){ showThemes(season.dataset.season||''); return; }
+  const refresh=e.target.closest('[data-refresh]'); if(refresh){ if(refresh.dataset.refresh==='themes') showThemes(ROUNDUP_SEASON); else if(ROUNDUP_THEME) roundupTheme(ROUNDUP_THEME); return; }
   const room=e.target.closest('[data-room]'); if(room){ showTypes(room.dataset.room); return; }
   if(e.target.closest('[data-back]')){ showRooms(); return; }
   const theme=e.target.closest('[data-theme]'); if(theme){ roundupTheme(theme.dataset.theme); return; }
