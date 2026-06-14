@@ -109,6 +109,7 @@
     <div class="lane" data-lane="seasonal">🗓️ Seasonal</div>
     <div class="lane" data-lane="trending">🔥 Trending</div>
     <div class="lane" data-lane="gap">🕳️ Coverage gap</div>
+    <div class="lane" data-lane="roundup">🧺 Roundup</div>
   </div>
 
   <div class="searchbar">
@@ -140,7 +141,7 @@
 </div>
 
 <div class="tray" id="tray">
-  <h3>✅ Your picks — copy these into the bookmarklet to add them</h3>
+  <h3 id="trayhead">✅ Your picks — copy these into the bookmarklet to add them</h3>
   <div class="urls" id="urls"></div>
   <div class="actions">
     <button class="btn" id="copy">Copy all URLs</button>
@@ -154,7 +155,7 @@
 const API="https://script.google.com/macros/s/AKfycbzYObvkhNOLKGnF6kMmlL3dEjEGziThotCmzz-dzswVMw3aqKRZAnXj6fxy8MX8bj6U/exec";
 const TOKEN="holls-pipeline-2026";
 const BRIDGE="https://script.google.com/macros/s/AKfycbxPkObU7vxVtY4ZseyenU46h9IQKQStnJMr4XaoQOO3JZLF1-Wtg91yp1Uj5qVNBRhh/exec";
-let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null;
+let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null, ROUNDUP_THEME=null;
 
 function api(action,params){
   const q=new URLSearchParams(Object.assign({token:TOKEN,action},params));
@@ -217,6 +218,31 @@ async function coverageGap(){
     have=('Categories she has: '+cats.slice(0,40).join(', ')+'\nProducts on deck: '+od.slice(0,40).join('; ')).slice(0,1800);
   }catch(e){}
   aiChips('gap',{have});
+}
+/* ---- LANE: Roundup builder (brain picks a theme → product types → coordinated set) ---- */
+async function showThemes(){
+  ROUNDUP_THEME=null; refreshTray();
+  const sub=document.getElementById('ppsub');
+  sub.innerHTML='<div class="pp-subnote">🧠 Dreaming up roundup themes…</div>';
+  try{
+    const r=await api('aiSuggest',{mode:'themes'});
+    const sug=(r&&r.suggestions)||[];
+    if(!sug.length){ sub.innerHTML='<div class="pp-subnote">No themes — tap the lane again.</div>'; return; }
+    sub.innerHTML='<div class="pp-subnote">Pick a roundup theme — the brain breaks it into products:</div><div class="pp-chips">'+
+      sug.map(s=>`<button class="pp-chip" data-theme="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+'</div>';
+  }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
+}
+async function roundupTheme(theme){
+  ROUNDUP_THEME=theme; refreshTray();
+  const sub=document.getElementById('ppsub');
+  sub.innerHTML=`<div class="pp-subnote">🧠 Building “${esc(theme)}”…</div>`;
+  try{
+    const r=await api('aiSuggest',{mode:'roundup',context:theme});
+    const sug=(r&&r.suggestions)||[];
+    if(!sug.length){ sub.innerHTML='<div class="pp-subnote">No products — pick another theme.</div>'; return; }
+    sub.innerHTML=`<div class="pp-subnote">🧺 <b>${esc(theme)}</b> — tap each type, pick one product, build your set:</div><div class="pp-chips">`+
+      sug.map(s=>`<button class="pp-chip" data-seed="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+'</div>';
+  }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — pick another theme.</div>'; }
 }
 function showRooms(){
   document.getElementById('ppsub').innerHTML='<div class="pp-subnote">Pick a room (it suggests proven product types — tap one to search):</div><div class="pp-chips">'+
@@ -304,10 +330,14 @@ function render(){
 function refreshTray(){
   const ids=Object.keys(PICKS);
   const tray=document.getElementById('tray');
+  const head=document.getElementById('trayhead');
+  if(head) head.innerHTML = ROUNDUP_THEME
+    ? `🧺 Roundup: <b>${esc(ROUNDUP_THEME)}</b> — ${ids.length} picks`
+    : '✅ Your picks — copy these into the bookmarklet to add them';
   if(!ids.length){tray.style.display='none';return;}
   tray.style.display='block';
   document.getElementById('urls').textContent=ids.map(a=>PICKS[a].url).join('\n');
-  document.getElementById('picknote').textContent=ids.length+" picked";
+  document.getElementById('picknote').textContent=ids.length+(ROUNDUP_THEME?' in this roundup':' picked');
 }
 
 function renderMeters(){
@@ -396,15 +426,18 @@ document.getElementById('lanes').addEventListener('click',e=>{
   const l=e.target.closest('.lane'); if(!l||l.classList.contains('soon'))return;
   document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active')); l.classList.add('active');
   const lane=l.dataset.lane, sub=document.getElementById('ppsub');
+  if(lane!=='roundup') { ROUNDUP_THEME=null; refreshTray(); }
   if(lane==='evergreen') showRooms();
   else if(lane==='seasonal') showSeasonal();
   else if(lane==='trending') aiChips('trending');
   else if(lane==='gap') coverageGap();
+  else if(lane==='roundup') showThemes();
   else sub.innerHTML='';
 });
 document.getElementById('ppsub').addEventListener('click',e=>{
   const room=e.target.closest('[data-room]'); if(room){ showTypes(room.dataset.room); return; }
   if(e.target.closest('[data-back]')){ showRooms(); return; }
+  const theme=e.target.closest('[data-theme]'); if(theme){ roundupTheme(theme.dataset.theme); return; }
   const seed=e.target.closest('[data-seed]');
   if(seed){ document.getElementById('kw').value=seed.dataset.seed; run(); }
 });
