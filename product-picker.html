@@ -116,7 +116,7 @@
     <input id="kw" placeholder="Type a product idea or keyword — e.g. rattan serving tray" />
     <button class="btn" id="go">Find products</button>
   </div>
-  <div class="hint">Tip: search a <b>broad product type</b> ("rattan tray", "boho table lamp"), not an ultra-long-tail pin phrase — that's where demand data is meaningful.</div>
+  <div class="hint">Search <b>broad product types</b> ("rattan tray"), not long-tail pin phrases — that's where demand data is real.</div>
   <div id="ppsub"></div>
 
   <div class="meters" id="meters"></div>
@@ -135,7 +135,7 @@
     <span id="count" style="color:var(--muted)"></span>
   </div>
 
-  <div id="results"><div class="empty">Pick a lane, type a product type, and hit <b>Find products</b>. Items that pass your gates (★4.3+, 100+ reviews) get scored and ranked; you cherry-pick the keepers and copy their Amazon links.</div></div>
+  <div id="results"><div class="empty"><b>1.</b> Pick a lane or type a product type &nbsp;→&nbsp; <b>2.</b> Real Amazon products, auto-filtered (★4.3+ · 100+ reviews) &amp; scored 0–100 &nbsp;→&nbsp; <b>3.</b> Tap to keep, copy the links</div></div>
   <div class="gatedout" id="gatedout" style="display:none"></div>
   <div id="more" style="text-align:center;margin:22px 0 6px"></div>
 </div>
@@ -341,9 +341,11 @@ function refreshTray(){
 }
 
 function renderMeters(){
-  let s=`Amazon quota: <b>${QUOTA.remaining??'?'} / ${QUOTA.limit??'?'}</b> left this month`;
+  let s = QUOTA.remaining!=null
+    ? `Amazon: <b>${QUOTA.remaining}/${QUOTA.limit}</b> calls left`
+    : `Amazon: <b>—</b> (updates after 1st search)`;
   if(DFSBAL!=null) s+=` &nbsp;·&nbsp; DataForSEO: <b>$${Number(DFSBAL).toFixed(2)}</b>`;
-  if(DEMCOST!=null) s+=` &nbsp;·&nbsp; last demand call: <b>$${DEMCOST}</b>`;
+  if(DEMCOST!=null) s+=` &nbsp;·&nbsp; last demand: <b>$${DEMCOST}</b>`;
   document.getElementById('meters').innerHTML=s;
 }
 function maybeWarn(){
