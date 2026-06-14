@@ -93,6 +93,10 @@
   #ppbanner{display:none;background:#fff4f1;border:1px solid var(--coral);color:var(--espresso);
             border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:13px;font-weight:600}
   #ppbanner a{color:var(--coral);font-weight:800}
+  .pp-stylewrap{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:2px 0 6px}
+  .pp-styleinput{border:1px solid var(--line);border-radius:9px;padding:7px 11px;font-size:13px;font-family:inherit;width:190px}
+  .pp-styleinput:focus{outline:none;border-color:var(--teal)}
+  .pp-stylechip.on{background:var(--teal);border-color:var(--teal);color:#fff}
 </style>
 </head>
 <body>
@@ -155,7 +159,7 @@
 const API="https://script.google.com/macros/s/AKfycbzYObvkhNOLKGnF6kMmlL3dEjEGziThotCmzz-dzswVMw3aqKRZAnXj6fxy8MX8bj6U/exec";
 const TOKEN="holls-pipeline-2026";
 const BRIDGE="https://script.google.com/macros/s/AKfycbxPkObU7vxVtY4ZseyenU46h9IQKQStnJMr4XaoQOO3JZLF1-Wtg91yp1Uj5qVNBRhh/exec";
-let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null, ROUNDUP_THEME=null;
+let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null, ROUNDUP_THEME=null, ROUNDUP_STYLE='';
 
 function api(action,params){
   const q=new URLSearchParams(Object.assign({token:TOKEN,action},params));
@@ -233,15 +237,19 @@ async function showThemes(){
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
 }
 async function roundupTheme(theme){
-  ROUNDUP_THEME=theme; refreshTray();
+  ROUNDUP_THEME=theme; ROUNDUP_STYLE=''; refreshTray();
   const sub=document.getElementById('ppsub');
   sub.innerHTML=`<div class="pp-subnote">🧠 Building “${esc(theme)}”…</div>`;
   try{
-    const r=await api('aiSuggest',{mode:'roundup',context:theme});
-    const sug=(r&&r.suggestions)||[];
-    if(!sug.length){ sub.innerHTML='<div class="pp-subnote">No products — pick another theme.</div>'; return; }
-    sub.innerHTML=`<div class="pp-subnote">🧺 <b>${esc(theme)}</b> — tap each type, pick one product, build your set:</div><div class="pp-chips">`+
-      sug.map(s=>`<button class="pp-chip" data-seed="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+'</div>';
+    const [rt,rs]=await Promise.all([ api('aiSuggest',{mode:'roundup',context:theme}), api('aiSuggest',{mode:'styles',context:theme}) ]);
+    const types=(rt&&rt.suggestions)||[], styles=(rs&&rs.suggestions)||[];
+    if(!types.length){ sub.innerHTML='<div class="pp-subnote">No products — pick another theme.</div>'; return; }
+    let h=`<div class="pp-subnote">🧺 <b>${esc(theme)}</b> — make them matchy (optional), then tap each type:</div>`;
+    h+=`<div class="pp-stylewrap"><input id="ppstyle" class="pp-styleinput" placeholder="style word, e.g. checkered" value="">`;
+    h+=styles.map(s=>`<button class="pp-chip pp-stylechip" data-style="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('');
+    h+=`</div>`;
+    h+=`<div class="pp-chips">`+types.map(s=>`<button class="pp-chip" data-seed="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+`</div>`;
+    sub.innerHTML=h;
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — pick another theme.</div>'; }
 }
 function showRooms(){
@@ -369,6 +377,7 @@ function ingest(prod,append){
   });
   LAST = append? LAST.concat(add) : add;
   QUOTA = (prod&&prod.quota)||QUOTA;
+  try{ if(QUOTA&&QUOTA.remaining!=null) localStorage.setItem('pp_quota',JSON.stringify(QUOTA)); }catch(e){}
   document.getElementById('sortbar').style.display=LAST.length?'flex':'none';
   document.getElementById('count').textContent=`${LAST.length} passed gates · ${FAILED} filtered out`;
   document.getElementById('gatedout').style.display='block';
@@ -440,11 +449,17 @@ document.getElementById('ppsub').addEventListener('click',e=>{
   const room=e.target.closest('[data-room]'); if(room){ showTypes(room.dataset.room); return; }
   if(e.target.closest('[data-back]')){ showRooms(); return; }
   const theme=e.target.closest('[data-theme]'); if(theme){ roundupTheme(theme.dataset.theme); return; }
+  const style=e.target.closest('[data-style]');
+  if(style){ ROUNDUP_STYLE=style.dataset.style; const inp=document.getElementById('ppstyle'); if(inp)inp.value=ROUNDUP_STYLE;
+    document.querySelectorAll('.pp-stylechip').forEach(c=>c.classList.toggle('on',c.dataset.style===ROUNDUP_STYLE)); return; }
   const seed=e.target.closest('[data-seed]');
-  if(seed){ document.getElementById('kw').value=seed.dataset.seed; run(); }
+  if(seed){ const q=(ROUNDUP_STYLE?ROUNDUP_STYLE+' ':'')+seed.dataset.seed; document.getElementById('kw').value=q; run(); }
 });
+document.getElementById('ppsub').addEventListener('input',e=>{ if(e.target.id==='ppstyle'){ ROUNDUP_STYLE=e.target.value.trim();
+  document.querySelectorAll('.pp-stylechip').forEach(c=>c.classList.toggle('on',c.dataset.style===ROUNDUP_STYLE)); } });
 document.getElementById('copy').onclick=()=>{navigator.clipboard.writeText(Object.keys(PICKS).map(a=>PICKS[a].url).join('\n'));toast('Copied '+Object.keys(PICKS).length+' URLs');};
 document.getElementById('clear').onclick=()=>{PICKS={};render();refreshTray();};
+try{ const _q=JSON.parse(localStorage.getItem('pp_quota')); if(_q&&_q.remaining!=null){ QUOTA=_q; renderMeters(); } }catch(e){}  // show last-known Amazon quota immediately
 loadBalance();  // show DataForSEO balance + low-balance warning on open
 /* when embedded in the board (?embed=1), hide the picker's own header — the board already has a top bar */
 if(new URLSearchParams(location.search).has('embed')){ const _h=document.querySelector('header'); if(_h)_h.style.display='none'; }
