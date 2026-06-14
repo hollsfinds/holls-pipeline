@@ -32,6 +32,8 @@
   .searchbar{display:flex;gap:10px;margin:4px 0 8px}
   .searchbar input{flex:1;padding:13px 16px;border:1px solid var(--line);border-radius:12px;font-size:15px;background:#fff}
   .searchbar input:focus{outline:none;border-color:var(--teal)}
+  .pp-maninput{flex:1;min-width:150px;padding:11px 14px;border:1px solid var(--line);border-radius:11px;font-size:14px;background:#fff;font-family:inherit}
+  .pp-maninput:focus{outline:none;border-color:var(--teal)}
   .btn{background:var(--coral);color:#fff;border:none;border-radius:12px;padding:13px 22px;font-size:15px;
        font-weight:700;cursor:pointer;white-space:nowrap}
   .btn:disabled{opacity:.55;cursor:wait}
@@ -251,10 +253,10 @@ async function aiChips(mode,extra){
                                : await api('aiSuggest',Object.assign({mode},extra||{}));
     let sug=(r&&r.suggestions)||[]; const dn=denied(); const keep=sug.filter(s=>!dn.includes(s)); if(keep.length) sug=keep;
     if(!sug.length){ sub.innerHTML='<div class="pp-subnote">Brain came back empty — tap the lane again.</div>'; return; }
-    const lbl=(mode==='gap'?'B · Gaps in your catalog — tap one, or build a roundup ':'B · Trending now (home + fashion) — tap one, or build a roundup ')+AIB;
+    const lbl=(mode==='gap'?'A · Gaps in your catalog — tap one, or build a roundup ':'A · Trending now (home + fashion) — tap one, or build a roundup ')+AIB;
     ROUNDUP_TYPES=sug.slice();
     sub.innerHTML='<div class="pp-ablabel">'+lbl+'</div><div class="pp-subnote" style="margin-top:0;font-weight:500">✕ = never suggest again</div><div class="pp-chips">'+
-      sug.map(s=>{const q=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-seed="${q}">${esc(String(s))}<span class="pp-deny" data-deny="${q}" title="never suggest again">✕</span></button>`;}).join('')+`<button class="btn" id="ppbuildboard" style="margin-left:6px">🧺 Build a roundup from these</button></div>`;
+      sug.map(s=>{const q=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-seed="${q}">${esc(String(s))}<span class="pp-deny" data-deny="${q}" title="never suggest again">✕</span></button>`;}).join('')+`<button class="btn" id="ppbuildboard" style="margin-left:6px">🧺 Build a roundup from these</button></div>`+manualOpt('B');
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
 }
 async function coverageGap(){
@@ -385,23 +387,27 @@ async function boardMore(name){
   }catch(e){ col.exhausted=true; }
   col.shown+=5; renderBoard(); renderMeters();
 }
+/* consistent "type your own" option, rendered as the final lettered choice on every lane */
+function manualOpt(letter,label,ph){
+  return `<div class="pp-ablabel">${letter} · ${label||'Or type your own'}</div><div class="pp-chips" style="align-items:center"><input id="ppmankw" class="pp-maninput" placeholder="${ph||'Type a product idea — e.g. rattan serving tray'}"><button class="btn" id="ppmanfind">Find products →</button></div>`;
+}
 function showRooms(){
   document.getElementById('ppsub').innerHTML='<div class="pp-ablabel">A · Pick a room</div><div class="pp-subnote" style="margin-top:0">It suggests proven product types for that room:</div><div class="pp-chips">'+
-    Object.keys(ROOMS).map(r=>`<button class="pp-chip" data-room="${r}">${r}</button>`).join('')+'</div>';
+    Object.keys(ROOMS).map(r=>`<button class="pp-chip" data-room="${r}">${r}</button>`).join('')+'</div>'+manualOpt('C');
 }
 function showTypes(room){
   ROUNDUP_TYPES=ROOMS[room].slice();
   document.getElementById('ppsub').innerHTML=`<div class="pp-ablabel"><button class="pp-back" data-back="1">← rooms</button> B · ${esc(room)} — tap a type to search, or build a roundup</div><div class="pp-chips">`+
     ROOMS[room].map(t=>`<button class="pp-chip" data-seed="${t}">${t}</button>`).join('')+
-    `<button class="btn" id="ppbuildboard" style="margin-left:6px">🧺 Build a roundup from these</button></div>`;
+    `<button class="btn" id="ppbuildboard" style="margin-left:6px">🧺 Build a roundup from these</button></div>`+manualOpt('C');
 }
 async function showSeasonal(selected){
   const sub=document.getElementById('ppsub');
   const sorted=SEASONS.map(s=>Object.assign({du:daysUntil(s.dl[0],s.dl[1])},s)).sort((a,b)=>a.du-b.du);
   let h='<div class="pp-ablabel">A · Pick a seasonal push</div><div class="pp-subnote" style="margin-top:0">Sorted by your "add to On Deck by" deadline:</div><div class="pp-chips">'+
     sorted.map(s=>{const n=String(s.n).replace(/"/g,'&quot;');return `<button class="pp-chip pp-season${selected===s.n?' on':''}${s.du<=21?' urgent':''}" data-szn="${n}">${s.e} ${esc(s.n)}<span class="pp-due">${s.du<=21?'⏰ add now':'in '+s.du+'d'}</span></button>`;}).join('')+'</div>';
-  if(!selected){ sub.innerHTML=h; return; }
-  h+=`<div class="pp-ablabel">B · Pick a product type ${AIB} — or build a roundup</div><div id="pptypes" class="pp-subnote" style="margin-top:0">🧠 finding ${esc(selected)} product types…</div>`;
+  if(!selected){ sub.innerHTML=h+manualOpt('C'); return; }
+  h+=`<div class="pp-ablabel">B · Pick a product type ${AIB} — or build a roundup</div><div id="pptypes" class="pp-subnote" style="margin-top:0">🧠 finding ${esc(selected)} product types…</div>`+manualOpt('C');
   sub.innerHTML=h;
   try{
     const r=await api('aiSuggest',{mode:'roundup',context:selected});
@@ -543,15 +549,16 @@ async function loadMore(){
 }
 
 async function showRefine(q){
-  const el=document.getElementById('pprefine'); if(!el) return; el.innerHTML='';
-  if(!q) return;
+  const el=document.getElementById('pprefine'); if(!el) return;
+  if(!q){ el.innerHTML=''; return; }
+  let chips='';
   try{
     const r=await api('aiSuggest',{mode:'styles',context:q});
-    let sug=(r&&r.suggestions)||[]; const dn=denied(); sug=sug.filter(s=>!dn.includes(s));
-    if(!sug.length) return;
-    el.innerHTML='<div class="pp-subnote" style="margin-top:12px">🔍 Narrow it (optional) '+AIB+' — tap to add, or edit the box above:</div><div class="pp-chips">'+
-      sug.map(s=>{const x=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-ref="${x}">${esc(String(s))}<span class="pp-deny" data-deny="${x}" title="never suggest again">✕</span></button>`;}).join('')+'</div>';
+    let sug=((r&&r.suggestions)||[]).filter(s=>!denied().includes(s));
+    chips=sug.map(s=>{const x=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-ref="${x}">${esc(String(s))}<span class="pp-deny" data-deny="${x}" title="never suggest again">✕</span></button>`;}).join('');
   }catch(e){}
+  el.innerHTML='<div class="pp-subnote" style="margin-top:12px">🔍 Narrow it (optional) '+AIB+' — tap a word, or add your own:</div><div class="pp-chips" style="align-items:center">'+
+    chips+'<input id="ppmanref" class="pp-maninput" style="flex:0 1 220px" placeholder="+ your own filter word"><button class="btn" id="ppmanrefadd">Add</button></div>';
 }
 async function run(){
   const kw=document.getElementById('kw').value.trim();
@@ -603,9 +610,9 @@ document.getElementById('lanes').addEventListener('click',e=>{
   const l=e.target.closest('.lane'); if(!l||l.classList.contains('soon'))return;
   document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active')); l.classList.add('active');
   const lane=l.dataset.lane, sub=document.getElementById('ppsub');
-  const labels={idea:'Step 2 · Type a product type, then hit Find products',evergreen:'Step 2 · Pick a room — or type your own in the box',seasonal:'Step 2 · Pick a seasonal push — or type your own in the box',trending:'Step 2 · Pick a trending idea — or type your own in the box',gap:'Step 2 · Pick a gap to fill — or type your own in the box',roundup:'Step 2 · Pick a roundup theme'};
+  const labels={idea:'Step 2 · Type a product type',evergreen:'Step 2 · Pick a room',seasonal:'Step 2 · Pick a seasonal push',trending:'Step 2 · Pick a trending idea',gap:'Step 2 · Pick a gap to fill',roundup:'Step 2 · Pick a roundup theme'};
   document.getElementById('step2label').textContent=labels[lane]||'Step 2';
-  document.querySelector('.searchbar').style.display=lane==='roundup'?'none':'flex';
+  document.querySelector('.searchbar').style.display='none';
   document.getElementById('step3label').style.display='none';
   document.getElementById('pprefine').innerHTML='';
   if(lane!=='roundup') { ROUNDUP_THEME=null; ROUNDUP_STYLE=''; ROUNDUP_TYPES=[]; refreshTray(); }
@@ -614,10 +621,11 @@ document.getElementById('lanes').addEventListener('click',e=>{
   else if(lane==='trending') aiChips('trending');
   else if(lane==='gap') coverageGap();
   else if(lane==='roundup') showThemes();
-  else sub.innerHTML='';
+  else sub.innerHTML=manualOpt('A','Type a product type','Type a product type — e.g. rattan serving tray');
 });
 document.getElementById('ppsub').addEventListener('click',e=>{
   if(e.target.closest('#ppbuildboard')){ buildBoard(); return; }
+  if(e.target.closest('#ppmanfind')){ const el=document.getElementById('ppmankw'); if(el&&el.value.trim()){ document.getElementById('kw').value=el.value.trim(); run(); } return; }
   if(e.target.closest('#ppmango')){ const el=document.getElementById('ppmantheme'); if(el&&el.value.trim()) roundupTheme(el.value.trim()); return; }
   const szn=e.target.closest('[data-szn]'); if(szn){ showSeasonal(szn.dataset.szn); return; }
   const season=e.target.closest('[data-season]'); if(season){ showThemes(season.dataset.season||''); return; }
@@ -633,8 +641,17 @@ document.getElementById('ppsub').addEventListener('click',e=>{
   if(seed){ if(ROUNDUP_THEME && seed.classList.contains('pp-typechip')) seed.classList.add('done'); else { document.querySelectorAll('#ppsub .pp-chip').forEach(c=>c.classList.remove('sel')); seed.classList.add('sel'); } const q=(ROUNDUP_STYLE?ROUNDUP_STYLE+' ':'')+seed.dataset.seed; document.getElementById('kw').value=q; run(); }
 });
 document.getElementById('pprefine').addEventListener('click',e=>{
+  if(e.target.closest('#ppmanrefadd')){ const el=document.getElementById('ppmanref'); if(el&&el.value.trim()){ document.getElementById('kw').value=(QUERY?QUERY+' ':'')+el.value.trim(); run(); } return; }
   const deny=e.target.closest('[data-deny]'); if(deny){ denyItem(deny.dataset.deny); const ch=deny.closest('.pp-chip'); if(ch)ch.remove(); return; }
   const ref=e.target.closest('[data-ref]'); if(ref){ document.getElementById('kw').value=(QUERY?QUERY+' ':'')+ref.dataset.ref; run(); }
+});
+document.getElementById('ppsub').addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  if(e.target.id==='ppmankw'){ e.preventDefault(); const v=e.target.value.trim(); if(v){ document.getElementById('kw').value=v; run(); } }
+  else if(e.target.id==='ppmantheme'){ e.preventDefault(); const v=e.target.value.trim(); if(v) roundupTheme(v); }
+});
+document.getElementById('pprefine').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&e.target.id==='ppmanref'){ e.preventDefault(); const v=e.target.value.trim(); if(v){ document.getElementById('kw').value=(QUERY?QUERY+' ':'')+v; run(); } }
 });
 document.getElementById('ppsub').addEventListener('input',e=>{ if(e.target.id==='ppstyle'){ ROUNDUP_STYLE=e.target.value.trim();
   document.querySelectorAll('.pp-stylechip').forEach(c=>c.classList.toggle('on',c.dataset.style===ROUNDUP_STYLE)); } });
@@ -653,11 +670,14 @@ function resetAll(){
   document.getElementById('step3label').style.display='none';
   document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active'));
   const idea=document.querySelector('.lane[data-lane="idea"]'); if(idea)idea.classList.add('active');
-  document.getElementById('step2label').textContent='Step 2 · Type a product type, then hit Find products';
-  document.querySelector('.searchbar').style.display='flex';
+  document.getElementById('step2label').textContent='Step 2 · Type a product type';
+  document.querySelector('.searchbar').style.display='none';
+  document.getElementById('ppsub').innerHTML=manualOpt('A','Type a product type','Type a product type — e.g. rattan serving tray');
   refreshTray();
 }
 document.getElementById('ppstart').onclick=resetAll;
+/* on load: default to My idea with inline manual entry; top search box stays hidden (manual is now a lettered option per lane) */
+(function(){ const idea=document.querySelector('.lane[data-lane="idea"]'); if(idea){ document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active')); idea.classList.add('active'); } document.getElementById('step2label').textContent='Step 2 · Type a product type'; document.querySelector('.searchbar').style.display='none'; document.getElementById('ppsub').innerHTML=manualOpt('A','Type a product type','Type a product type — e.g. rattan serving tray'); })();
 try{ const _q=JSON.parse(localStorage.getItem('pp_quota')); if(_q&&_q.remaining!=null){ QUOTA=_q; renderMeters(); } }catch(e){}  // show last-known Amazon quota immediately
 loadBalance();  // show DataForSEO balance + low-balance warning on open
 /* when embedded in the board (?embed=1), hide the picker's own header — the board already has a top bar */
