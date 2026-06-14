@@ -102,6 +102,14 @@
   .pp-refresh{border:none;background:none;color:var(--teal);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px}
   .pp-season{border:1px solid var(--line);background:#fff;border-radius:9px;padding:5px 10px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--espresso);font-family:inherit}
   .pp-season.on{background:var(--coral);border-color:var(--coral);color:#fff}
+  .pp-sectlabel{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 2px 7px}
+  .pp-stylebox{background:#fafbfc;border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:2px}
+  .pp-typechip{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;color:var(--espresso);font-family:inherit}
+  .pp-typechip:hover{border-color:var(--teal)}
+  .pp-typechip.done{opacity:.55;border-style:dashed}
+  .pp-theme{display:inline-flex;align-items:center}
+  .pp-deny{margin-left:8px;color:var(--muted);font-weight:800;cursor:pointer;border-radius:4px;padding:0 4px;font-size:12px}
+  .pp-deny:hover{color:#fff;background:var(--coral)}
 </style>
 </head>
 <body>
@@ -229,21 +237,24 @@ async function coverageGap(){
   aiChips('gap',{have});
 }
 /* ---- LANE: Roundup builder (brain picks a theme → product types → coordinated set) ---- */
+function deniedThemes(){ try{return JSON.parse(localStorage.getItem('pp_denied_themes'))||[];}catch(e){return[];} }
+function denyTheme(t){ const d=deniedThemes(); if(!d.includes(t)){ d.push(t); try{localStorage.setItem('pp_denied_themes',JSON.stringify(d));}catch(e){} } showThemes(ROUNDUP_SEASON); }
 async function showThemes(season){
   ROUNDUP_THEME=null; ROUNDUP_SEASON=season||''; refreshTray();
   const sub=document.getElementById('ppsub');
   sub.innerHTML='<div class="pp-subnote">🧠 Dreaming up roundup themes…</div>';
   try{
     const r=await api('aiSuggest', ROUNDUP_SEASON?{mode:'themes',context:ROUNDUP_SEASON}:{mode:'themes'});
-    const sug=(r&&r.suggestions)||[];
-    if(!sug.length){ sub.innerHTML='<div class="pp-subnote">No themes — tap the lane again.</div>'; return; }
+    let sug=(r&&r.suggestions)||[];
+    const dn=deniedThemes(); const keep=sug.filter(s=>!dn.includes(s)); if(keep.length) sug=keep;
+    if(!sug.length){ sub.innerHTML='<div class="pp-subnote">No themes — tap 🔄 new ideas.</div>'; return; }
     const seasons=SEASONS.map(s=>Object.assign({du:daysUntil(s.dl[0],s.dl[1])},s)).sort((a,b)=>a.du-b.du).slice(0,6);
     let h=`<div class="pp-subnote">Seed from a season <span style="font-weight:500">(optional — Seasonal + Roundup combo)</span>:</div><div class="pp-chips">`;
     h+=`<button class="pp-season${ROUNDUP_SEASON?'':' on'}" data-season="">None</button>`;
     h+=seasons.map(s=>`<button class="pp-season${ROUNDUP_SEASON===s.n?' on':''}" data-season="${String(s.n).replace(/"/g,'&quot;')}">${s.e} ${esc(s.n)}</button>`).join('');
     h+=`</div>`;
-    h+=`<div class="pp-subnote">${ROUNDUP_SEASON?('🧺 '+esc(ROUNDUP_SEASON)+' roundup themes '):'Pick a roundup theme '}${AIB} — tap one to build it<button class="pp-refresh" data-refresh="themes">🔄 new ideas</button></div>`;
-    h+=`<div class="pp-chips">`+sug.map(s=>`<button class="pp-chip" data-theme="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+`</div>`;
+    h+=`<div class="pp-subnote">${ROUNDUP_SEASON?('🧺 '+esc(ROUNDUP_SEASON)+' roundup themes '):'Pick a roundup theme '}${AIB} — tap to build · <span style="font-weight:500">✕ = never suggest again</span><button class="pp-refresh" data-refresh="themes">🔄 new ideas</button></div>`;
+    h+=`<div class="pp-chips">`+sug.map(s=>{const q=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-theme="${q}">${esc(String(s))}<span class="pp-deny" data-deny="${q}" title="never suggest again">✕</span></button>`;}).join('')+`</div>`;
     sub.innerHTML=h;
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
 }
@@ -268,11 +279,13 @@ async function roundupTheme(theme){
       }catch(e){}
     }
     const maxv=Math.max(0,...ranked.map(r=>r.v||0));
-    let h=`<div class="pp-subnote">🧺 <b>${esc(theme)}</b> — make them matchy ${AIB}<span class="pp-ai" style="background:var(--coral)">trend-ranked</span>, then tap each type<button class="pp-refresh" data-refresh="theme">🔄 reshuffle</button></div>`;
-    h+=`<div class="pp-stylewrap"><input id="ppstyle" class="pp-styleinput" placeholder="style word, e.g. checkered" value="">`;
+    let h=`<div class="pp-subnote">🧺 <b>${esc(theme)}</b> — build your roundup ${AIB}<span class="pp-ai" style="background:var(--coral)">trend-ranked</span><button class="pp-refresh" data-refresh="theme">🔄 reshuffle</button></div>`;
+    h+=`<div class="pp-sectlabel">🎨 Step 1 · coordinating style (optional) — applies to every search</div>`;
+    h+=`<div class="pp-stylebox"><div class="pp-stylewrap"><input id="ppstyle" class="pp-styleinput" placeholder="type a style, e.g. checkered" value="">`;
     h+=ranked.map(r=>`<button class="pp-chip pp-stylechip" data-style="${String(r.s).replace(/"/g,'&quot;')}">${(r.v!=null&&maxv>0&&r.v===maxv)?'🔥 ':''}${esc(String(r.s))}</button>`).join('');
-    h+=`</div>`;
-    h+=`<div class="pp-chips">`+types.map(s=>`<button class="pp-chip" data-seed="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+`</div>`;
+    h+=`</div></div>`;
+    h+=`<div class="pp-sectlabel">🛍️ Step 2 · tap each piece to find a product — your picks collect at the bottom</div>`;
+    h+=`<div class="pp-chips">`+types.map(s=>`<button class="pp-chip pp-typechip" data-seed="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+`</div>`;
     sub.innerHTML=h;
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — pick another theme.</div>'; }
 }
@@ -472,6 +485,7 @@ document.getElementById('lanes').addEventListener('click',e=>{
 document.getElementById('ppsub').addEventListener('click',e=>{
   const season=e.target.closest('[data-season]'); if(season){ showThemes(season.dataset.season||''); return; }
   const refresh=e.target.closest('[data-refresh]'); if(refresh){ if(refresh.dataset.refresh==='themes') showThemes(ROUNDUP_SEASON); else if(ROUNDUP_THEME) roundupTheme(ROUNDUP_THEME); return; }
+  const deny=e.target.closest('[data-deny]'); if(deny){ denyTheme(deny.dataset.deny); return; }
   const room=e.target.closest('[data-room]'); if(room){ showTypes(room.dataset.room); return; }
   if(e.target.closest('[data-back]')){ showRooms(); return; }
   const theme=e.target.closest('[data-theme]'); if(theme){ roundupTheme(theme.dataset.theme); return; }
@@ -479,7 +493,7 @@ document.getElementById('ppsub').addEventListener('click',e=>{
   if(style){ ROUNDUP_STYLE=style.dataset.style; const inp=document.getElementById('ppstyle'); if(inp)inp.value=ROUNDUP_STYLE;
     document.querySelectorAll('.pp-stylechip').forEach(c=>c.classList.toggle('on',c.dataset.style===ROUNDUP_STYLE)); return; }
   const seed=e.target.closest('[data-seed]');
-  if(seed){ const q=(ROUNDUP_STYLE?ROUNDUP_STYLE+' ':'')+seed.dataset.seed; document.getElementById('kw').value=q; run(); }
+  if(seed){ if(ROUNDUP_THEME && seed.classList.contains('pp-typechip')) seed.classList.add('done'); const q=(ROUNDUP_STYLE?ROUNDUP_STYLE+' ':'')+seed.dataset.seed; document.getElementById('kw').value=q; run(); }
 });
 document.getElementById('ppsub').addEventListener('input',e=>{ if(e.target.id==='ppstyle'){ ROUNDUP_STYLE=e.target.value.trim();
   document.querySelectorAll('.pp-stylechip').forEach(c=>c.classList.toggle('on',c.dataset.style===ROUNDUP_STYLE)); } });
