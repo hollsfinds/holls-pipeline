@@ -127,6 +127,10 @@
   .pp-pcard .pm{font-size:11px;color:var(--muted);margin-top:3px;display:flex;justify-content:space-between}
   .pp-pcard .pp{font-weight:800;color:var(--espresso)}
   .pp-pcard .peek{display:block;margin-top:5px;font-size:11px;color:var(--teal);text-decoration:none;font-weight:700}
+  .pp-picked{border:2px solid var(--teal);border-radius:10px;padding:6px;margin-bottom:10px;background:#fff;position:relative}
+  .pp-picked img{width:100%;height:78px;object-fit:contain;background:var(--peach);border-radius:6px;display:block}
+  .pp-picked .pt{font-size:10.5px;line-height:1.25;max-height:39px;overflow:hidden;font-weight:600;margin-top:4px}
+  .pp-picked .rm{position:absolute;top:-7px;right:-7px;background:var(--coral);color:#fff;border-radius:50%;width:17px;height:17px;font-size:12px;line-height:17px;text-align:center;cursor:pointer;z-index:1}
   .pp-more{width:100%;border:1px dashed var(--line);background:#fff;border-radius:9px;padding:6px;font-size:12px;font-weight:700;color:var(--teal);cursor:pointer;font-family:inherit}
   .pp-step{font-family:'Sora',sans-serif;font-size:13px;font-weight:800;color:var(--espresso);margin:18px 2px 9px}
   .pp-step:first-child{margin-top:2px}
@@ -247,9 +251,10 @@ async function aiChips(mode,extra){
                                : await api('aiSuggest',Object.assign({mode},extra||{}));
     let sug=(r&&r.suggestions)||[]; const dn=denied(); const keep=sug.filter(s=>!dn.includes(s)); if(keep.length) sug=keep;
     if(!sug.length){ sub.innerHTML='<div class="pp-subnote">Brain came back empty — tap the lane again.</div>'; return; }
-    const note=(mode==='gap'?'Gaps in your catalog — tap one to find products:':'Trending now (home + fashion) — tap to search:')+' '+AIB+' · <span style="font-weight:500">✕ = never suggest again</span>';
-    sub.innerHTML='<div class="pp-subnote">'+note+'</div><div class="pp-chips">'+
-      sug.map(s=>{const q=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-seed="${q}">${esc(String(s))}<span class="pp-deny" data-deny="${q}" title="never suggest again">✕</span></button>`;}).join('')+'</div>';
+    const lbl=(mode==='gap'?'B · Gaps in your catalog — tap one, or build a roundup ':'B · Trending now (home + fashion) — tap one, or build a roundup ')+AIB;
+    ROUNDUP_TYPES=sug.slice();
+    sub.innerHTML='<div class="pp-ablabel">'+lbl+'</div><div class="pp-subnote" style="margin-top:0;font-weight:500">✕ = never suggest again</div><div class="pp-chips">'+
+      sug.map(s=>{const q=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-seed="${q}">${esc(String(s))}<span class="pp-deny" data-deny="${q}" title="never suggest again">✕</span></button>`;}).join('')+`<button class="btn" id="ppbuildboard" style="margin-left:6px">🧺 Build a roundup from these</button></div>`;
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
 }
 async function coverageGap(){
@@ -342,13 +347,11 @@ async function buildBoard(){
 function renderBoard(){
   if(!BOARD) return;
   const picks=BOARD.cols.filter(c=>c.picked);
-  let h=`<div class="pp-strip"><h4>🧺 Your roundup so far <span style="font-weight:600;color:var(--muted);font-size:11px">${picks.length} of ${BOARD.cols.length} picked</span></h4>`;
-  h+= picks.length
-    ? `<div class="pp-stripitems">`+picks.map(c=>`<div class="pp-stripitem"><img src="${c.picked.image}" alt="" title="${esc(c.picked.title)}"><span class="rm" data-unpick="${String(c.name).replace(/"/g,'&quot;')}">×</span></div>`).join('')+`</div><div style="margin-top:10px"><button class="btn" id="ppcopyboard">Copy ${picks.length} URLs</button></div>`
-    : `<div class="empty" style="font-size:12.5px;padding:6px 2px">Tap a product in any column to add it to your set.</div>`;
-  h+=`</div><div class="pp-board">`;
+  let h=`<div class="pp-strip"><h4>🧺 Your roundup — <span style="font-weight:600;color:var(--muted);font-size:11px">${picks.length} of ${BOARD.cols.length} picked${picks.length?'':' · tap a product in any column'}</span>${picks.length?`<button class="btn" id="ppcopyboard" style="margin-left:auto">Copy ${picks.length} URLs</button>`:''}</h4></div>`;
+  h+=`<div class="pp-board">`;
   h+=BOARD.cols.map(col=>{
     let c=`<div class="pp-col"><div class="pp-colhead">${esc(col.name)}</div>`;
+    if(col.picked) c+=`<div class="pp-picked"><span class="rm" data-unpick="${String(col.name).replace(/"/g,'&quot;')}">×</span><img src="${col.picked.image}" alt=""><div class="pt">${esc(col.picked.title)}</div></div>`;
     if(col.loading) c+=`<div class="empty" style="font-size:12px;text-align:center">loading…</div>`;
     else if(!col.all.length) c+=`<div class="empty" style="font-size:12px;text-align:center">no matches</div>`;
     else{
@@ -383,17 +386,30 @@ async function boardMore(name){
   col.shown+=5; renderBoard(); renderMeters();
 }
 function showRooms(){
-  document.getElementById('ppsub').innerHTML='<div class="pp-subnote">Pick a room (it suggests proven product types — tap one to search):</div><div class="pp-chips">'+
+  document.getElementById('ppsub').innerHTML='<div class="pp-ablabel">A · Pick a room</div><div class="pp-subnote" style="margin-top:0">It suggests proven product types for that room:</div><div class="pp-chips">'+
     Object.keys(ROOMS).map(r=>`<button class="pp-chip" data-room="${r}">${r}</button>`).join('')+'</div>';
 }
 function showTypes(room){
-  document.getElementById('ppsub').innerHTML=`<div class="pp-subnote"><button class="pp-back" data-back="1">← rooms</button><b>${room}</b> — pick a product type:</div><div class="pp-chips">`+
-    ROOMS[room].map(t=>`<button class="pp-chip" data-seed="${t}">${t}</button>`).join('')+'</div>';
+  ROUNDUP_TYPES=ROOMS[room].slice();
+  document.getElementById('ppsub').innerHTML=`<div class="pp-ablabel"><button class="pp-back" data-back="1">← rooms</button> B · ${esc(room)} — tap a type to search, or build a roundup</div><div class="pp-chips">`+
+    ROOMS[room].map(t=>`<button class="pp-chip" data-seed="${t}">${t}</button>`).join('')+
+    `<button class="btn" id="ppbuildboard" style="margin-left:6px">🧺 Build a roundup from these</button></div>`;
 }
-function showSeasonal(){
+async function showSeasonal(selected){
+  const sub=document.getElementById('ppsub');
   const sorted=SEASONS.map(s=>Object.assign({du:daysUntil(s.dl[0],s.dl[1])},s)).sort((a,b)=>a.du-b.du);
-  document.getElementById('ppsub').innerHTML='<div class="pp-subnote">What to seed NOW — sorted by your "add to On Deck by" deadline:</div><div class="pp-chips">'+
-    sorted.map(s=>`<button class="pp-chip${s.du<=21?' urgent':''}" data-seed="${s.seed}">${s.e} ${s.n}<span class="pp-due">${s.du<=21?'⏰ add now':'in '+s.du+'d'}</span></button>`).join('')+'</div>';
+  let h='<div class="pp-ablabel">A · Pick a seasonal push</div><div class="pp-subnote" style="margin-top:0">Sorted by your "add to On Deck by" deadline:</div><div class="pp-chips">'+
+    sorted.map(s=>{const n=String(s.n).replace(/"/g,'&quot;');return `<button class="pp-chip pp-season${selected===s.n?' on':''}${s.du<=21?' urgent':''}" data-szn="${n}">${s.e} ${esc(s.n)}<span class="pp-due">${s.du<=21?'⏰ add now':'in '+s.du+'d'}</span></button>`;}).join('')+'</div>';
+  if(!selected){ sub.innerHTML=h; return; }
+  h+=`<div class="pp-ablabel">B · Pick a product type ${AIB} — or build a roundup</div><div id="pptypes" class="pp-subnote" style="margin-top:0">🧠 finding ${esc(selected)} product types…</div>`;
+  sub.innerHTML=h;
+  try{
+    const r=await api('aiSuggest',{mode:'roundup',context:selected});
+    let types=((r&&r.suggestions)||[]).filter(t=>!denied().includes(t));
+    ROUNDUP_TYPES=types.slice();
+    const el=document.getElementById('pptypes');
+    if(el) el.outerHTML='<div class="pp-chips">'+types.map(t=>{const q=String(t).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-seed="${q}">${esc(t)}<span class="pp-deny" data-deny="${q}" title="never suggest again">✕</span></button>`;}).join('')+`<button class="btn" id="ppbuildboard" style="margin-left:6px">🧺 Build a roundup from these</button></div>`;
+  }catch(e){ const el=document.getElementById('pptypes'); if(el) el.textContent='Brain hiccup — pick another season.'; }
 }
 
 /* ---- DEMAND: derive a rising/steady/declining read + 0-20 score from a single-keyword curve ---- */
@@ -592,7 +608,7 @@ document.getElementById('lanes').addEventListener('click',e=>{
   document.querySelector('.searchbar').style.display=lane==='roundup'?'none':'flex';
   document.getElementById('step3label').style.display='none';
   document.getElementById('pprefine').innerHTML='';
-  if(lane!=='roundup') { ROUNDUP_THEME=null; refreshTray(); }
+  if(lane!=='roundup') { ROUNDUP_THEME=null; ROUNDUP_STYLE=''; ROUNDUP_TYPES=[]; refreshTray(); }
   if(lane==='evergreen') showRooms();
   else if(lane==='seasonal') showSeasonal();
   else if(lane==='trending') aiChips('trending');
@@ -603,6 +619,7 @@ document.getElementById('lanes').addEventListener('click',e=>{
 document.getElementById('ppsub').addEventListener('click',e=>{
   if(e.target.closest('#ppbuildboard')){ buildBoard(); return; }
   if(e.target.closest('#ppmango')){ const el=document.getElementById('ppmantheme'); if(el&&el.value.trim()) roundupTheme(el.value.trim()); return; }
+  const szn=e.target.closest('[data-szn]'); if(szn){ showSeasonal(szn.dataset.szn); return; }
   const season=e.target.closest('[data-season]'); if(season){ showThemes(season.dataset.season||''); return; }
   const refresh=e.target.closest('[data-refresh]'); if(refresh){ if(refresh.dataset.refresh==='themes') showThemes(ROUNDUP_SEASON); else if(ROUNDUP_THEME) roundupTheme(ROUNDUP_THEME); return; }
   const deny=e.target.closest('[data-deny]'); if(deny){ denyItem(deny.dataset.deny); const ch=deny.closest('.pp-chip'); if(ch)ch.remove(); return; }
