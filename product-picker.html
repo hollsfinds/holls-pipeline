@@ -110,6 +110,23 @@
   .pp-theme{display:inline-flex;align-items:center}
   .pp-deny{margin-left:8px;color:var(--muted);font-weight:800;cursor:pointer;border-radius:4px;padding:0 4px;font-size:12px}
   .pp-deny:hover{color:#fff;background:var(--coral)}
+  .pp-strip{background:#fafbfc;border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin:6px 0 14px}
+  .pp-strip h4{font-family:'Sora',sans-serif;font-size:13px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
+  .pp-stripitems{display:flex;gap:8px;flex-wrap:wrap}
+  .pp-stripitem{width:62px;position:relative}
+  .pp-stripitem img{width:62px;height:62px;object-fit:contain;background:var(--peach);border-radius:8px;border:1px solid var(--line)}
+  .pp-stripitem .rm{position:absolute;top:-6px;right:-6px;background:var(--coral);color:#fff;border-radius:50%;width:17px;height:17px;font-size:12px;line-height:17px;text-align:center;cursor:pointer}
+  .pp-board{display:flex;gap:12px;overflow-x:auto;padding:2px 0 8px;align-items:flex-start}
+  .pp-col{flex:0 0 178px;min-width:178px}
+  .pp-colhead{font-size:12px;font-weight:800;color:var(--espresso);margin:0 0 7px;text-align:center;min-height:32px;display:flex;align-items:center;justify-content:center}
+  .pp-pcard{border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;margin-bottom:8px;background:#fff}
+  .pp-pcard.locked{border-color:var(--teal);box-shadow:0 0 0 2px var(--teal)}
+  .pp-pcard img{width:100%;height:108px;object-fit:contain;background:var(--peach);display:block}
+  .pp-pcard .pi{padding:6px 7px}
+  .pp-pcard .pt{font-size:11px;line-height:1.3;max-height:43px;overflow:hidden;font-weight:600}
+  .pp-pcard .pm{font-size:11px;color:var(--muted);margin-top:3px;display:flex;justify-content:space-between}
+  .pp-pcard .pp{font-weight:800;color:var(--espresso)}
+  .pp-more{width:100%;border:1px dashed var(--line);background:#fff;border-radius:9px;padding:6px;font-size:12px;font-weight:700;color:var(--teal);cursor:pointer;font-family:inherit}
 </style>
 </head>
 <body>
@@ -172,7 +189,7 @@ const API="https://script.google.com/macros/s/AKfycbzYObvkhNOLKGnF6kMmlL3dEjEGzi
 const TOKEN="holls-pipeline-2026";
 const BRIDGE="https://script.google.com/macros/s/AKfycbxPkObU7vxVtY4ZseyenU46h9IQKQStnJMr4XaoQOO3JZLF1-Wtg91yp1Uj5qVNBRhh/exec";
 const AIB='<span class="pp-ai">AI</span>';
-let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null, ROUNDUP_THEME=null, ROUNDUP_STYLE='', ROUNDUP_SEASON='';
+let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null, ROUNDUP_THEME=null, ROUNDUP_STYLE='', ROUNDUP_SEASON='', BOARD=null, ROUNDUP_TYPES=[];
 
 function api(action,params){
   const q=new URLSearchParams(Object.assign({token:TOKEN,action},params));
@@ -284,10 +301,70 @@ async function roundupTheme(theme){
     h+=`<div class="pp-stylebox"><div class="pp-stylewrap"><input id="ppstyle" class="pp-styleinput" placeholder="type a style, e.g. checkered" value="">`;
     h+=ranked.map(r=>`<button class="pp-chip pp-stylechip" data-style="${String(r.s).replace(/"/g,'&quot;')}">${(r.v!=null&&maxv>0&&r.v===maxv)?'🔥 ':''}${esc(String(r.s))}</button>`).join('');
     h+=`</div></div>`;
-    h+=`<div class="pp-sectlabel">🛍️ Step 2 · tap each piece to find a product — your picks collect at the bottom</div>`;
-    h+=`<div class="pp-chips">`+types.map(s=>`<button class="pp-chip pp-typechip" data-seed="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+`</div>`;
+    ROUNDUP_TYPES=types;
+    h+=`<div class="pp-sectlabel">🛍️ Step 2 · build your set</div>`;
+    h+=`<div class="pp-chips" style="align-items:center"><button class="btn" id="ppbuildboard">▦ Build the board — 5 picks per piece</button><span class="hint" style="margin:0">${types.length} pieces · ~${types.length} Amazon lookups</span></div>`;
+    h+=`<div class="pp-subnote" style="margin-top:4px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--espresso)">${types.map(t=>esc(t)).join(' · ')}</div>`;
     sub.innerHTML=h;
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — pick another theme.</div>'; }
+}
+/* ---- ROUNDUP BUILD BOARD (columns per piece, 5 each + more, locked picks rise to a strip) ---- */
+function roundupQ(t){ return (ROUNDUP_STYLE?ROUNDUP_STYLE+' ':'')+t; }
+async function buildBoard(){
+  const types=ROUNDUP_TYPES||[]; if(!types.length) return;
+  BOARD={cols:types.map(t=>({name:t,q:roundupQ(t),all:[],shown:5,page:1,exhausted:false,picked:null,loading:true}))};
+  renderBoard();
+  for(const col of BOARD.cols){
+    try{
+      const prod=await api('searchProducts',{query:col.q});
+      QUOTA=(prod&&prod.quota)||QUOTA; try{ if(QUOTA&&QUOTA.remaining!=null) localStorage.setItem('pp_quota',JSON.stringify(QUOTA)); }catch(e){}
+      const raw=(prod&&prod.products)||[];
+      col.all=raw.filter(p=>p.rating>=4.3&&p.reviews>=100).map(p=>{p._score=scoreProduct(p,12);return p;}).sort((a,b)=>b._score-a._score);
+    }catch(e){ col.all=[]; }
+    col.loading=false; renderBoard(); renderMeters();
+  }
+}
+function renderBoard(){
+  if(!BOARD) return;
+  const picks=BOARD.cols.filter(c=>c.picked);
+  let h=`<div class="pp-strip"><h4>🧺 Your roundup so far <span style="font-weight:600;color:var(--muted);font-size:11px">${picks.length} of ${BOARD.cols.length} picked</span></h4>`;
+  h+= picks.length
+    ? `<div class="pp-stripitems">`+picks.map(c=>`<div class="pp-stripitem"><img src="${c.picked.image}" alt="" title="${esc(c.picked.title)}"><span class="rm" data-unpick="${String(c.name).replace(/"/g,'&quot;')}">×</span></div>`).join('')+`</div><div style="margin-top:10px"><button class="btn" id="ppcopyboard">Copy ${picks.length} URLs</button></div>`
+    : `<div class="empty" style="font-size:12.5px;padding:6px 2px">Tap a product in any column to add it to your set.</div>`;
+  h+=`</div><div class="pp-board">`;
+  h+=BOARD.cols.map(col=>{
+    let c=`<div class="pp-col"><div class="pp-colhead">${esc(col.name)}</div>`;
+    if(col.loading) c+=`<div class="empty" style="font-size:12px;text-align:center">loading…</div>`;
+    else if(!col.all.length) c+=`<div class="empty" style="font-size:12px;text-align:center">no matches</div>`;
+    else{
+      c+=col.all.slice(0,col.shown).map(p=>`<div class="pp-pcard${col.picked&&col.picked.asin===p.asin?' locked':''}" data-bpick="${String(col.name).replace(/"/g,'&quot;')}|${p.asin}"><img loading="lazy" src="${p.image}" alt=""><div class="pi"><div class="pt">${esc(p.title)}</div><div class="pm"><span class="pp">$${(p.price||0).toFixed(2)}</span><span>★${p.rating} · ${p._score}</span></div></div></div>`).join('');
+      if(col.shown<col.all.length || !col.exhausted) c+=`<button class="pp-more" data-more="${String(col.name).replace(/"/g,'&quot;')}">+ more</button>`;
+    }
+    return c+`</div>`;
+  }).join('')+`</div>`;
+  document.getElementById('results').innerHTML=h;
+  document.getElementById('sortbar').style.display='none';
+  document.getElementById('more').innerHTML='';
+}
+function boardPick(v){
+  const i=v.indexOf('|'); const name=v.slice(0,i), asin=v.slice(i+1);
+  const col=BOARD.cols.find(c=>c.name===name); if(!col) return;
+  const p=col.all.find(x=>x.asin===asin); if(!p) return;
+  col.picked=(col.picked&&col.picked.asin===asin)?null:p; renderBoard();
+}
+function boardUnpick(name){ const col=BOARD.cols.find(c=>c.name===name); if(col){ col.picked=null; renderBoard(); } }
+async function boardMore(name){
+  const col=BOARD.cols.find(c=>c.name===name); if(!col) return;
+  if(col.shown+5<=col.all.length){ col.shown+=5; renderBoard(); return; }
+  col.page++;
+  try{
+    const prod=await api('searchProducts',{query:col.q,page:col.page});
+    QUOTA=(prod&&prod.quota)||QUOTA;
+    const raw=(prod&&prod.products)||[];
+    const more=raw.filter(p=>p.rating>=4.3&&p.reviews>=100&&!col.all.find(x=>x.asin===p.asin)).map(p=>{p._score=scoreProduct(p,12);return p;});
+    if(!more.length) col.exhausted=true; else col.all=col.all.concat(more).sort((a,b)=>b._score-a._score);
+  }catch(e){ col.exhausted=true; }
+  col.shown+=5; renderBoard(); renderMeters();
 }
 function showRooms(){
   document.getElementById('ppsub').innerHTML='<div class="pp-subnote">Pick a room (it suggests proven product types — tap one to search):</div><div class="pp-chips">'+
@@ -465,6 +542,10 @@ document.getElementById('kw').addEventListener('keydown',e=>{if(e.key==='Enter')
 document.getElementById('sort').onchange=render;
 document.getElementById('more').addEventListener('click',e=>{ if(e.target.id==='moreBtn') loadMore(); });
 document.getElementById('results').addEventListener('click',e=>{
+  const bp=e.target.closest('[data-bpick]'); if(bp){ boardPick(bp.dataset.bpick); return; }
+  const mr=e.target.closest('[data-more]'); if(mr){ boardMore(mr.dataset.more); return; }
+  const up=e.target.closest('[data-unpick]'); if(up){ boardUnpick(up.dataset.unpick); return; }
+  if(e.target.id==='ppcopyboard'){ const u=BOARD.cols.filter(c=>c.picked).map(c=>c.picked.url).join('\n'); navigator.clipboard.writeText(u); toast('Copied roundup URLs'); return; }
   const b=e.target.closest('[data-pick]'); if(!b)return;
   const asin=b.getAttribute('data-pick'); const p=LAST.find(x=>x.asin===asin);
   if(PICKS[asin])delete PICKS[asin]; else PICKS[asin]=p;
@@ -483,6 +564,7 @@ document.getElementById('lanes').addEventListener('click',e=>{
   else sub.innerHTML='';
 });
 document.getElementById('ppsub').addEventListener('click',e=>{
+  if(e.target.closest('#ppbuildboard')){ buildBoard(); return; }
   const season=e.target.closest('[data-season]'); if(season){ showThemes(season.dataset.season||''); return; }
   const refresh=e.target.closest('[data-refresh]'); if(refresh){ if(refresh.dataset.refresh==='themes') showThemes(ROUNDUP_SEASON); else if(ROUNDUP_THEME) roundupTheme(ROUNDUP_THEME); return; }
   const deny=e.target.closest('[data-deny]'); if(deny){ denyTheme(deny.dataset.deny); return; }
