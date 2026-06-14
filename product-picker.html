@@ -97,6 +97,8 @@
   .pp-styleinput{border:1px solid var(--line);border-radius:9px;padding:7px 11px;font-size:13px;font-family:inherit;width:190px}
   .pp-styleinput:focus{outline:none;border-color:var(--teal)}
   .pp-stylechip.on{background:var(--teal);border-color:var(--teal);color:#fff}
+  .pp-ai{display:inline-block;background:var(--teal);color:#fff;font-size:9px;font-weight:800;border-radius:5px;
+         padding:1px 5px;margin-left:5px;vertical-align:middle;letter-spacing:.4px;text-transform:uppercase}
 </style>
 </head>
 <body>
@@ -159,6 +161,7 @@
 const API="https://script.google.com/macros/s/AKfycbzYObvkhNOLKGnF6kMmlL3dEjEGziThotCmzz-dzswVMw3aqKRZAnXj6fxy8MX8bj6U/exec";
 const TOKEN="holls-pipeline-2026";
 const BRIDGE="https://script.google.com/macros/s/AKfycbxPkObU7vxVtY4ZseyenU46h9IQKQStnJMr4XaoQOO3JZLF1-Wtg91yp1Uj5qVNBRhh/exec";
+const AIB='<span class="pp-ai">AI</span>';
 let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null, ROUNDUP_THEME=null, ROUNDUP_STYLE='';
 
 function api(action,params){
@@ -205,7 +208,7 @@ async function aiChips(mode,extra){
                                : await api('aiSuggest',Object.assign({mode},extra||{}));
     const sug=(r&&r.suggestions)||[];
     if(!sug.length){ sub.innerHTML='<div class="pp-subnote">Brain came back empty — tap the lane again.</div>'; return; }
-    const note=mode==='gap'?'Gaps in your catalog — tap one to find products:':'Trending now (home + fashion) — tap to search:';
+    const note=(mode==='gap'?'Gaps in your catalog — tap one to find products:':'Trending now (home + fashion) — tap to search:')+' '+AIB;
     sub.innerHTML='<div class="pp-subnote">'+note+'</div><div class="pp-chips">'+
       sug.map(s=>`<button class="pp-chip" data-seed="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+'</div>';
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
@@ -232,21 +235,34 @@ async function showThemes(){
     const r=await api('aiSuggest',{mode:'themes'});
     const sug=(r&&r.suggestions)||[];
     if(!sug.length){ sub.innerHTML='<div class="pp-subnote">No themes — tap the lane again.</div>'; return; }
-    sub.innerHTML='<div class="pp-subnote">Pick a roundup theme — the brain breaks it into products:</div><div class="pp-chips">'+
+    sub.innerHTML='<div class="pp-subnote">Pick a roundup theme '+AIB+' — the brain breaks it into products:</div><div class="pp-chips">'+
       sug.map(s=>`<button class="pp-chip" data-theme="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+'</div>';
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
 }
 async function roundupTheme(theme){
   ROUNDUP_THEME=theme; ROUNDUP_STYLE=''; refreshTray();
   const sub=document.getElementById('ppsub');
-  sub.innerHTML=`<div class="pp-subnote">🧠 Building “${esc(theme)}”…</div>`;
+  sub.innerHTML=`<div class="pp-subnote">🧠 Building “${esc(theme)}” + checking live style trends…</div>`;
   try{
     const [rt,rs]=await Promise.all([ api('aiSuggest',{mode:'roundup',context:theme}), api('aiSuggest',{mode:'styles',context:theme}) ]);
-    const types=(rt&&rt.suggestions)||[], styles=(rs&&rs.suggestions)||[];
+    const types=(rt&&rt.suggestions)||[]; let styles=((rs&&rs.suggestions)||[]).slice(0,5);
     if(!types.length){ sub.innerHTML='<div class="pp-subnote">No products — pick another theme.</div>'; return; }
-    let h=`<div class="pp-subnote">🧺 <b>${esc(theme)}</b> — make them matchy (optional), then tap each type:</div>`;
+    // research-back the AI styles: rank by LIVE DataForSEO demand
+    let ranked=styles.map(s=>({s,v:null}));
+    if(styles.length){
+      try{
+        const isFashion=/wardrobe|closet|outfit|dress|jewel|fashion|necklace|earring|\bbag\b|shoe|boot|scarf|\bstyle\b/i.test(theme);
+        const ctx=isFashion?'outfit':'decor';
+        const dem=await api('keywordDemand',{keywords:styles.map(s=>s+' '+ctx).join(',')});
+        const it=dem&&dem.result&&dem.result[0]&&dem.result[0].items&&dem.result[0].items[0];
+        const avgs=it&&it.averages;
+        if(avgs&&avgs.length===styles.length){ ranked=styles.map((s,i)=>({s,v:+avgs[i]||0})).sort((a,b)=>b.v-a.v); }
+      }catch(e){}
+    }
+    const maxv=Math.max(0,...ranked.map(r=>r.v||0));
+    let h=`<div class="pp-subnote">🧺 <b>${esc(theme)}</b> — make them matchy ${AIB}<span class="pp-ai" style="background:var(--coral)">trend-ranked</span>, then tap each type:</div>`;
     h+=`<div class="pp-stylewrap"><input id="ppstyle" class="pp-styleinput" placeholder="style word, e.g. checkered" value="">`;
-    h+=styles.map(s=>`<button class="pp-chip pp-stylechip" data-style="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('');
+    h+=ranked.map(r=>`<button class="pp-chip pp-stylechip" data-style="${String(r.s).replace(/"/g,'&quot;')}">${(r.v!=null&&maxv>0&&r.v===maxv)?'🔥 ':''}${esc(String(r.s))}</button>`).join('');
     h+=`</div>`;
     h+=`<div class="pp-chips">`+types.map(s=>`<button class="pp-chip" data-seed="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+`</div>`;
     sub.innerHTML=h;
