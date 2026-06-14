@@ -3128,10 +3128,31 @@ async function renderReview(){
   const bundles={}; const pending=[];
   allPending.forEach(o=>{ const b=String(o.r[7]||"").trim();
     if(b && String(o.r[2]||"").toLowerCase()==="personal"){ (bundles[b]=bundles[b]||[]).push(o); } else pending.push(o); });
-  if(!allPending.length){ host.innerHTML=onDeckHtml()+draftHtml+'<div class="rv-empty">'+(drafting.length?('Nothing to review just yet — your '+drafting.length+' submitted '+(drafting.length===1?'story is':'stories are')+' drafting above. ✍'):'🎉 Nothing waiting for review. New posts show up here as the pipeline queues them.')+'</div>'+upcomingHtml(body); return; }
+  // posts the scheduler couldn't place (status "reschedule") → pop back as draft cards with a date picker to re-approve
+  const reschedule=body.map((r,i)=>({r,sheetRow:i+2})).filter(o=>String(o.r[5]||"").trim().toLowerCase()==="reschedule");
+  const isImg0=s=>/^https?:\/\//i.test(String(s||""));
+  let reHtml="";
+  if(reschedule.length){
+    reHtml='<div class="ns-head" style="font-size:13px;margin:4px 0 8px;color:#B0392B">⚠ Needs rescheduling <span style="font-weight:600;font-size:11px;color:#8a7f79">— these couldn’t be scheduled (slot passed or full). Pick a new date and re-approve.</span></div><div class="rv-grid">'
+      +reschedule.map(o=>{ const dt=o.r[0],pl=o.r[1],cap=o.r[3],img=o.r[4],reason=String(o.r[6]||"").trim();
+        const isVid=/\.mp4(\?|$)/i.test(String(img||"")); const reel=isVid||/reel/i.test(String(pl||""));
+        const vsrc=String(img||"").replace(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/[^/]+\//,"https://$1.github.io/$2/");
+        const opts=(function(){const taken={};(nonpromo||[]).forEach(n=>{const s=String(n.status||"").toLowerCase();if(s==="queued"||s==="scheduled")taken[String(n.date||"").slice(0,10)]=1;});
+          let oo="",d=new Date();for(let i=0;i<=14;i++){if(i>0)d.setDate(d.getDate()+1);const ds=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+            oo+='<option value="'+ds+'"'+(i===1?" selected":"")+'>'+ds.slice(5).replace("-","/")+(i===0?" · today":(taken[ds]?" · busy":" · open"))+"</option>";}return oo;})();
+        let c='<div class="rv-card" data-row="'+o.sheetRow+'"'+(reel?' data-reel="1"':'')+' style="border-left:3px solid #B0392B">';
+        if(isVid) c+='<div class="rv-thumb rv-vid"><video src="'+esc(vsrc)+'" controls preload="metadata" playsinline></video></div>';
+        else if(isImg0(img)) c+='<div class="rv-thumb"><img src="'+esc(img)+'" alt="" loading="lazy"></div>';
+        c+='<div class="rv-body"><div style="font-size:11px;font-weight:700;color:#B0392B;background:#FAD9D3;border-radius:6px;padding:5px 9px;margin-bottom:6px">⚠ Couldn’t schedule'+(reason?" — "+esc(reason):"")+'. Pick a new date.</div>';
+        c+='<div class="rv-meta"><span class="rv-plat">'+esc(pl||"")+'</span>'+(reel?'<span class="rv-cardbadge">🎬 Chat reel</span>':'')+'<span class="rv-date">was '+esc(String(dt||"").slice(0,10))+'</span></div>';
+        c+='<textarea class="rv-cap">'+esc(cap||"")+'</textarea>';
+        c+='<div class="rv-acts"><select class="rv-slot" title="New date">'+opts+'</select><button class="btn rv-approve" data-row="'+o.sheetRow+'">✓ Reschedule</button><button class="btn ghost rv-skip" data-row="'+o.sheetRow+'">Skip</button><span class="rv-status"></span></div></div></div>';
+        return c; }).join("")+'</div>';
+  }
+  if(!allPending.length && !reschedule.length){ host.innerHTML=onDeckHtml()+draftHtml+'<div class="rv-empty">'+(drafting.length?('Nothing to review just yet — your '+drafting.length+' submitted '+(drafting.length===1?'story is':'stories are')+' drafting above. ✍'):'🎉 Nothing waiting for review. New posts show up here as the pipeline queues them.')+'</div>'+upcomingHtml(body); return; }
   const tcol=t=>({personal:["#FAD9D3","#B0392B"],value:["#EBEFE6","#5E6E50"],engagement:["#FFE7D6","#B5702F"],trending:["#E7E0F0","#6B5B95"]})[String(t||"").toLowerCase()]||["#eee","#555"];
   const isImg=s=>/^https?:\/\//i.test(String(s||""));
-  let html=onDeckHtml()+draftHtml;
+  let html=onDeckHtml()+draftHtml+reHtml;
   const PEMO={facebook:"📘",instagram:"📸",tiktok:"🎵"};
   if(Object.keys(bundles).length) html+='<div class="ns-head" style="font-size:13px;margin:4px 0 8px">📖 Your stories</div>';
   Object.keys(bundles).forEach(bid=>{
@@ -3150,8 +3171,8 @@ async function renderReview(){
       +'<div class="pb-acts"><button class="btn rv-approve pb-approve">✓ Approve selected</button>'
       +'<select class="pb-slot" title="Which day should this story post?"><option value="">📅 next open slot (auto)</option>'
       +(function(){const taken={};nonpromo.forEach(n=>{const st=String(n.status||"").toLowerCase();if(st==="queued"||st==="scheduled")taken[String(n.date||"").slice(0,10)]=1;});
-        let o="",d=new Date();for(let i=1;i<=14;i++){d.setDate(d.getDate()+(i===1?1:1));const ds=d.toISOString().slice(0,10);
-          o+='<option value="'+ds+'">'+ds.slice(5).replace("-","/")+(taken[ds]?" · busy":" · open")+"</option>";}return o;})()
+        let o="",d=new Date();for(let i=0;i<=14;i++){if(i>0)d.setDate(d.getDate()+1);const ds=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+          o+='<option value="'+ds+'">'+ds.slice(5).replace("-","/")+(i===0?" · today":(taken[ds]?" · busy":" · open"))+"</option>";}return o;})()
       +'</select><span class="pb-chips">'
       +[["facebook","FB"],["instagram","IG"],["tiktok","TT"],["facebookstory","FB story"],["instagramstory","IG story"]].map(pc=>
         '<label class="pb-pc"><input type="checkbox" class="pb-plat-ck" data-plat="'+pc[0]+'"'+(pc[0].indexOf("story")<0?" checked":"")+'><span>'+pc[1]+'</span><i class="pb-open"></i></label>').join("")
@@ -3230,10 +3251,12 @@ async function renderReview(){
     btn.disabled=true; st.textContent="Saving…";
     try{
       const reel=!!card.dataset.reel;   // reels → "approved" (a reel sweep schedules them; NOT "queued", which schedule-nonpromo skips)
-      if(ap){ await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:cap});
+      const reSlot=card.querySelector(".rv-slot"); const newDate=reSlot?reSlot.value:"";   // present only on reschedule cards
+      if(ap){ if(newDate) await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:1,value:newDate});
+              await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:cap});
               await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:reel?"approved":"queued"}); }
       else  { await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"}); }
-      const n=nonpromo.find(x=>x.row===row); if(n){ n.status=ap?(reel?"approved":"queued"):"skipped"; if(ap&&cap) n.caption=cap; }
+      const n=nonpromo.find(x=>x.row===row); if(n){ n.status=ap?(reel?"approved":"queued"):"skipped"; if(ap&&cap) n.caption=cap; if(ap&&newDate) n.date=newDate; }
       renderTodo(); render();   // reflect immediately: Fully Live card appears (queued) + To-Do counts update
       card.style.transition="opacity .3s"; card.style.opacity="0";
       setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")&&!host.querySelector(".pb-card")) renderReview(); },320);
