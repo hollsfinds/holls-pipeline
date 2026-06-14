@@ -3114,6 +3114,14 @@ async function renderReview(){
       return '<div class="genwait"><span class="genspin"></span><span>✍ <b>Drafting…</b> the brain is writing this in your voice (IG + FB + TikTok) — usually a few minutes, then it drops into the queue below.<br><span style="opacity:.8;font-style:italic">Topic: '+esc(topic)+'</span></span></div>';
     }).join("")+'</div>';
   }
+  // chosen On Deck reel ideas the brain is rendering (status "chosen") → show a "drafting" indicator so the screen isn't silent
+  const reelDrafting=body.filter(r=>String(r[1]||"").trim().toLowerCase()==="(reeldeck)" && String(r[5]||"").trim().toLowerCase()==="chosen");
+  if(reelDrafting.length){
+    draftHtml+='<div class="rv-drafting" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+reelDrafting.map(r=>{
+      const idea=String(r[3]||r[4]||"").split("|")[0].trim()||"your reel idea";
+      return '<div class="genwait"><span class="genspin"></span><span>🎬 <b>Drafting your reel…</b> the brain is building the branded frames + video — usually a few minutes, then it drops into the queue below to approve.<br><span style="opacity:.8;font-style:italic">Idea: '+esc(idea)+'</span></span></div>';
+    }).join("")+'</div>';
+  }
   const allPending=body.map((r,i)=>({r,sheetRow:i+2})).filter(o=>String(o.r[5]||"").trim().toLowerCase()==="needs_review");
   // BUNDLES (2026-06-11 revamp): personal rows sharing col H = one story drafted for
   // FB+IG+TikTok together — reviewed as ONE card, approved with ONE click.
