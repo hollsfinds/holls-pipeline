@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holls Finds — Product Picker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --coral:#F87E72; --peach:#FFEDE3; --sage:#DEF0E2; --teal:#2FA9A4;
+    --espresso:#23272D; --ink:#1B1F24; --muted:#6E7681; --line:#EAEDF1;
+    --bg:#FFFFFF; --card:#FFFFFF; --cream:#F6F7F9;
+    --good:#2FA9A4; --warn:#F87E72;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.45;font-size:14px}
+  header{background:#fff;color:var(--ink);padding:13px 26px;display:flex;align-items:center;gap:11px;
+         border-bottom:1px solid var(--line);position:sticky;top:0;z-index:60}
+  header .dot{width:13px;height:13px;border-radius:50%;background:var(--coral);box-shadow:0 0 0 3px #f8837822}
+  header h1{font-family:'Sora',sans-serif;font-size:17px;margin:0;font-weight:800;letter-spacing:.2px}
+  header .obsessed{color:var(--muted);font-style:italic;font-size:12px;align-self:flex-end;font-weight:600}
+  h3{font-family:'Sora',sans-serif}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px 26px 80px}
+  .lanes{display:flex;flex-wrap:wrap;gap:9px;margin:6px 0 16px}
+  .lane{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 14px;font-size:13.5px;
+        cursor:pointer;font-weight:700;color:var(--espresso);transition:.15s}
+  .lane:hover{border-color:var(--coral)}
+  .lane.active{background:var(--coral);border-color:var(--coral);color:#fff}
+  .lane.soon{opacity:.5;cursor:not-allowed}
+  .searchbar{display:flex;gap:10px;margin:4px 0 8px}
+  .searchbar input{flex:1;padding:13px 16px;border:1px solid var(--line);border-radius:12px;font-size:15px;background:#fff}
+  .searchbar input:focus{outline:none;border-color:var(--teal)}
+  .btn{background:var(--coral);color:#fff;border:none;border-radius:12px;padding:13px 22px;font-size:15px;
+       font-weight:700;cursor:pointer;white-space:nowrap}
+  .btn:disabled{opacity:.55;cursor:wait}
+  .btn.ghost{background:#fff;color:var(--espresso);border:1px solid var(--line)}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 2px 14px}
+  .meters{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:6px 2px 4px}
+  .meters b{color:var(--espresso)}
+  .demandcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin:14px 0;display:none}
+  .demandcard h3{margin:0 0 4px;font-size:14px}
+  .demand-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;color:#fff}
+  .spark{display:flex;align-items:flex-end;gap:2px;height:42px;margin-top:8px}
+  .spark span{flex:1;background:var(--sage);border-radius:2px 2px 0 0;min-height:2px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:16px;margin-top:6px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;
+        position:relative;transition:.15s}
+  .card.pick{border-color:var(--teal);box-shadow:0 0 0 2px var(--teal)}
+  .card .imgwrap{aspect-ratio:1;background:var(--peach);display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .card img{width:100%;height:100%;object-fit:contain}
+  .score{position:absolute;top:8px;left:8px;background:var(--espresso);color:#fff;border-radius:8px;
+         padding:3px 9px;font-weight:800;font-size:14px}
+  .score.promote{background:var(--teal)} .score.watch{background:var(--peach);color:var(--espresso)}
+  .badge{position:absolute;top:8px;right:8px;background:#fff;border:1px solid var(--line);border-radius:8px;
+         padding:2px 7px;font-size:11px;font-weight:700;color:var(--coral)}
+  .card .body{padding:11px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .card .title{font-size:12.5px;line-height:1.35;max-height:52px;overflow:hidden;font-weight:600}
+  .card .meta{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--muted);align-items:center}
+  .card .price{font-weight:800;color:var(--espresso);font-size:15px}
+  .card .stars{color:var(--coral);font-weight:700}
+  .card .row{display:flex;justify-content:space-between;align-items:center;margin-top:auto;gap:8px}
+  .pickbtn{flex:1;border:1.5px solid var(--teal);background:#fff;color:var(--teal);border-radius:9px;
+           padding:7px;font-weight:700;font-size:12.5px;cursor:pointer}
+  .card.pick .pickbtn{background:var(--teal);color:#fff}
+  .peek{font-size:11.5px;color:var(--muted);text-decoration:none}
+  .gatedout{font-size:12.5px;color:var(--muted);margin:18px 2px;padding:10px 14px;background:#fff;border:1px dashed var(--line);border-radius:10px}
+  /* output tray */
+  .tray{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:2px solid var(--coral);
+        padding:14px 26px;box-shadow:0 -6px 24px rgba(0,0,0,.08);display:none;max-height:42vh;overflow:auto}
+  .tray h3{margin:0 0 8px;font-size:15px}
+  .tray .urls{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--cream);border:1px solid var(--line);
+              border-radius:10px;padding:10px 12px;white-space:pre-wrap;word-break:break-all}
+  .tray .actions{display:flex;gap:10px;margin-top:10px;align-items:center}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--espresso);color:#fff;
+         padding:10px 18px;border-radius:10px;font-size:13.5px;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1}
+  .sortbar{display:flex;gap:8px;align-items:center;margin:14px 2px 2px;font-size:13px}
+  .sortbar select{padding:6px 10px;border-radius:9px;border:1px solid var(--line);background:#fff}
+  .empty{color:var(--muted);font-size:14px;padding:30px 2px}
+</style>
+</head>
+<body>
+<header>
+  <span class="dot"></span><h1>Holls Finds — Product Picker</h1><span class="obsessed">obsessed.</span>
+</header>
+<div class="wrap">
+
+  <div class="lanes" id="lanes">
+    <div class="lane active" data-lane="idea">💡 My idea</div>
+    <div class="lane" data-lane="evergreen">🛋️ Evergreen room</div>
+    <div class="lane soon" title="Wires in when ported to the board">🗓️ Seasonal (soon)</div>
+    <div class="lane soon" title="Wires in when ported to the board">🔥 Trending (soon)</div>
+    <div class="lane soon" title="Wires in when ported to the board">🕳️ Coverage gap (soon)</div>
+  </div>
+
+  <div class="searchbar">
+    <input id="kw" placeholder="Type a product idea or keyword — e.g. rattan serving tray" />
+    <button class="btn" id="go">Find products</button>
+  </div>
+  <div class="hint">Tip: search a <b>broad product type</b> ("rattan tray", "boho table lamp"), not an ultra-long-tail pin phrase — that's where demand data is meaningful.</div>
+
+  <div class="meters" id="meters"></div>
+
+  <div class="demandcard" id="demandcard"></div>
+
+  <div class="sortbar" id="sortbar" style="display:none">
+    Sort by:
+    <select id="sort">
+      <option value="score">Score (recommended)</option>
+      <option value="reviews">Most reviews</option>
+      <option value="rating">Highest rating</option>
+      <option value="priceUp">Price: low → high</option>
+      <option value="priceDown">Price: high → low</option>
+    </select>
+    <span id="count" style="color:var(--muted)"></span>
+  </div>
+
+  <div id="results"><div class="empty">Pick a lane, type a product type, and hit <b>Find products</b>. Items that pass your gates (★4.3+, 100+ reviews) get scored and ranked; you cherry-pick the keepers and copy their Amazon links.</div></div>
+  <div class="gatedout" id="gatedout" style="display:none"></div>
+  <div id="more" style="text-align:center;margin:22px 0 6px"></div>
+</div>
+
+<div class="tray" id="tray">
+  <h3>✅ Your picks — copy these into the bookmarklet to add them</h3>
+  <div class="urls" id="urls"></div>
+  <div class="actions">
+    <button class="btn" id="copy">Copy all URLs</button>
+    <button class="btn ghost" id="clear">Clear picks</button>
+    <span id="picknote" style="color:var(--muted);font-size:13px"></span>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API="https://script.google.com/macros/s/AKfycbzYObvkhNOLKGnF6kMmlL3dEjEGziThotCmzz-dzswVMw3aqKRZAnXj6fxy8MX8bj6U/exec";
+const TOKEN="holls-pipeline-2026";
+let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={};
+
+function api(action,params){
+  const q=new URLSearchParams(Object.assign({token:TOKEN,action},params));
+  return fetch(API+"?"+q.toString()).then(r=>r.json());
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function esc(s){return (s||"").replace(/&quot;/g,'"').replace(/&#x27;|&#039;/g,"'").replace(/&amp;/g,'&');}
+function salesNum(s){const m=(s||"").match(/([\d,.]+)\s*K?\+?\s*bought/i);if(!m)return 0;let n=parseFloat(m[1].replace(/,/g,''));if(/K/i.test(m[0]))n*=1000;return n||0;}
+
+/* ---- DEMAND: derive a rising/steady/declining read + 0-20 score from a single-keyword curve ---- */
+function analyzeDemand(result){
+  try{
+    const items=result[0].items[0];
+    const data=items.data||[];
+    const series=data.map(d=>d.values[0]||0);
+    if(!series.length || series.every(v=>v===0)) return {known:false,label:"Low / unmeasured (long-tail)",score:12,color:"var(--muted)",series:[]};
+    const n=series.length, recent=series.slice(-8), prior=series.slice(0,-8);
+    const avg=a=>a.reduce((x,y)=>x+y,0)/(a.length||1);
+    const rAvg=avg(recent), pAvg=avg(prior.length?prior:series), peak=Math.max(...series), peakIdx=series.indexOf(peak);
+    let label,score,color;
+    if(rAvg>pAvg*1.15){label="📈 Rising";score=20;color="var(--good)";}
+    else if(rAvg<pAvg*0.85){label="📉 Cooling";score=9;color="var(--warn)";}
+    else{label="➡️ Steady";score=15;color="var(--teal)";}
+    const peakMonth=data[peakIdx]?new Date(data[peakIdx].date_from).toLocaleString('en',{month:'long'}):null;
+    return {known:true,label,score,color,series,peakMonth};
+  }catch(e){return {known:false,label:"No data",score:12,color:"var(--muted)",series:[]};}
+}
+
+/* ---- SCORE one product (0-100). demand is keyword-level (same for all in a search). ---- */
+function scoreProduct(p,demandScore){
+  let s=0;
+  s+=demandScore;                                   // demand 0-20 (keyword-level)
+  // price fit /15
+  const pr=p.price||0;
+  if(pr>=25&&pr<=80)s+=15; else if(pr>80)s+=13; else if(pr>=20)s+=6; else s+=0;
+  // est commission $ (3%) /15
+  const com=pr*0.03;
+  if(com>=6)s+=15; else if(com>=4)s+=12; else if(com>=2)s+=8; else if(com>=1)s+=4; else s+=1;
+  // rating /10
+  if(p.rating>=4.6)s+=10; else if(p.rating>=4.4)s+=7; else s+=4;
+  // reviews /10
+  if(p.reviews>=5000)s+=10; else if(p.reviews>=2000)s+=8; else if(p.reviews>=1000)s+=6; else s+=4;
+  // visual/giftability — your eyeball; default neutral-good /20 (you confirm by picking)
+  s+=14;
+  // competition/popularity from sales velocity /10 (more recent sales = proven mover)
+  const sv=salesNum(p.sales);
+  if(sv>=500)s+=10; else if(sv>=100)s+=7; else if(sv>0)s+=5; else s+=5;
+  if(p.prime)s+=2;                                  // small Prime bonus (not a gate — data unreliable)
+  return Math.min(100,Math.round(s));
+}
+
+function render(){
+  const sort=document.getElementById('sort').value;
+  let list=LAST.slice();
+  const cmp={score:(a,b)=>b._score-a._score,reviews:(a,b)=>b.reviews-a.reviews,rating:(a,b)=>b.rating-a.rating,
+             priceUp:(a,b)=>(a.price||1e9)-(b.price||1e9),priceDown:(a,b)=>(b.price||0)-(a.price||0)};
+  list.sort(cmp[sort]);
+  const host=document.getElementById('results');
+  if(!list.length){host.innerHTML='<div class="empty">No products cleared the gates for that search. Try a broader or different keyword.</div>';return;}
+  host.innerHTML='<div class="grid">'+list.map(p=>{
+    const cls=p._score>=70?'promote':(p._score>=55?'watch':'');
+    const picked=PICKS[p.asin]?'pick':'';
+    const sv=p.sales?`<span class="badge">${esc(p.sales)}</span>`:'';
+    return `<div class="card ${picked}" data-asin="${p.asin}">
+      <div class="imgwrap"><span class="score ${cls}">${p._score}</span>${sv}
+        <img loading="lazy" src="${p.image}" alt=""></div>
+      <div class="body">
+        <div class="title">${esc(p.title)}</div>
+        <div class="meta"><span class="price">$${(p.price||0).toFixed(2)}</span>
+          <span class="stars">★${p.rating}</span><span>${p.reviews.toLocaleString()} reviews</span></div>
+        <div class="row">
+          <button class="pickbtn" data-pick="${p.asin}">${picked?'✓ Picked':'+ Pick'}</button>
+          <a class="peek" href="${p.url}" target="_blank">peek ↗</a>
+        </div>
+      </div></div>`;
+  }).join('')+'</div>';
+}
+
+function refreshTray(){
+  const ids=Object.keys(PICKS);
+  const tray=document.getElementById('tray');
+  if(!ids.length){tray.style.display='none';return;}
+  tray.style.display='block';
+  document.getElementById('urls').textContent=ids.map(a=>PICKS[a].url).join('\n');
+  document.getElementById('picknote').textContent=ids.length+" picked";
+}
+
+function renderMeters(){
+  document.getElementById('meters').innerHTML=
+    `Amazon quota: <b>${QUOTA.remaining??'?'} / ${QUOTA.limit??'?'}</b> left this month`+
+    (DEMCOST!=null?` &nbsp;·&nbsp; demand call cost: <b>$${DEMCOST}</b>`:'');
+}
+function ingest(prod,append){
+  const raw=(prod&&prod.products)||[];
+  const add=[];
+  raw.forEach(p=>{
+    if(p.rating>=4.3 && p.reviews>=100){
+      if(LAST.find(x=>x.asin===p.asin)||add.find(x=>x.asin===p.asin))return; // dedupe across pages
+      p._score=scoreProduct(p,DEMAND.score); add.push(p);
+    } else FAILED++;
+  });
+  LAST = append? LAST.concat(add) : add;
+  QUOTA = (prod&&prod.quota)||QUOTA;
+  document.getElementById('sortbar').style.display=LAST.length?'flex':'none';
+  document.getElementById('count').textContent=`${LAST.length} passed gates · ${FAILED} filtered out`;
+  document.getElementById('gatedout').style.display='block';
+  document.getElementById('gatedout').innerHTML=`<b>${FAILED}</b> filtered by your gates (under ★4.3 or under 100 reviews) — kept out automatically.`;
+  render(); updateMore(); renderMeters();
+}
+function updateMore(){
+  document.getElementById('more').innerHTML = LAST.length
+    ? `<button class="btn ghost" id="moreBtn">＋ Show 20 more options</button><div class="hint" style="margin-top:6px">Pulls the next page · uses 1 Amazon lookup from your monthly quota</div>` : '';
+}
+async function loadMore(){
+  const b=document.getElementById('moreBtn'); if(b){b.disabled=true;b.textContent="Loading…";}
+  PAGE++;
+  try{ const prod=await api('searchProducts',{query:QUERY,page:PAGE}); ingest(prod,true); }
+  catch(e){ toast("Couldn't load more"); const bb=document.getElementById('moreBtn'); if(bb){bb.disabled=false;bb.textContent="＋ Show 20 more options";} }
+}
+
+async function run(){
+  const kw=document.getElementById('kw').value.trim();
+  if(!kw)return;
+  QUERY=kw; PAGE=1; FAILED=0; LAST=[];
+  const go=document.getElementById('go');go.disabled=true;go.textContent="Searching…";
+  document.getElementById('more').innerHTML='';
+  document.getElementById('results').innerHTML='<div class="empty">Pulling real Amazon products + demand…</div>';
+  document.getElementById('demandcard').style.display='none';
+  document.getElementById('gatedout').style.display='none';
+  try{
+    const [prod,dem]=await Promise.all([ api('searchProducts',{query:kw}), api('keywordDemand',{keywords:kw}) ]);
+    // demand
+    DEMAND = dem && dem.ok ? analyzeDemand(dem.result) : {known:false,label:"No demand data",score:12,color:"var(--muted)",series:[]};
+    const dc=document.getElementById('demandcard');dc.style.display='block';
+    const spark = DEMAND.series.length? '<div class="spark">'+DEMAND.series.map(v=>`<span style="height:${Math.max(2,v)}%"></span>`).join('')+'</div>':'';
+    dc.innerHTML=`<h3>Keyword demand — “${esc(kw)}” &nbsp;<span class="demand-pill" style="background:${DEMAND.color}">${DEMAND.label}</span></h3>
+      <div style="font-size:12.5px;color:var(--muted)">${DEMAND.known?('Trend over the past year'+(DEMAND.peakMonth?` · peaks around <b>${DEMAND.peakMonth}</b>`:'')):'Too long-tail for Google trend data — try a broader term, or trust your eye. Using a neutral demand score.'}</div>${spark}`;
+    // products → gates → score
+    DEMCOST = dem&&dem.api_cost;
+    ingest(prod,false);
+  }catch(e){
+    document.getElementById('results').innerHTML='<div class="empty">Something hiccupped: '+esc(String(e.message||e))+'. (If this is a CORS error, open from the board instead.)</div>';
+  }
+  go.disabled=false;go.textContent="Find products";
+}
+
+/* events */
+document.getElementById('go').onclick=run;
+document.getElementById('kw').addEventListener('keydown',e=>{if(e.key==='Enter')run();});
+document.getElementById('sort').onchange=render;
+document.getElementById('more').addEventListener('click',e=>{ if(e.target.id==='moreBtn') loadMore(); });
+document.getElementById('results').addEventListener('click',e=>{
+  const b=e.target.closest('[data-pick]'); if(!b)return;
+  const asin=b.getAttribute('data-pick'); const p=LAST.find(x=>x.asin===asin);
+  if(PICKS[asin])delete PICKS[asin]; else PICKS[asin]=p;
+  render(); refreshTray();
+});
+document.getElementById('lanes').addEventListener('click',e=>{
+  const l=e.target.closest('.lane'); if(!l||l.classList.contains('soon'))return;
+  document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active')); l.classList.add('active');
+  document.getElementById('kw').placeholder = l.dataset.lane==='evergreen'
+    ? 'Name a room or category — e.g. entryway console decor' : 'Type a product idea or keyword — e.g. rattan serving tray';
+});
+document.getElementById('copy').onclick=()=>{navigator.clipboard.writeText(Object.keys(PICKS).map(a=>PICKS[a].url).join('\n'));toast('Copied '+Object.keys(PICKS).length+' URLs');};
+document.getElementById('clear').onclick=()=>{PICKS={};render();refreshTray();};
+</script>
+</body>
+</html>

@@ -545,6 +545,7 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
     <div class="brand"><span class="dot"></span><span style="display:inline-flex;flex-direction:column;line-height:1.15"><span>Holls Finds Pipeline</span><small style="align-self:flex-end;margin:0">obsessed.</small></span></div>
     <div class="tabs">
       <button class="tab active" data-view="pipeline">Pipeline</button>
+      <button class="tab" data-view="find">Find Products</button>
       <button class="tab" data-view="calendar">Calendar</button>
       <button class="tab" data-view="review">Group Chat</button>
       <button class="tab" data-view="stats">Stats</button>
@@ -553,6 +554,12 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
     <input id="boardSearch" type="search" placeholder="Search articles & products…" autocomplete="off" style="margin-left:auto;width:240px;padding:7px 11px;border:1px solid var(--line);border-radius:9px;font-size:13px;font-family:inherit;background:#fff;color:var(--ink)">
     <div class="status" id="status"><span class="led"></span><span id="statusText">Connecting…</span></div>
   </div>
+
+  <!-- FIND PRODUCTS -->
+  <section class="view" id="view-find" style="padding:0">
+    <iframe src="product-picker.html" title="Product Picker" loading="lazy"
+            style="width:100%;height:calc(100vh - 58px);border:0;display:block;background:#fff"></iframe>
+  </section>
 
   <!-- PIPELINE -->
   <section class="view active" id="view-pipeline">
