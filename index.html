@@ -1262,7 +1262,7 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
       <div class="toolacts"><button class="btn ghost" id="reviewRefresh">↻ Refresh</button></div>
     </div>
     <div class="ns-card">
-      <div class="ns-head">💬 Tell me something</div>
+      <div class="ns-head">💬 Tell me something <span style="font-weight:600;font-size:11px;color:#8a7f79">— posts &amp; stories</span></div>
       <div class="ns-sub">Pick a spark — I'll prod you with little questions so you never face a blank box. One story makes ONE bundle: FB + IG + TikTok drafted together, approved together. Skipped sparks never come back.</div>
       <div class="ns-ideahead">Today's sparks
         <button type="button" class="ns-refresh" id="ppShuffle">🔀 Shuffle</button>
@@ -3095,7 +3095,7 @@ document.addEventListener("click",async e=>{
   }catch(err){ b.disabled=false; toast("Action failed: "+(err&&err.message||err)); }
 });
 { const css=document.createElement("style");
-  css.textContent=".deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:16px}.deck-card{border:1px solid var(--line,#E0D8CF);border-radius:12px;background:#fff;padding:12px 13px;display:flex;flex-direction:column;gap:8px}.deck-ty{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9a7b1f;background:#fff4d6;align-self:flex-start;padding:2px 8px;border-radius:20px}.deck-title{font-size:13.5px;font-weight:650;color:var(--ink,#2C2421);line-height:1.25}.deck-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}.deck-acts .btn.sm{font-size:11px;padding:4px 9px}.deck-deny{color:#c0534a}";
+  css.textContent=".deck-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:16px}@media(max-width:620px){.deck-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}.deck-card{border:1px solid var(--line,#E0D8CF);border-radius:12px;background:#fff;padding:12px 13px;display:flex;flex-direction:column;gap:8px}.deck-ty{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9a7b1f;background:#fff4d6;align-self:flex-start;padding:2px 8px;border-radius:20px}.deck-title{font-size:13.5px;font-weight:650;color:var(--ink,#2C2421);line-height:1.25}.deck-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}.deck-acts .btn.sm{font-size:11px;padding:4px 9px}.deck-deny{color:#c0534a}";
   document.head.appendChild(css); }
 async function renderReview(){
   const host=$("#reviewLane"); if(!host) return;
