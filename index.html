@@ -557,7 +557,7 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
 
   <!-- FIND PRODUCTS -->
   <section class="view" id="view-find" style="padding:0">
-    <iframe src="product-picker.html" title="Product Picker" loading="lazy"
+    <iframe src="product-picker.html?embed=1" title="Product Picker" loading="lazy"
             style="width:100%;height:calc(100vh - 58px);border:0;display:block;background:#fff"></iframe>
   </section>
 
@@ -581,6 +581,22 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
 
   <!-- REFERENCE -->
   <section class="view" id="view-reference">
+    <details open style="margin:0 0 14px;border:1px solid var(--line);border-radius:12px;padding:14px 18px;background:#fff">
+      <summary style="font-family:'Sora',sans-serif;font-weight:800;font-size:15px;cursor:pointer">🧰 Holls Finds tech stack &amp; links</summary>
+      <div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:11px;font-size:13px;line-height:1.5">
+        <div><b>🛍️ Storefront</b> — FreshStore · <a href="https://hollsfinds.com" target="_blank" style="color:var(--teal)">hollsfinds.com</a></div>
+        <div><b>📋 Pipeline board</b> — GitHub Pages + Apps Script + Google Sheet · <a href="https://hollsfinds.github.io/holls-pipeline/" target="_blank" style="color:var(--teal)">live board</a></div>
+        <div><b>🛒 Product Picker</b> — Apps Script web app backend (Find Products tab)</div>
+        <div><b>📦 Amazon product data</b> — OpenWeb Ninja "Real-Time Amazon Data" · <a href="https://rapidapi.com/letscrape-6bRBa3QguO5/api/real-time-amazon-data" target="_blank" style="color:var(--teal)">RapidAPI</a></div>
+        <div><b>📈 Keyword demand</b> — DataForSEO Trends · <a href="https://app.dataforseo.com/" target="_blank" style="color:var(--teal)">app.dataforseo.com</a></div>
+        <div><b>🧠 AI brain</b> — Anthropic (Claude Haiku) · <a href="https://console.anthropic.com" target="_blank" style="color:var(--teal)">console.anthropic.com</a></div>
+        <div><b>📌 Pinterest</b> — Pinterest API (Standard app) · <a href="https://developers.pinterest.com/apps/" target="_blank" style="color:var(--teal)">developers.pinterest.com</a></div>
+        <div><b>📅 Social scheduling</b> — Metricool (+ Mac brain) · <a href="https://metricool.com" target="_blank" style="color:var(--teal)">metricool.com</a></div>
+        <div><b>🖼️ Article images</b> — Gemini (Nano Banana), Mac-side</div>
+        <div><b>⚙️ Automation runtime</b> — Mac brain via launchd (~/HollsFinds)</div>
+        <div><b>🤝 Affiliate</b> — Amazon Associates + Amazon Influencer</div>
+      </div>
+    </details>
     <p class="tool-note">Title Cleaner, Brand Colors, AI Prompts, Posting Schedule and more — all live here.</p>
     <iframe class="toolframe" id="frame-reference" title="Reference Tool"></iframe>
   </section>

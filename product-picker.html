@@ -318,7 +318,7 @@ function renderMeters(){
 }
 function maybeWarn(){
   const b=document.getElementById('ppbanner');
-  if(DFSBAL!=null && DFSBAL<5){
+  if(DFSBAL!=null && DFSBAL<0.5){
     b.style.display='block';
     b.innerHTML=`⚠️ <b>DataForSEO is running low</b> — only $${Number(DFSBAL).toFixed(2)} left. Top up to keep demand data flowing → <a href="https://app.dataforseo.com/" target="_blank">add funds at app.dataforseo.com</a>`;
   } else { b.style.display='none'; }
@@ -411,6 +411,8 @@ document.getElementById('ppsub').addEventListener('click',e=>{
 document.getElementById('copy').onclick=()=>{navigator.clipboard.writeText(Object.keys(PICKS).map(a=>PICKS[a].url).join('\n'));toast('Copied '+Object.keys(PICKS).length+' URLs');};
 document.getElementById('clear').onclick=()=>{PICKS={};render();refreshTray();};
 loadBalance();  // show DataForSEO balance + low-balance warning on open
+/* when embedded in the board (?embed=1), hide the picker's own header — the board already has a top bar */
+if(new URLSearchParams(location.search).has('embed')){ const _h=document.querySelector('header'); if(_h)_h.style.display='none'; }
 </script>
 </body>
 </html>
