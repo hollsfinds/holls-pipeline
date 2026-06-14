@@ -126,9 +126,15 @@
   .pp-pcard .pt{font-size:11px;line-height:1.3;max-height:43px;overflow:hidden;font-weight:600}
   .pp-pcard .pm{font-size:11px;color:var(--muted);margin-top:3px;display:flex;justify-content:space-between}
   .pp-pcard .pp{font-weight:800;color:var(--espresso)}
+  .pp-pcard .peek{display:block;margin-top:5px;font-size:11px;color:var(--teal);text-decoration:none;font-weight:700}
   .pp-more{width:100%;border:1px dashed var(--line);background:#fff;border-radius:9px;padding:6px;font-size:12px;font-weight:700;color:var(--teal);cursor:pointer;font-family:inherit}
   .pp-step{font-family:'Sora',sans-serif;font-size:13px;font-weight:800;color:var(--espresso);margin:18px 2px 9px}
   .pp-step:first-child{margin-top:2px}
+  .pp-chip.sel{background:var(--coral);border-color:var(--coral);color:#fff}
+  .pp-chip.sel .pp-deny{color:#fff}
+  .pp-start{border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 11px;font-size:11.5px;font-weight:700;color:var(--espresso);cursor:pointer;font-family:'Raleway',sans-serif}
+  .pp-start:hover{border-color:var(--coral);color:var(--coral)}
+  .pp-ablabel{font-size:12px;font-weight:800;color:var(--coral);margin:10px 2px 6px}
 </style>
 </head>
 <body>
@@ -139,7 +145,7 @@
 
   <div id="ppbanner"></div>
 
-  <div class="pp-step">Step 1 · Pick a lane</div>
+  <div class="pp-step" style="display:flex;align-items:center;justify-content:space-between">Step 1 · Pick a lane<button class="pp-start" id="ppstart">↺ Start over</button></div>
   <div class="lanes" id="lanes">
     <div class="lane active" data-lane="idea">💡 My idea</div>
     <div class="lane" data-lane="evergreen">🛋️ Evergreen room</div>
@@ -155,6 +161,7 @@
     <button class="btn" id="go">Find products</button>
   </div>
   <div id="ppsub"></div>
+  <div id="pprefine"></div>
 
   <div class="meters" id="meters"></div>
 
@@ -238,11 +245,11 @@ async function aiChips(mode,extra){
   try{
     const r=(extra&&extra.have)? await apiPost('aiSuggest',Object.assign({mode},extra))
                                : await api('aiSuggest',Object.assign({mode},extra||{}));
-    const sug=(r&&r.suggestions)||[];
+    let sug=(r&&r.suggestions)||[]; const dn=denied(); const keep=sug.filter(s=>!dn.includes(s)); if(keep.length) sug=keep;
     if(!sug.length){ sub.innerHTML='<div class="pp-subnote">Brain came back empty — tap the lane again.</div>'; return; }
-    const note=(mode==='gap'?'Gaps in your catalog — tap one to find products:':'Trending now (home + fashion) — tap to search:')+' '+AIB;
+    const note=(mode==='gap'?'Gaps in your catalog — tap one to find products:':'Trending now (home + fashion) — tap to search:')+' '+AIB+' · <span style="font-weight:500">✕ = never suggest again</span>';
     sub.innerHTML='<div class="pp-subnote">'+note+'</div><div class="pp-chips">'+
-      sug.map(s=>`<button class="pp-chip" data-seed="${String(s).replace(/"/g,'&quot;')}">${esc(String(s))}</button>`).join('')+'</div>';
+      sug.map(s=>{const q=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-seed="${q}">${esc(String(s))}<span class="pp-deny" data-deny="${q}" title="never suggest again">✕</span></button>`;}).join('')+'</div>';
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
 }
 async function coverageGap(){
@@ -259,8 +266,8 @@ async function coverageGap(){
   aiChips('gap',{have});
 }
 /* ---- LANE: Roundup builder (brain picks a theme → product types → coordinated set) ---- */
-function deniedThemes(){ try{return JSON.parse(localStorage.getItem('pp_denied_themes'))||[];}catch(e){return[];} }
-function denyTheme(t){ const d=deniedThemes(); if(!d.includes(t)){ d.push(t); try{localStorage.setItem('pp_denied_themes',JSON.stringify(d));}catch(e){} } showThemes(ROUNDUP_SEASON); }
+function denied(){ try{return JSON.parse(localStorage.getItem('pp_denied'))||[];}catch(e){return[];} }
+function denyItem(t){ const d=denied(); if(!d.includes(t)){ d.push(t); try{localStorage.setItem('pp_denied',JSON.stringify(d));}catch(e){} } }
 async function showThemes(season){
   ROUNDUP_THEME=null; ROUNDUP_SEASON=season||''; refreshTray();
   const sub=document.getElementById('ppsub');
@@ -268,15 +275,18 @@ async function showThemes(season){
   try{
     const r=await api('aiSuggest', ROUNDUP_SEASON?{mode:'themes',context:ROUNDUP_SEASON}:{mode:'themes'});
     let sug=(r&&r.suggestions)||[];
-    const dn=deniedThemes(); const keep=sug.filter(s=>!dn.includes(s)); if(keep.length) sug=keep;
+    const dn=denied(); const keep=sug.filter(s=>!dn.includes(s)); if(keep.length) sug=keep;
     if(!sug.length){ sub.innerHTML='<div class="pp-subnote">No themes — tap 🔄 new ideas.</div>'; return; }
     const seasons=SEASONS.map(s=>Object.assign({du:daysUntil(s.dl[0],s.dl[1])},s)).sort((a,b)=>a.du-b.du).slice(0,6);
-    let h=`<div class="pp-subnote">Seed from a season <span style="font-weight:500">(optional — Seasonal + Roundup combo)</span>:</div><div class="pp-chips">`;
+    let h=`<div class="pp-ablabel">A · Seed from a season (optional)</div><div class="pp-chips">`;
     h+=`<button class="pp-season${ROUNDUP_SEASON?'':' on'}" data-season="">None</button>`;
     h+=seasons.map(s=>`<button class="pp-season${ROUNDUP_SEASON===s.n?' on':''}" data-season="${String(s.n).replace(/"/g,'&quot;')}">${s.e} ${esc(s.n)}</button>`).join('');
     h+=`</div>`;
-    h+=`<div class="pp-subnote">${ROUNDUP_SEASON?('🧺 '+esc(ROUNDUP_SEASON)+' roundup themes '):'Pick a roundup theme '}${AIB} — tap to build · <span style="font-weight:500">✕ = never suggest again</span><button class="pp-refresh" data-refresh="themes">🔄 new ideas</button></div>`;
+    h+=`<div class="pp-ablabel">B · Pick a roundup theme ${AIB}</div>`;
+    h+=`<div class="pp-subnote" style="margin-top:0">${ROUNDUP_SEASON?('🧺 '+esc(ROUNDUP_SEASON)+' themes · '):''}tap to build · <span style="font-weight:500">✕ = never suggest again</span><button class="pp-refresh" data-refresh="themes">🔄 new ideas</button></div>`;
     h+=`<div class="pp-chips">`+sug.map(s=>{const q=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-theme="${q}">${esc(String(s))}<span class="pp-deny" data-deny="${q}" title="never suggest again">✕</span></button>`;}).join('')+`</div>`;
+    h+=`<div class="pp-ablabel">C · Or type your own theme</div>`;
+    h+=`<div class="pp-stylewrap"><input id="ppmantheme" class="pp-styleinput" style="width:300px" placeholder="e.g. Cottagecore kitchen finds"><button class="btn" id="ppmango">Build →</button></div>`;
     sub.innerHTML=h;
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
 }
@@ -342,7 +352,7 @@ function renderBoard(){
     if(col.loading) c+=`<div class="empty" style="font-size:12px;text-align:center">loading…</div>`;
     else if(!col.all.length) c+=`<div class="empty" style="font-size:12px;text-align:center">no matches</div>`;
     else{
-      c+=col.all.slice(0,col.shown).map(p=>`<div class="pp-pcard${col.picked&&col.picked.asin===p.asin?' locked':''}" data-bpick="${String(col.name).replace(/"/g,'&quot;')}|${p.asin}"><img loading="lazy" src="${p.image}" alt=""><div class="pi"><div class="pt">${esc(p.title)}</div><div class="pm"><span class="pp">$${(p.price||0).toFixed(2)}</span><span>★${p.rating} · ${p._score}</span></div></div></div>`).join('');
+      c+=col.all.slice(0,col.shown).map(p=>`<div class="pp-pcard${col.picked&&col.picked.asin===p.asin?' locked':''}" data-bpick="${String(col.name).replace(/"/g,'&quot;')}|${p.asin}"><img loading="lazy" src="${p.image}" alt=""><div class="pi"><div class="pt">${esc(p.title)}</div><div class="pm"><span class="pp">$${(p.price||0).toFixed(2)}</span><span>★${p.rating} · ${p._score}</span></div><a class="peek" href="${p.url}" target="_blank" rel="noopener">peek ↗</a></div></div>`).join('');
       if(col.shown<col.all.length || !col.exhausted) c+=`<button class="pp-more" data-more="${String(col.name).replace(/"/g,'&quot;')}">+ more</button>`;
     }
     return c+`</div>`;
@@ -516,6 +526,17 @@ async function loadMore(){
   catch(e){ toast("Couldn't load more"); const bb=document.getElementById('moreBtn'); if(bb){bb.disabled=false;bb.textContent="＋ Show 20 more options";} }
 }
 
+async function showRefine(q){
+  const el=document.getElementById('pprefine'); if(!el) return; el.innerHTML='';
+  if(!q) return;
+  try{
+    const r=await api('aiSuggest',{mode:'styles',context:q});
+    let sug=(r&&r.suggestions)||[]; const dn=denied(); sug=sug.filter(s=>!dn.includes(s));
+    if(!sug.length) return;
+    el.innerHTML='<div class="pp-subnote" style="margin-top:12px">🔍 Narrow it (optional) '+AIB+' — tap to add, or edit the box above:</div><div class="pp-chips">'+
+      sug.map(s=>{const x=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-ref="${x}">${esc(String(s))}<span class="pp-deny" data-deny="${x}" title="never suggest again">✕</span></button>`;}).join('')+'</div>';
+  }catch(e){}
+}
 async function run(){
   const kw=document.getElementById('kw').value.trim();
   if(!kw)return;
@@ -523,6 +544,7 @@ async function run(){
   const go=document.getElementById('go');go.disabled=true;go.textContent="Searching…";
   document.getElementById('more').innerHTML='';
   document.getElementById('step3label').style.display='none';
+  document.getElementById('pprefine').innerHTML='';
   document.getElementById('results').innerHTML='<div class="empty">Pulling real Amazon products + demand…</div>';
   document.getElementById('demandcard').style.display='none';
   document.getElementById('gatedout').style.display='none';
@@ -538,6 +560,7 @@ async function run(){
     DEMCOST = dem&&dem.api_cost;
     if(DFSBAL!=null && DEMCOST){ DFSBAL=Math.max(0,DFSBAL-DEMCOST); maybeWarn(); }
     ingest(prod,false);
+    showRefine(QUERY);
   }catch(e){
     document.getElementById('results').innerHTML='<div class="empty">Something hiccupped: '+esc(String(e.message||e))+'. (If this is a CORS error, open from the board instead.)</div>';
   }
@@ -550,6 +573,7 @@ document.getElementById('kw').addEventListener('keydown',e=>{if(e.key==='Enter')
 document.getElementById('sort').onchange=render;
 document.getElementById('more').addEventListener('click',e=>{ if(e.target.id==='moreBtn') loadMore(); });
 document.getElementById('results').addEventListener('click',e=>{
+  if(e.target.closest('.peek')) return;
   const bp=e.target.closest('[data-bpick]'); if(bp){ boardPick(bp.dataset.bpick); return; }
   const mr=e.target.closest('[data-more]'); if(mr){ boardMore(mr.dataset.more); return; }
   const up=e.target.closest('[data-unpick]'); if(up){ boardUnpick(up.dataset.unpick); return; }
@@ -563,10 +587,11 @@ document.getElementById('lanes').addEventListener('click',e=>{
   const l=e.target.closest('.lane'); if(!l||l.classList.contains('soon'))return;
   document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active')); l.classList.add('active');
   const lane=l.dataset.lane, sub=document.getElementById('ppsub');
-  const labels={idea:'Step 2 · Type a product type, then hit Find products',evergreen:'Step 2 · Pick a room',seasonal:'Step 2 · Pick a seasonal push',trending:'Step 2 · Pick a trending idea',gap:'Step 2 · Pick a gap to fill',roundup:'Step 2 · Pick a roundup theme'};
+  const labels={idea:'Step 2 · Type a product type, then hit Find products',evergreen:'Step 2 · Pick a room — or type your own in the box',seasonal:'Step 2 · Pick a seasonal push — or type your own in the box',trending:'Step 2 · Pick a trending idea — or type your own in the box',gap:'Step 2 · Pick a gap to fill — or type your own in the box',roundup:'Step 2 · Pick a roundup theme'};
   document.getElementById('step2label').textContent=labels[lane]||'Step 2';
-  document.querySelector('.searchbar').style.display=lane==='idea'?'flex':'none';
+  document.querySelector('.searchbar').style.display=lane==='roundup'?'none':'flex';
   document.getElementById('step3label').style.display='none';
+  document.getElementById('pprefine').innerHTML='';
   if(lane!=='roundup') { ROUNDUP_THEME=null; refreshTray(); }
   if(lane==='evergreen') showRooms();
   else if(lane==='seasonal') showSeasonal();
@@ -577,9 +602,10 @@ document.getElementById('lanes').addEventListener('click',e=>{
 });
 document.getElementById('ppsub').addEventListener('click',e=>{
   if(e.target.closest('#ppbuildboard')){ buildBoard(); return; }
+  if(e.target.closest('#ppmango')){ const el=document.getElementById('ppmantheme'); if(el&&el.value.trim()) roundupTheme(el.value.trim()); return; }
   const season=e.target.closest('[data-season]'); if(season){ showThemes(season.dataset.season||''); return; }
   const refresh=e.target.closest('[data-refresh]'); if(refresh){ if(refresh.dataset.refresh==='themes') showThemes(ROUNDUP_SEASON); else if(ROUNDUP_THEME) roundupTheme(ROUNDUP_THEME); return; }
-  const deny=e.target.closest('[data-deny]'); if(deny){ denyTheme(deny.dataset.deny); return; }
+  const deny=e.target.closest('[data-deny]'); if(deny){ denyItem(deny.dataset.deny); const ch=deny.closest('.pp-chip'); if(ch)ch.remove(); return; }
   const room=e.target.closest('[data-room]'); if(room){ showTypes(room.dataset.room); return; }
   if(e.target.closest('[data-back]')){ showRooms(); return; }
   const theme=e.target.closest('[data-theme]'); if(theme){ roundupTheme(theme.dataset.theme); return; }
@@ -587,12 +613,34 @@ document.getElementById('ppsub').addEventListener('click',e=>{
   if(style){ ROUNDUP_STYLE=style.dataset.style; const inp=document.getElementById('ppstyle'); if(inp)inp.value=ROUNDUP_STYLE;
     document.querySelectorAll('.pp-stylechip').forEach(c=>c.classList.toggle('on',c.dataset.style===ROUNDUP_STYLE)); return; }
   const seed=e.target.closest('[data-seed]');
-  if(seed){ if(ROUNDUP_THEME && seed.classList.contains('pp-typechip')) seed.classList.add('done'); const q=(ROUNDUP_STYLE?ROUNDUP_STYLE+' ':'')+seed.dataset.seed; document.getElementById('kw').value=q; run(); }
+  if(seed){ if(ROUNDUP_THEME && seed.classList.contains('pp-typechip')) seed.classList.add('done'); else { document.querySelectorAll('#ppsub .pp-chip').forEach(c=>c.classList.remove('sel')); seed.classList.add('sel'); } const q=(ROUNDUP_STYLE?ROUNDUP_STYLE+' ':'')+seed.dataset.seed; document.getElementById('kw').value=q; run(); }
+});
+document.getElementById('pprefine').addEventListener('click',e=>{
+  const deny=e.target.closest('[data-deny]'); if(deny){ denyItem(deny.dataset.deny); const ch=deny.closest('.pp-chip'); if(ch)ch.remove(); return; }
+  const ref=e.target.closest('[data-ref]'); if(ref){ document.getElementById('kw').value=(QUERY?QUERY+' ':'')+ref.dataset.ref; run(); }
 });
 document.getElementById('ppsub').addEventListener('input',e=>{ if(e.target.id==='ppstyle'){ ROUNDUP_STYLE=e.target.value.trim();
   document.querySelectorAll('.pp-stylechip').forEach(c=>c.classList.toggle('on',c.dataset.style===ROUNDUP_STYLE)); } });
 document.getElementById('copy').onclick=()=>{navigator.clipboard.writeText(Object.keys(PICKS).map(a=>PICKS[a].url).join('\n'));toast('Copied '+Object.keys(PICKS).length+' URLs');};
 document.getElementById('clear').onclick=()=>{PICKS={};render();refreshTray();};
+function resetAll(){
+  PICKS={}; BOARD=null; ROUNDUP_THEME=null; ROUNDUP_STYLE=''; ROUNDUP_SEASON=''; LAST=[]; QUERY='';
+  document.getElementById('kw').value='';
+  document.getElementById('ppsub').innerHTML='';
+  document.getElementById('pprefine').innerHTML='';
+  document.getElementById('results').innerHTML='';
+  document.getElementById('gatedout').style.display='none';
+  document.getElementById('sortbar').style.display='none';
+  document.getElementById('more').innerHTML='';
+  document.getElementById('demandcard').style.display='none';
+  document.getElementById('step3label').style.display='none';
+  document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active'));
+  const idea=document.querySelector('.lane[data-lane="idea"]'); if(idea)idea.classList.add('active');
+  document.getElementById('step2label').textContent='Step 2 · Type a product type, then hit Find products';
+  document.querySelector('.searchbar').style.display='flex';
+  refreshTray();
+}
+document.getElementById('ppstart').onclick=resetAll;
 try{ const _q=JSON.parse(localStorage.getItem('pp_quota')); if(_q&&_q.remaining!=null){ QUOTA=_q; renderMeters(); } }catch(e){}  // show last-known Amazon quota immediately
 loadBalance();  // show DataForSEO balance + low-balance warning on open
 /* when embedded in the board (?embed=1), hide the picker's own header — the board already has a top bar */
