@@ -393,7 +393,8 @@ function manualOpt(letter,label,ph){
 }
 function showRooms(){
   document.getElementById('ppsub').innerHTML='<div class="pp-ablabel">A · Pick a room</div><div class="pp-subnote" style="margin-top:0">It suggests proven product types for that room:</div><div class="pp-chips">'+
-    Object.keys(ROOMS).map(r=>`<button class="pp-chip" data-room="${r}">${r}</button>`).join('')+'</div>'+manualOpt('C');
+    Object.keys(ROOMS).map(r=>`<button class="pp-chip" data-room="${r}">${r}</button>`).join('')+'</div>'+
+    '<div class="pp-ablabel" style="opacity:.45">B · Pick a product type <span style="font-weight:500">(appears once you pick a room)</span></div>'+manualOpt('C');
 }
 function showTypes(room){
   ROUNDUP_TYPES=ROOMS[room].slice();
@@ -406,7 +407,7 @@ async function showSeasonal(selected){
   const sorted=SEASONS.map(s=>Object.assign({du:daysUntil(s.dl[0],s.dl[1])},s)).sort((a,b)=>a.du-b.du);
   let h='<div class="pp-ablabel">A · Pick a seasonal push</div><div class="pp-subnote" style="margin-top:0">Sorted by your "add to On Deck by" deadline:</div><div class="pp-chips">'+
     sorted.map(s=>{const n=String(s.n).replace(/"/g,'&quot;');return `<button class="pp-chip pp-season${selected===s.n?' on':''}${s.du<=21?' urgent':''}" data-szn="${n}">${s.e} ${esc(s.n)}<span class="pp-due">${s.du<=21?'⏰ add now':'in '+s.du+'d'}</span></button>`;}).join('')+'</div>';
-  if(!selected){ sub.innerHTML=h+manualOpt('C'); return; }
+  if(!selected){ sub.innerHTML=h+'<div class="pp-ablabel" style="opacity:.45">B · Pick a product type <span style="font-weight:500">(appears once you pick a season)</span></div>'+manualOpt('C'); return; }
   h+=`<div class="pp-ablabel">B · Pick a product type ${AIB} — or build a roundup</div><div id="pptypes" class="pp-subnote" style="margin-top:0">🧠 finding ${esc(selected)} product types…</div>`+manualOpt('C');
   sub.innerHTML=h;
   try{
