@@ -247,21 +247,44 @@ const ROOMS={
 /* ---- LANE: Seasonal pushes (deadline = when to add to On Deck; 0-based month) ---- */
 /* ev = event month (0-based), from the board's seasonal calendar. Ramp = the 4 months ev-3..ev.
    A season only shows while it's inside that ramp window, labeled by its calendar phase. */
+/* Mirrors the board's seasonal calendar (the single source of truth, 18 entries).
+   Used as the standalone fallback; when embedded in the board, activeSeasons() pulls the board's LIVE _seasonNow instead. */
 const SEASONS=[
- {n:"July 4th / Americana",e:"🎆",dl:[5,17],ev:6,seed:"americana decor"},
- {n:"Summer patio",e:"☀️",dl:[5,1],ev:6,seed:"outdoor rug"},
- {n:"Back-to-school / teen room",e:"✏️",dl:[5,17],ev:7,seed:"desk organizer"},
- {n:"Fall / harvest",e:"🍂",dl:[6,18],ev:8,seed:"fall decor"},
- {n:"Halloween",e:"🎃",dl:[7,18],ev:9,seed:"halloween decor"},
- {n:"Thanksgiving / hosting",e:"🦃",dl:[8,17],ev:10,seed:"fall table runner"},
- {n:"Christmas / holiday",e:"🎄",dl:[8,17],ev:11,seed:"christmas decor"},
- {n:"Holiday gift guides",e:"🎁",dl:[9,1],ev:11,seed:"gift ideas under 50"},
- {n:"Winter cozy / hygge",e:"🧣",dl:[10,1],ev:0,seed:"chunky knit throw blanket"}
+ {n:"Prime Day",e:"🛒",ev:5},
+ {n:"Father’s Day",e:"👔",ev:5},
+ {n:"July 4th / Americana",e:"🎆",ev:6},
+ {n:"Summer entertaining / patio",e:"☀️",ev:6},
+ {n:"Back-to-school / teen room",e:"✏️",ev:7},
+ {n:"Fall / harvest decor",e:"🍂",ev:8},
+ {n:"Prime Big Deal Days",e:"🛍️",ev:9},
+ {n:"Halloween",e:"🎃",ev:9},
+ {n:"Thanksgiving / hosting",e:"🦃",ev:10},
+ {n:"Christmas / holiday decor",e:"🎄",ev:11},
+ {n:"Holiday gift guides",e:"🎁",ev:11},
+ {n:"Winter cozy / hygge",e:"🧣",ev:0},
+ {n:"New Year refresh / org",e:"🗂️",ev:0},
+ {n:"Valentine’s Day",e:"💐",ev:1},
+ {n:"Spring refresh / cleaning",e:"🌷",ev:2},
+ {n:"Easter / spring table",e:"🐰",ev:2},
+ {n:"Mother’s Day",e:"💝",ev:4},
+ {n:"Late spring / patio prep",e:"🪴",ev:5}
 ];
 /* calendar phase segments (match the board): prep → light → heavy → final push */
 const SEGP=[{lbl:"prep",bg:"#9DB287",fg:"#21301a"},{lbl:"light posting",bg:"#FBE3CE",fg:"#8a5418"},{lbl:"heavy posting",bg:"#F6B89B",fg:"#7a3d14"},{lbl:"final push",bg:"#E2725B",fg:"#ffffff"}];
 function seasonPhase(s){ if(s.ev==null) return null; const off=((new Date().getMonth()-(s.ev-3))%12+12)%12; if(off>3) return null; return Object.assign({off},SEGP[off]); }
-function activeSeasons(){ return SEASONS.map(s=>{const p=seasonPhase(s);return p?Object.assign({p},s):null;}).filter(Boolean).sort((a,b)=>b.p.off-a.p.off); }
+function activeSeasons(){
+  /* when embedded in the board, use the board's LIVE seasonal calendar (single source of truth) */
+  try{
+    const pn=(window.parent&&window.parent!==window)?window.parent._seasonNow:null;
+    if(pn&&pn.length){
+      return pn.map(x=>{const m=String(x.n).match(/^(\S+)\s+([\s\S]+)$/); const fg=(SEGP.find(s=>s.lbl===x.ph)||{}).fg||'#21301a';
+        return {n:m?m[2]:x.n, e:m?m[1]:'', p:{lbl:x.ph,bg:x.c,fg}};})
+        .sort((a,b)=>SEGP.findIndex(s=>s.lbl===b.p.lbl)-SEGP.findIndex(s=>s.lbl===a.p.lbl));
+    }
+  }catch(e){}
+  /* standalone fallback: compute from the local mirror */
+  return SEASONS.map(s=>{const p=seasonPhase(s);return p?Object.assign({p},s):null;}).filter(Boolean).sort((a,b)=>b.p.off-a.p.off);
+}
 function daysUntil(m,d){const now=new Date(),y=now.getFullYear();let t=new Date(y,m,d);if(t<now)t=new Date(y+1,m,d);return Math.round((t-now)/864e5);}
 function apiPost(action,params){
   return fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
