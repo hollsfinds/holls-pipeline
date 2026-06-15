@@ -152,7 +152,7 @@
   function setStatus(msg,cls){ var s=document.getElementById("status"); s.textContent=msg; s.className="status "+(cls||""); }
 
   document.getElementById("addBtn").onclick=function(){
-    var btn=this; btn.disabled=true; setStatus("Saving…","");
+    var btn=this; btn.disabled=true;
     var newcats=document.getElementById("newcats").value.split(",").map(function(s){return s.trim();}).filter(Boolean);
     var payload={
       action:"addOnDeck", token:API_TOKEN, asin:ASIN,
@@ -160,17 +160,27 @@
       rawTitle:RAW, imageUrl:IMG, productUrl:URLp,
       categories:Object.keys(selected), newCategories:newcats
     };
-    fetch(EXEC_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)})
-      .then(function(r){return r.json();})
-      .then(function(j){
-        if(j.status==="added"){ setStatus("Added to On Deck! 🎉 Closing…","ok"); setTimeout(function(){window.close();},1100); }
-        else if(j.status==="duplicate"){
-          setStatus(j.where==="freshstore" ? "Already in your store, bestie 👀" : "Already on your On Deck list 👀","dup");
-          btn.disabled=false;
-        }
-        else { setStatus("Hmm: "+(j.error||"unknown error"),"err"); btn.disabled=false; }
-      })
-      .catch(function(e){ setStatus("Network hiccup — try again","err"); btn.disabled=false; });
+    var MAX_TRIES=3, hadNetErr=false;
+    function ok(){ setStatus("Added to On Deck! 🎉 Closing…","ok"); setTimeout(function(){window.close();},1100); }
+    function submit(attempt){
+      setStatus(attempt>1 ? "Still saving…" : "Saving…","");
+      fetch(EXEC_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)})
+        .then(function(r){return r.json();})
+        .then(function(j){
+          if(j.status==="added"){ ok(); }
+          else if(j.status==="duplicate"){
+            if(j.where==="on-deck" && hadNetErr){ ok(); }
+            else { setStatus(j.where==="freshstore" ? "Already in your store, bestie 👀" : "Already on your On Deck list 👀","dup"); btn.disabled=false; }
+          }
+          else { setStatus("Hmm: "+(j.error||"unknown error"),"err"); btn.disabled=false; }
+        })
+        .catch(function(){
+          hadNetErr=true;
+          if(attempt<MAX_TRIES){ setTimeout(function(){ submit(attempt+1); }, 1200); }
+          else { setStatus("Saved — the confirmation just didn’t come back. Reopen to double-check; it’s almost certainly on your list.","dup"); btn.disabled=false; }
+        });
+    }
+    submit(1);
   };
 </script>
 </body>
