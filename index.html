@@ -2773,6 +2773,10 @@ function renderTodo(){
   const waiting=nonpromo.filter(n=>n.status==="needs_review").length;
   if(waiting) rows.push({id:"npr",n:waiting,l:"Group Chat post"+(waiting>1?"s":"")+" waiting for approval →",alert:true,go:"review"});
   rows.push({id:"pins5",n:"5",l:"share 5 pins (not your own) on Pinterest ↗",href:"https://www.pinterest.com/homefeed/"});
+  // weekly Amazon affiliate stats reminder — appears each week from Sunday; check it off and it stays gone until next Sunday
+  const _statWk=(function(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());return iso(d);})();
+  let _statDone=false; try{_statDone=!!localStorage.getItem("amazonStatsDone:"+_statWk);}catch(e){}
+  if(!_statDone) rows.push({id:"amazonstats",n:"$",l:"log last week's Amazon affiliate stats",alert:true});
   // seasonal: ONE line that names the seasons
   const hot=window._seasonHot||[], soon=window._seasonSoon||[];
   const sNow=window._seasonNow||[];
@@ -2837,7 +2841,14 @@ function renderTodo(){
 document.addEventListener("click",e=>{
   const c=e.target.closest(".todo-chk");
   if(c){ e.stopPropagation();
-    const z=n=>String(n).padStart(2,"0"), d=new Date(), key="todoDone:"+d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
+    const z=n=>String(n).padStart(2,"0");
+    if(c.dataset.tdid==="amazonstats"){   // weekly dismissal (keyed to this week's Sunday), not daily
+      const wd=new Date(); wd.setHours(0,0,0,0); wd.setDate(wd.getDate()-wd.getDay());
+      const wk=wd.getFullYear()+"-"+z(wd.getMonth()+1)+"-"+z(wd.getDate());
+      if(c.checked) localStorage.setItem("amazonStatsDone:"+wk,"1"); else localStorage.removeItem("amazonStatsDone:"+wk);
+      const row=c.closest(".todo-stat"); if(row){ row.classList.toggle("todo-done",c.checked); if(c.checked) row.classList.remove("todo-alert"); }
+      return; }
+    const d=new Date(), key="todoDone:"+d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
     let done={}; try{done=JSON.parse(localStorage.getItem(key)||"{}")}catch(err){}
     if(c.checked) done[c.dataset.tdid]=1; else delete done[c.dataset.tdid];
     localStorage.setItem(key,JSON.stringify(done));
