@@ -1289,6 +1289,7 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
       .rv-landingsub{font-weight:600;font-size:10.5px;color:#b09155;margin-left:auto}
       .rv-landinglist{display:flex;flex-wrap:wrap;gap:7px}
       .rv-lchip{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #EFE3C8;border-radius:18px;padding:4px 11px;font-size:11.5px}
+      .rv-lplat{font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:#9a7b1f;background:#FBEFD2;border:1px solid #EFE0B8;border-radius:6px;padding:1px 7px;white-space:nowrap}
       .rv-lcap{font-weight:600;color:#4A3B33;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
       .rv-lwhen{color:#9a7b1f;font-weight:700;font-size:10.5px}
       .rv-up{margin:4px 0 16px}
@@ -1303,7 +1304,7 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
     </style>
     <div class="toolbar">
       <div>
-        <div class="lead">The Group Chat 💬</div>
+        <div class="lead">The Group Chat</div>
         <div class="sub">Where you talk to your people. Pick a spark, start a Holls' Chat, approve the bundle — everything non-promo lives here, and nothing posts without you.</div>
       </div>
       <div class="toolacts"><button class="btn ghost" id="reviewRefresh">↻ Refresh</button></div>
@@ -1311,7 +1312,7 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
     <div id="reviewUpcoming"></div>
     <div id="reviewApprove"></div>
     <div class="ns-card">
-      <div class="ns-head">💬 Tell me something <span style="font-weight:600;font-size:11px;color:#8a7f79">— start a Holls' Chat</span></div>
+      <div class="ns-head">Tell me something <span style="font-weight:600;font-size:11px;color:#8a7f79">— start a Holls' Chat</span></div>
       <div class="ns-sub">Pick a spark — I'll prod you with little questions so you never face a blank box. One Holls' Chat makes ONE bundle: FB + IG + TikTok drafted together, approved together. Skipped sparks never come back.</div>
       <div class="ns-ideahead">Today's sparks
         <button type="button" class="ns-refresh" id="ppShuffle">🔀 Shuffle</button>
@@ -3116,16 +3117,16 @@ function onDeckCard(n){
     +'<div class="deck-title">'+esc(n.caption||key)+'</div>'
     +'<div class="deck-acts">'
     +'<button class="btn coral sm" data-deck="choose" data-row="'+n.row+'" title="Draft this into a chat reel — you still approve it before it posts">✓ Choose</button>'
-    +'<button class="btn ghost sm" data-deck="snooze" data-row="'+n.row+'" title="Bring it back in ~2 weeks">😴 Snooze</button>'
+    +'<button class="btn ghost sm" data-deck="snooze" data-row="'+n.row+'" title="Bring it back in ~2 weeks">Snooze</button>'
     +'<button class="btn ghost sm deck-deny" data-deck="deny" data-row="'+n.row+'" title="Reject for good — never surface this idea again">✕ Deny</button>'
     +'</div></div>';
 }
 function onDeckHtml(){
   const deck=(nonpromo||[]).filter(n=>n.platform==="(reeldeck)" && n.status==="deck").slice(0,5);
   if(!deck.length) return "";
-  return '<div class="ns-head" style="font-size:13px;margin:4px 0 8px">🎬 On Deck — reel ideas '
+  return '<div class="ns-card"><div class="ns-head" style="font-size:13px;margin:0 0 8px">🎬 On Deck — reel ideas '
     +'<span style="font-weight:600;font-size:11px;color:#8a7f79">— 5 fresh reel-ready ideas. <b>Choose</b> drafts one into a reel (you still approve it), <b>Snooze</b> ~2 weeks, <b>Deny</b> forever.</span></div>'
-    +'<div class="deck-grid">'+deck.map(onDeckCard).join("")+'</div>';
+    +'<div class="deck-grid">'+deck.map(onDeckCard).join("")+'</div></div>';
 }
 document.addEventListener("click",async e=>{
   const b=e.target.closest("[data-deck]"); if(!b) return;
@@ -3213,12 +3214,12 @@ async function renderReview(){
   /* ===== Holls' Chats (personal narrative bundles) ===== */
   let chatsHtml="";
   if(Object.keys(bundles).length){
-    chatsHtml+='<div class="rv-sub-h">📖 Holls’ Chats <span style="font-weight:600;font-size:11px;color:#8a7f79">— your personal posts; one approve sends the whole bundle</span></div>';
+    chatsHtml+='<div class="rv-sub-h">Holls’ Chats <span style="font-weight:600;font-size:11px;color:#8a7f79">— your personal posts; one approve sends the whole bundle</span></div>';
     Object.keys(bundles).forEach(bid=>{
       const set=bundles[bid];
       const first=(set[0].r[3]||"").split("\n")[0].slice(0,70);
       chatsHtml+='<div class="pb-card" data-bundle="'+esc(bid)+'">'
-        +'<div class="pb-title">📖 Holls’ Chat — one approve posts all '+set.length+'</div>'
+        +'<div class="pb-title">Holls’ Chat — one approve posts all '+set.length+'</div>'
         +'<div class="pb-sub">"'+esc(first)+'…" · tweak any wording right here, kill a platform with ✕, then approve the lot.</div>'
         +'<div class="pb-plats">'+set.map(o=>{
           const pl=String(o.r[1]||"").toLowerCase();
@@ -3242,7 +3243,7 @@ async function renderReview(){
   /* ===== Starters (auto-drafted polls / trend takes / chat reels) ===== */
   let startHtml="";
   if(pending.length){
-    startHtml+='<div class="rv-sub-h">💬 Starters <span style="font-weight:600;font-size:11px;color:#8a7f79">— auto-drafted polls, trend takes &amp; reels (not your Holls’ Chats); approve, tweak, or skip</span></div><div class="rv-grid">';
+    startHtml+='<div class="rv-sub-h">Starters <span style="font-weight:600;font-size:11px;color:#8a7f79">— auto-drafted polls, trend takes &amp; reels (not your Holls’ Chats); approve, tweak, or skip</span></div><div class="rv-grid">';
     pending.forEach(o=>{ const dt=o.r[0],pl=o.r[1],ty=o.r[2],cap=o.r[3],img=o.r[4]; const tc=tcol(ty);
       const isVid=/\.mp4(\?|$)/i.test(String(img||"")); const reel=isVid||/reel/i.test(String(pl||""));
       const vsrc=String(img||"").replace(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/[^/]+\//,"https://$1.github.io/$2/");
@@ -3345,12 +3346,11 @@ function landingHtml(body){
   const inflight=body.map((r,i)=>({r,i})).filter(o=>{const s=String(o.r[5]||"").toLowerCase();return s==="queued"||s==="approved";});
   if(!inflight.length) return "";
   const today=new Date().toISOString().slice(0,10);
-  const PE={facebook:"📘",facebookstory:"📘",facebookreel:"📘",instagram:"📸",instagramstory:"📸",instagramreel:"📸",tiktok:"🎵"};
+  const PLABEL={facebook:"FB Post",instagram:"IG Post",tiktok:"TikTok",facebookreel:"FB Reel",instagramreel:"IG Reel",facebookstory:"FB Story",instagramstory:"IG Story"};
   const items=inflight.map(o=>{
-    const pl=String(o.r[1]||"").toLowerCase(), cap=String(o.r[3]||"").split("\n")[0].slice(0,46), dt=String(o.r[0]||"").slice(0,10);
-    const reel=/reel/i.test(pl)||/\.mp4(\?|$)/i.test(String(o.r[4]||""));
-    const when=(dt&&dt>=today)?("📅 for "+dt.slice(5).replace("-","/")):"⏳ finding a slot";
-    return '<div class="rv-lchip"><span>'+(PE[pl]||"📣")+'</span><span class="rv-lcap">'+esc(cap||(reel?"reel":"post"))+'</span><span class="rv-lwhen">'+when+'</span></div>';
+    const pl=String(o.r[1]||"").toLowerCase(), cap=String(o.r[3]||"").split("\n")[0].slice(0,42), dt=String(o.r[0]||"").slice(0,10);
+    const when=(dt&&dt>=today)?("for "+dt.slice(5).replace("-","/")):"finding a slot";
+    return '<div class="rv-lchip"><span class="rv-lplat">'+esc(PLABEL[pl]||pl||"Post")+'</span><span class="rv-lcap">'+esc(cap||"post")+'</span><span class="rv-lwhen">'+esc(when)+'</span></div>';
   }).join("");
   return '<div class="rv-landing"><div class="rv-landinghd">⏳ Approved — landing a slot <span class="rv-landingct">'+inflight.length+'</span><span class="rv-landingsub">scheduler locks the day on its next sweep, then it moves to ✓ below</span></div><div class="rv-landinglist">'+items+'</div></div>';
 }
@@ -3399,12 +3399,12 @@ function renderSparks(){
   box.innerHTML=pick.map(p=>{
     const quick=p.kind==="quick";
     return '<div class="pp-spark'+(quick?' pp-quick':'')+'" data-row="'+p.row+'">'
-      +(quick?'<span class="pp-kindtag">⚡ quick take — one line is plenty</span><span class="pp-postonly">📍 Post only · no chat</span>':'<span class="pp-kindtag pp-kstory">📖 Holls’ Chat</span>')
+      +(quick?'<span class="pp-kindtag">quick take — one line is plenty</span><span class="pp-postonly">Post only · no chat</span>':'<span class="pp-kindtag pp-kstory">Holls’ Chat</span>')
       +'<b>'+esc(p.prompt)+'</b>'
       +(p.nudges.length?'<div class="pp-nudge">'+p.nudges.map(n=>'· '+esc(n)).join('<br>')+'</div>':'')
       +'<div class="pp-sparkacts"><button class="pp-use" data-row="'+p.row+'">'+(quick?'Answer it ⚡':'Tell this one →')+'</button>'
-      +'<button class="pp-later" data-row="'+p.row+'" title="Not now — resurface later">💤 later</button>'
-      +'<button class="pp-never" data-row="'+p.row+'" title="Never show this idea again">🚫 not me</button></div></div>';
+      +'<button class="pp-later" data-row="'+p.row+'" title="Not now — resurface later">later</button>'
+      +'<button class="pp-never" data-row="'+p.row+'" title="Never show this idea again">not me</button></div></div>';
   }).join('');
 }
 async function setIdeaStatus(row,status){ try{ await apiPost({sheet:'NonPromo',action:'updateCell',row:row,col:6,value:status});
