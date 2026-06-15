@@ -1292,6 +1292,8 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
       .rv-landinglist{display:flex;flex-wrap:wrap;gap:7px}
       .rv-lchip{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #EFE3C8;border-radius:18px;padding:4px 11px;font-size:11.5px}
       .rv-lplat{font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:#9a7b1f;background:#FBEFD2;border:1px solid #EFE0B8;border-radius:6px;padding:1px 7px;white-space:nowrap}
+      .rv-lbadge{display:inline-block;font-weight:800;font-size:9.5px;text-transform:uppercase;letter-spacing:.02em;color:#9a7b1f;background:#FBEFD2;border:1px solid #EFE0B8;border-radius:6px;padding:1px 6px;margin-right:4px;white-space:nowrap}
+      .rv-lbadge.done{color:#2E6E6A;background:#DCEFEE;border-color:#BFE0DC}
       .rv-lcap{font-weight:600;color:#4A3B33;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
       .rv-lwhen{color:#9a7b1f;font-weight:700;font-size:10.5px}
       .rv-up{margin:4px 0 16px}
@@ -3378,16 +3380,27 @@ function npSlotOpts(){
 }
 /* approved posts the scheduler hasn't placed yet (status queued/approved) → a visible "in flight" strip so nothing feels lost after approve */
 function landingHtml(body){
-  const inflight=body.map((r,i)=>({r,i})).filter(o=>{const s=String(o.r[5]||"").toLowerCase();return s==="queued"||s==="approved";});
+  // in-flight = approved/queued rows the sweep hasn't placed yet
+  const inflight=body.filter(r=>{const s=String(r[5]||"").toLowerCase();return s==="queued"||s==="approved";});
   if(!inflight.length) return "";
   const today=new Date().toISOString().slice(0,10);
-  const PLABEL={facebook:"FB Post",instagram:"IG Post",tiktok:"TikTok",facebookreel:"FB Reel",instagramreel:"IG Reel",facebookstory:"FB Story",instagramstory:"IG Story"};
-  const items=inflight.map(o=>{
-    const pl=String(o.r[1]||"").toLowerCase(), cap=String(o.r[3]||"").split("\n")[0].slice(0,42), dt=String(o.r[0]||"").slice(0,10);
-    const when=(dt&&dt>=today)?("for "+dt.slice(5).replace("-","/")):"finding a slot";
-    return '<div class="rv-lchip"><span class="rv-lplat">'+esc(PLABEL[pl]||pl||"Post")+'</span><span class="rv-lcap">'+esc(cap||"post")+'</span><span class="rv-lwhen">'+esc(when)+'</span></div>';
+  const PSHORT={instagramreel:"IG",facebookreel:"FB",tiktok:"TikTok",instagram:"IG",facebook:"FB",instagramstory:"IG Story",facebookstory:"FB Story"};
+  const keyOf=r=>(String(r[4]||"").trim())||String(r[3]||"").slice(0,60);   // same video (reels) or caption = one item
+  const live={}; inflight.forEach(r=>{live[keyOf(r)]=1;});
+  // group every approved/queued/scheduled row that belongs to an in-flight item (so already-scheduled platforms show their locked day)
+  const groups={};
+  body.forEach(r=>{const k=keyOf(r); if(!live[k]) return; const s=String(r[5]||"").toLowerCase();
+    if(s!=="queued"&&s!=="approved"&&s!=="scheduled") return;
+    if(!groups[k]) groups[k]={cap:String(r[3]||"").split("\n")[0],seen:{},badges:""};
+    const g=groups[k]; const pl=String(r[1]||"").toLowerCase(); if(g.seen[pl]) return; g.seen[pl]=1;
+    const dt=String(r[0]||"").slice(0,10), sched=(s==="scheduled");
+    const tail=sched?(" ✓"+dt.slice(5).replace("-","/")):((dt&&dt>=today)?(" "+dt.slice(5).replace("-","/")):"");
+    g.badges+='<span class="rv-lbadge'+(sched?' done':'')+'">'+esc(PSHORT[pl]||pl)+esc(tail)+'</span>';
+  });
+  const items=Object.keys(groups).map(k=>{const g=groups[k];
+    return '<div class="rv-lchip">'+g.badges+'<span class="rv-lcap">'+esc((g.cap||"post").slice(0,46))+'</span></div>';
   }).join("");
-  return '<div class="rv-landing"><div class="rv-landinghd">⏳ Approved — landing a slot <span class="rv-landingct">'+inflight.length+'</span><span class="rv-landingsub">scheduler locks the day on its next sweep, then it moves to ✓ below</span></div><div class="rv-landinglist">'+items+'</div></div>';
+  return '<div class="rv-landing"><div class="rv-landinghd">⏳ Approved — landing a slot <span class="rv-landingct">'+Object.keys(groups).length+'</span><span class="rv-landingsub">amber = still finding a day · ✓ = locked. Each platform places on the next sweep.</span></div><div class="rv-landinglist">'+items+'</div></div>';
 }
 function upcomingHtml(body){
   const today=new Date().toISOString().slice(0,10);
