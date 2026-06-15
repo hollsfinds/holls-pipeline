@@ -91,6 +91,7 @@
   .pp-chip.urgent{border-color:var(--coral);background:#fff4f1}
   .pp-due{color:var(--muted);font-size:11px;font-weight:700;margin-left:4px}
   .pp-chip.urgent .pp-due{color:var(--coral)}
+  .pp-phase{display:inline-block;margin-left:7px;border-radius:6px;padding:1px 7px;font-size:10px;font-weight:800;vertical-align:middle}
   .pp-back{border:none;background:none;color:var(--teal);font-weight:700;cursor:pointer;font-family:inherit;font-size:12.5px;padding:0;margin-right:6px}
   #ppbanner{display:none;background:#fff4f1;border:1px solid var(--coral);color:var(--espresso);
             border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:13px;font-weight:600}
@@ -104,7 +105,7 @@
   .pp-refresh{border:none;background:none;color:var(--teal);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px}
   .pp-season{border:1px solid var(--line);background:#fff;border-radius:9px;padding:5px 10px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--espresso);font-family:inherit}
   .pp-season.on{background:var(--coral);border-color:var(--coral);color:#fff}
-  .pp-sectlabel{font-size:13.5px;font-weight:800;color:var(--coral);margin:18px 2px 7px}
+  .pp-sectlabel{font-family:'Sora',sans-serif;font-size:13px;font-weight:800;color:var(--coral);margin:18px 2px 7px}
   .pp-sectlabel .opt{font-weight:600;color:var(--muted);font-size:11.5px}
   .pp-stylebox{background:#fafbfc;border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:2px}
   .pp-typechip{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;color:var(--espresso);font-family:inherit}
@@ -152,6 +153,7 @@
   .pp-more{width:100%;border:1px dashed var(--line);background:#fff;border-radius:9px;padding:6px;font-size:12px;font-weight:700;color:var(--teal);cursor:pointer;font-family:inherit}
   .pp-step{font-family:'Sora',sans-serif;font-size:13px;font-weight:800;color:var(--espresso);margin:18px 2px 9px}
   .pp-step:first-child{margin-top:2px}
+  .pp-step.active{color:var(--coral)}
   .pp-chip.sel{background:var(--coral);border-color:var(--coral);color:#fff}
   .pp-chip.sel .pp-deny{color:#fff}
   .pp-start{border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 11px;font-size:11.5px;font-weight:700;color:var(--espresso);cursor:pointer;font-family:'Raleway',sans-serif}
@@ -244,17 +246,23 @@ const ROOMS={
  "Closet / Fashion":["crossbody bag","layered necklace","straw tote bag","maxi dress","ankle boots","silk scarf","sunglasses"]
 };
 /* ---- LANE: Seasonal pushes (deadline = when to add to On Deck; 0-based month) ---- */
+/* ev = event month (0-based), from the board's seasonal calendar. Ramp = the 4 months ev-3..ev.
+   A season only shows while it's inside that ramp window, labeled by its calendar phase. */
 const SEASONS=[
- {n:"July 4th / Americana",e:"🎆",dl:[5,17],seed:"americana decor"},
- {n:"Summer patio",e:"☀️",dl:[5,1],seed:"outdoor rug"},
- {n:"Back-to-school / teen room",e:"✏️",dl:[5,17],seed:"desk organizer"},
- {n:"Fall / harvest",e:"🍂",dl:[6,18],seed:"fall decor"},
- {n:"Halloween",e:"🎃",dl:[7,18],seed:"halloween decor"},
- {n:"Thanksgiving / hosting",e:"🦃",dl:[8,17],seed:"fall table runner"},
- {n:"Christmas / holiday",e:"🎄",dl:[8,17],seed:"christmas decor"},
- {n:"Holiday gift guides",e:"🎁",dl:[9,1],seed:"gift ideas under 50"},
- {n:"Winter cozy / hygge",e:"🧣",dl:[10,1],seed:"chunky knit throw blanket"}
+ {n:"July 4th / Americana",e:"🎆",dl:[5,17],ev:6,seed:"americana decor"},
+ {n:"Summer patio",e:"☀️",dl:[5,1],ev:6,seed:"outdoor rug"},
+ {n:"Back-to-school / teen room",e:"✏️",dl:[5,17],ev:7,seed:"desk organizer"},
+ {n:"Fall / harvest",e:"🍂",dl:[6,18],ev:8,seed:"fall decor"},
+ {n:"Halloween",e:"🎃",dl:[7,18],ev:9,seed:"halloween decor"},
+ {n:"Thanksgiving / hosting",e:"🦃",dl:[8,17],ev:10,seed:"fall table runner"},
+ {n:"Christmas / holiday",e:"🎄",dl:[8,17],ev:11,seed:"christmas decor"},
+ {n:"Holiday gift guides",e:"🎁",dl:[9,1],ev:11,seed:"gift ideas under 50"},
+ {n:"Winter cozy / hygge",e:"🧣",dl:[10,1],ev:0,seed:"chunky knit throw blanket"}
 ];
+/* calendar phase segments (match the board): prep → light → heavy → final push */
+const SEGP=[{lbl:"prep",bg:"#9DB287",fg:"#21301a"},{lbl:"light posting",bg:"#FBE3CE",fg:"#8a5418"},{lbl:"heavy posting",bg:"#F6B89B",fg:"#7a3d14"},{lbl:"final push",bg:"#E2725B",fg:"#ffffff"}];
+function seasonPhase(s){ if(s.ev==null) return null; const off=((new Date().getMonth()-(s.ev-3))%12+12)%12; if(off>3) return null; return Object.assign({off},SEGP[off]); }
+function activeSeasons(){ return SEASONS.map(s=>{const p=seasonPhase(s);return p?Object.assign({p},s):null;}).filter(Boolean).sort((a,b)=>b.p.off-a.p.off); }
 function daysUntil(m,d){const now=new Date(),y=now.getFullYear();let t=new Date(y,m,d);if(t<now)t=new Date(y+1,m,d);return Math.round((t-now)/864e5);}
 function apiPost(action,params){
   return fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
@@ -300,17 +308,17 @@ async function showThemes(season){
     let sug=(r&&r.suggestions)||[];
     const dn=denied(); const keep=sug.filter(s=>!dn.includes(s)); if(keep.length) sug=keep;
     if(!sug.length){ sub.innerHTML='<div class="pp-subnote">No themes — tap 🔄 new ideas.</div>'; return; }
-    const seasons=SEASONS.map(s=>Object.assign({du:daysUntil(s.dl[0],s.dl[1])},s)).sort((a,b)=>a.du-b.du).slice(0,6);
+    const seasons=activeSeasons();
     let h=`<div class="pp-ablabel">A · Seed from a season (optional)</div><div class="pp-chips">`;
     h+=`<button class="pp-season${ROUNDUP_SEASON?'':' on'}" data-season="">None</button>`;
-    h+=seasons.map(s=>`<button class="pp-season${ROUNDUP_SEASON===s.n?' on':''}${s.du<=21?' urgent':''}" data-season="${String(s.n).replace(/"/g,'&quot;')}">${s.e} ${esc(s.n)}<span class="pp-due">${s.du<=21?'⏰ add now':'in '+s.du+'d'}</span></button>`).join('');
+    h+=seasons.map(s=>`<button class="pp-season${ROUNDUP_SEASON===s.n?' on':''}" data-season="${String(s.n).replace(/"/g,'&quot;')}">${s.e} ${esc(s.n)}<span class="pp-phase" style="background:${s.p.bg};color:${s.p.fg}">${s.p.lbl}</span></button>`).join('');
     h+=`</div>`;
     h+=`<div class="pp-ablabel">B · Pick a roundup theme ${AIB}</div>`;
     h+=`<div class="pp-subnote" style="margin-top:0">${ROUNDUP_SEASON?('🧺 '+esc(ROUNDUP_SEASON)+' themes · '):''}tap to build · <span style="font-weight:500">✕ = never suggest again</span><button class="pp-refresh" data-refresh="themes">🔄 new ideas</button></div>`;
     h+=`<div class="pp-chips">`+sug.map(s=>{const q=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-theme="${q}">${esc(String(s))}<span class="pp-deny" data-deny="${q}" title="never suggest again">✕</span></button>`;}).join('')+`</div>`;
     h+=`<div class="pp-ablabel">C · Or type your own theme</div>`;
     h+=`<div class="pp-stylewrap"><input id="ppmantheme" class="pp-styleinput" style="width:300px" placeholder="e.g. Cottagecore kitchen finds"><button class="btn" id="ppmango">Build →</button></div>`;
-    sub.innerHTML=h;
+    sub.innerHTML=h; setStep(2);
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
 }
 async function roundupTheme(theme){
@@ -343,7 +351,7 @@ async function roundupTheme(theme){
     h+=`<div class="pp-sectlabel">🛍️ Step 4 · Build your set <span class="opt">${types.length} pieces · pulls 5 ranked products per piece</span></div>`;
     h+=`<div class="pp-chips" style="align-items:center"><button class="btn" id="ppbuildboard" style="font-size:15px;padding:12px 20px">🧺 Build my roundup →</button></div>`;
     h+=`<div class="pp-subnote" style="margin-top:4px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--espresso)">${types.map(t=>esc(t)).join(' · ')}</div>`;
-    sub.innerHTML=h;
+    sub.innerHTML=h; setStep(0);
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — pick another theme.</div>'; }
 }
 /* ---- ROUNDUP BUILD BOARD (columns per piece, 5 each + more, locked picks rise to a strip) ---- */
@@ -414,6 +422,12 @@ async function boardMore(name){
   }catch(e){ col.exhausted=true; }
   col.shown+=5; renderBoard(); renderMeters();
 }
+/* highlight the current step in coral; all other step headers stay the uniform dark style */
+function setStep(n){
+  const s2=document.getElementById('step2label'), s3=document.getElementById('step3label');
+  if(s2) s2.classList.toggle('active',n===2);
+  if(s3) s3.classList.toggle('active',n===3);
+}
 /* consistent "type your own" option, rendered as the final lettered choice on every lane */
 function manualOpt(letter,label,ph){
   return `<div class="pp-ablabel">${letter} · ${label||'Or type your own'}</div><div class="pp-chips" style="align-items:center"><input id="ppmankw" class="pp-maninput" placeholder="${ph||'Type a product idea — e.g. rattan serving tray'}"><button class="btn" id="ppmanfind">Find products →</button></div>`;
@@ -431,9 +445,11 @@ function showTypes(room){
 }
 async function showSeasonal(selected){
   const sub=document.getElementById('ppsub');
-  const sorted=SEASONS.map(s=>Object.assign({du:daysUntil(s.dl[0],s.dl[1])},s)).sort((a,b)=>a.du-b.du);
-  let h='<div class="pp-ablabel">A · Pick a seasonal push</div><div class="pp-subnote" style="margin-top:0">Sorted by your "add to On Deck by" deadline:</div><div class="pp-chips">'+
-    sorted.map(s=>{const n=String(s.n).replace(/"/g,'&quot;');return `<button class="pp-chip pp-season${selected===s.n?' on':''}${s.du<=21?' urgent':''}" data-szn="${n}">${s.e} ${esc(s.n)}<span class="pp-due">${s.du<=21?'⏰ add now':'in '+s.du+'d'}</span></button>`;}).join('')+'</div>';
+  const active=activeSeasons();
+  const chips=active.length
+    ? active.map(s=>{const n=String(s.n).replace(/"/g,'&quot;');return `<button class="pp-chip pp-season${selected===s.n?' on':''}" data-szn="${n}">${s.e} ${esc(s.n)}<span class="pp-phase" style="background:${s.p.bg};color:${s.p.fg}">${s.p.lbl}</span></button>`;}).join('')
+    : '<span class="pp-subnote" style="margin:0">No seasons are ramping up right now — type your own below, or check another lane.</span>';
+  let h='<div class="pp-ablabel">A · Pick a seasonal push</div><div class="pp-subnote" style="margin-top:0">Only seasons in their posting window — labeled by phase:</div><div class="pp-chips">'+chips+'</div>';
   if(!selected){ sub.innerHTML=h+'<div class="pp-ablabel" style="opacity:.45">B · Pick a product type <span style="font-weight:500">(appears once you pick a season)</span></div>'+manualOpt('C'); return; }
   h+=`<div class="pp-ablabel">B · Pick a product type ${AIB} — or build a roundup</div><div id="pptypes" class="pp-subnote" style="margin-top:0">🧠 finding ${esc(selected)} product types…</div>`+manualOpt('C');
   sub.innerHTML=h;
@@ -490,6 +506,7 @@ function scoreProduct(p,demandScore){
 
 function render(){
   const s3=document.getElementById('step3label'); if(s3) s3.style.display=LAST.length?'block':'none';
+  setStep(LAST.length?3:2);
   const sort=document.getElementById('sort').value;
   let list=LAST.slice();
   const cmp={score:(a,b)=>b._score-a._score,reviews:(a,b)=>b.reviews-a.reviews,rating:(a,b)=>b.rating-a.rating,
@@ -652,6 +669,7 @@ document.getElementById('lanes').addEventListener('click',e=>{
   else if(lane==='gap') coverageGap();
   else if(lane==='roundup') showThemes();
   else sub.innerHTML=manualOpt('A','Type a product type','Type a product type — e.g. rattan serving tray');
+  setStep(2);
 });
 document.getElementById('ppsub').addEventListener('click',e=>{
   if(e.target.closest('#ppbuildboard')){ buildBoard(); return; }
@@ -703,11 +721,12 @@ function resetAll(){
   document.getElementById('step2label').textContent='Step 2 · Type a product type';
   document.querySelector('.searchbar').style.display='none';
   document.getElementById('ppsub').innerHTML=manualOpt('A','Type a product type','Type a product type — e.g. rattan serving tray');
+  setStep(2);
   refreshTray();
 }
 document.getElementById('ppstart').onclick=resetAll;
 /* on load: default to My idea with inline manual entry; top search box stays hidden (manual is now a lettered option per lane) */
-(function(){ const idea=document.querySelector('.lane[data-lane="idea"]'); if(idea){ document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active')); idea.classList.add('active'); } document.getElementById('step2label').textContent='Step 2 · Type a product type'; document.querySelector('.searchbar').style.display='none'; document.getElementById('ppsub').innerHTML=manualOpt('A','Type a product type','Type a product type — e.g. rattan serving tray'); })();
+(function(){ const idea=document.querySelector('.lane[data-lane="idea"]'); if(idea){ document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active')); idea.classList.add('active'); } document.getElementById('step2label').textContent='Step 2 · Type a product type'; document.querySelector('.searchbar').style.display='none'; document.getElementById('ppsub').innerHTML=manualOpt('A','Type a product type','Type a product type — e.g. rattan serving tray'); setStep(2); })();
 try{ const _q=JSON.parse(localStorage.getItem('pp_quota')); if(_q&&_q.remaining!=null){ QUOTA=_q; renderMeters(); } }catch(e){}  // show last-known Amazon quota immediately
 loadBalance();  // show DataForSEO balance + low-balance warning on open
 /* when embedded in the board (?embed=1), hide the picker's own header — the board already has a top bar */
