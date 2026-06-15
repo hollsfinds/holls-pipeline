@@ -1227,8 +1227,8 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
       .rv-card{border:1px solid var(--line,#E0D8CF);border-radius:12px;overflow:hidden;background:#fff;display:flex;flex-direction:column}
       .rv-thumb{aspect-ratio:4/5;background:#F7F2EC;overflow:hidden}
       .rv-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-      .rv-thumb.rv-vid{aspect-ratio:9/16;background:#2C2421}
-      .rv-thumb.rv-vid video{width:100%;height:100%;object-fit:contain;display:block}
+      .rv-thumb.rv-vid{aspect-ratio:auto;height:288px;background:#2C2421;display:flex;align-items:center;justify-content:center}
+      .rv-thumb.rv-vid video{width:auto;max-width:100%;height:100%;object-fit:contain;display:block}
       .rv-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
       .rv-meta{display:flex;gap:8px;align-items:center;font-size:12px;flex-wrap:wrap}
       .rv-tag{font-weight:700;border-radius:5px;padding:2px 8px;text-transform:capitalize}
@@ -1282,6 +1282,15 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
       .rv-zonesub{font-weight:600;font-size:11.5px;color:#b08a80;margin-left:auto}
       .rv-sub-h{font-weight:800;font-size:13px;color:var(--esp,#4A3B33);margin:10px 2px 8px}
       .rv-allclear{padding:16px;text-align:center;background:#EBF3F1;border:1px solid #CFE6E2;border-radius:12px;color:#3F6E68;font-size:12.5px;margin:8px 0 20px;font-weight:600}
+      /* "landing a slot" strip — approved posts the scheduler hasn't placed yet (always visible above the collapsible grid) */
+      .rv-landing{background:#FFF9EE;border:1px solid #F0E2C0;border-radius:12px;padding:10px 13px;margin:4px 0 12px}
+      .rv-landinghd{font-weight:800;font-size:13px;color:#9a7b1f;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+      .rv-landingct{background:#E8A33D;color:#fff;border-radius:20px;font-size:11px;font-weight:800;padding:1px 9px}
+      .rv-landingsub{font-weight:600;font-size:10.5px;color:#b09155;margin-left:auto}
+      .rv-landinglist{display:flex;flex-wrap:wrap;gap:7px}
+      .rv-lchip{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #EFE3C8;border-radius:18px;padding:4px 11px;font-size:11.5px}
+      .rv-lcap{font-weight:600;color:#4A3B33;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+      .rv-lwhen{color:#9a7b1f;font-weight:700;font-size:10.5px}
       .rv-up{margin:4px 0 16px}
       .rv-up>summary{cursor:pointer;list-style:none;font-weight:800;font-size:13px;color:var(--esp,#4A3B33);padding:9px 13px;background:#F4F6F8;border:1px solid #E3E7EB;border-radius:10px;display:flex;align-items:center;gap:8px}
       .rv-up>summary::-webkit-details-marker{display:none}
@@ -3196,7 +3205,7 @@ async function renderReview(){
 
   /* ===== TOP: collapsible "Coming up" ===== */
   if(upHost){ const ui=upcomingHtml(body);
-    upHost.innerHTML = ui ? '<details class="rv-up"><summary>📅 Coming up — next 14 days</summary><div class="rv-upbody">'+ui+'</div></details>' : ''; }
+    upHost.innerHTML = landingHtml(body) + (ui ? '<details class="rv-up"><summary>📅 Coming up — next 14 days</summary><div class="rv-upbody">'+ui+'</div></details>' : ''); }
 
   /* ===== COMPOSE lane (below the band): reel ideas to pick ===== */
   host.innerHTML = onDeckHtml();
@@ -3331,6 +3340,20 @@ async function renderReview(){
   };
 }
 /* "Coming up" strip — already-approved personal/non-promo posts with future dates */
+/* approved posts the scheduler hasn't placed yet (status queued/approved) → a visible "in flight" strip so nothing feels lost after approve */
+function landingHtml(body){
+  const inflight=body.map((r,i)=>({r,i})).filter(o=>{const s=String(o.r[5]||"").toLowerCase();return s==="queued"||s==="approved";});
+  if(!inflight.length) return "";
+  const today=new Date().toISOString().slice(0,10);
+  const PE={facebook:"📘",facebookstory:"📘",facebookreel:"📘",instagram:"📸",instagramstory:"📸",instagramreel:"📸",tiktok:"🎵"};
+  const items=inflight.map(o=>{
+    const pl=String(o.r[1]||"").toLowerCase(), cap=String(o.r[3]||"").split("\n")[0].slice(0,46), dt=String(o.r[0]||"").slice(0,10);
+    const reel=/reel/i.test(pl)||/\.mp4(\?|$)/i.test(String(o.r[4]||""));
+    const when=(dt&&dt>=today)?("📅 for "+dt.slice(5).replace("-","/")):"⏳ finding a slot";
+    return '<div class="rv-lchip"><span>'+(PE[pl]||"📣")+'</span><span class="rv-lcap">'+esc(cap||(reel?"reel":"post"))+'</span><span class="rv-lwhen">'+when+'</span></div>';
+  }).join("");
+  return '<div class="rv-landing"><div class="rv-landinghd">⏳ Approved — landing a slot <span class="rv-landingct">'+inflight.length+'</span><span class="rv-landingsub">scheduler locks the day on its next sweep, then it moves to ✓ below</span></div><div class="rv-landinglist">'+items+'</div></div>';
+}
 function upcomingHtml(body){
   const today=new Date().toISOString().slice(0,10);
   const up=body.map((r,i)=>({r,i})).filter(o=>{const s=String(o.r[5]||"").toLowerCase();return (s==="scheduled"||s==="queued") && String(o.r[0]||"").slice(0,10)>=today;})
