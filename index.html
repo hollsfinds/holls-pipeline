@@ -1234,7 +1234,9 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
       .rv-tag{font-weight:700;border-radius:5px;padding:2px 8px;text-transform:capitalize}
       .rv-plat{font-weight:600;text-transform:capitalize}.rv-date{opacity:.55;margin-left:auto}
       .rv-cap{width:100%;min-height:78px;resize:vertical;border:1px solid #E0D8CF;border-radius:8px;padding:8px;font:inherit;font-size:13px;line-height:1.45;box-sizing:border-box}
-      .rv-acts{display:flex;gap:8px;align-items:center}
+      .rv-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+      .rv-platrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:2px}
+      .rv-platlbl{font-size:10.5px;font-weight:700;color:#6E7681}
       .rv-approve{background:var(--teal,#2E6E6A);color:#fff;border:none}
       .rv-status{font-size:12px;opacity:.6}
       .rv-cardbadge{font-size:11px;background:#EFE7F0;color:#6B5B95;border-radius:5px;padding:2px 7px;font-weight:600;white-space:nowrap}
@@ -3246,11 +3248,12 @@ async function renderReview(){
     pending.forEach(o=>{ const dt=o.r[0],pl=o.r[1],ty=o.r[2],cap=o.r[3],img=o.r[4]; const tc=tcol(ty);
       const isVid=/\.mp4(\?|$)/i.test(String(img||"")); const reel=isVid||/reel/i.test(String(pl||""));
       const vsrc=String(img||"").replace(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/[^/]+\//,"https://$1.github.io/$2/");
-      startHtml+='<div class="rv-card'+(reel?' rv-reel':'')+'" data-row="'+o.sheetRow+'"'+(reel?' data-reel="1"':'')+'>';
+      startHtml+='<div class="rv-card'+(reel?' rv-reel':'')+'" data-row="'+o.sheetRow+'"'+(reel?' data-reel="1" data-plat="'+esc(pl||"")+'" data-vid="'+esc(img||"")+'" data-ty="'+esc(ty||"reel")+'"':'')+'>';
       if(isVid) startHtml+='<div class="rv-thumb rv-vid"><video src="'+esc(vsrc)+'" controls preload="metadata" playsinline></video></div>';
       else if(isImg(img)) startHtml+='<div class="rv-thumb"><img src="'+esc(img)+'" alt="" loading="lazy"></div>';
-      startHtml+='<div class="rv-body"><div class="rv-meta"><span class="rv-tag" style="background:'+tc[0]+';color:'+tc[1]+'">'+esc(ty||"post")+'</span><span class="rv-plat">'+esc(PLAB[String(pl||"").toLowerCase()]||pl||"")+'</span>'+(reel?'<span class="rv-cardbadge">🎬 Chat reel</span>':(isImg(img)?'':'<span class="rv-cardbadge">🖼 branded card</span>'))+'<span class="rv-date">'+esc(String(dt||"").slice(0,10))+'</span></div>';
+      startHtml+='<div class="rv-body"><div class="rv-meta"><span class="rv-tag" style="background:'+tc[0]+';color:'+tc[1]+'">'+esc(ty||"post")+'</span>'+(reel?'<span class="rv-cardbadge">🎬 Chat reel</span>':'<span class="rv-plat">'+esc(PLAB[String(pl||"").toLowerCase()]||pl||"")+'</span>'+(isImg(img)?'':'<span class="rv-cardbadge">🖼 branded card</span>'))+'<span class="rv-date">'+esc(String(dt||"").slice(0,10))+'</span></div>';
       startHtml+='<textarea class="rv-cap">'+esc(cap||"")+'</textarea>';
+      if(reel) startHtml+='<div class="rv-platrow"><span class="rv-platlbl">Post to (open slots):</span>'+[["instagramReel","IG"],["facebookReel","FB"],["tiktok","TikTok"]].map(pc=>'<label class="pb-pc"><input type="checkbox" class="rv-platck" data-plat="'+pc[0]+'" checked><span>'+pc[1]+'</span></label>').join("")+'</div>';
       startHtml+='<div class="rv-acts"><select class="rv-slot" title="Which day should this post?">'+npSlotOpts()+'</select><button class="btn rv-approve" data-row="'+o.sheetRow+'">'+(reel?'✓ Approve reel':'✓ Approve')+'</button><button class="btn ghost rv-skip" data-row="'+o.sheetRow+'">Skip</button><span class="rv-status"></span></div></div></div>';
     });
     startHtml+='</div>';
@@ -3326,16 +3329,40 @@ async function renderReview(){
     btn.disabled=true; st.textContent="Saving…";
     try{
       const reel=!!card.dataset.reel;   // reels → "approved" (a reel sweep schedules them; NOT "queued", which schedule-nonpromo skips)
-      const reSlot=card.querySelector(".rv-slot"); const newDate=reSlot?reSlot.value:"";   // present only on reschedule cards
-      if(ap){ if(newDate) await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:1,value:newDate});
-              await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:cap});
-              await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:reel?"approved":"queued"}); }
-      else  { await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"}); }
-      const n=nonpromo.find(x=>x.row===row); if(n){ n.status=ap?(reel?"approved":"queued"):"skipped"; if(ap&&cap) n.caption=cap; if(ap&&newDate) n.date=newDate; }
-      renderTodo(); render();   // reflect immediately: Fully Live card appears (queued) + To-Do counts update
+      const platcks=[...card.querySelectorAll(".rv-platck")];   // present only on multi-platform reel cards
+      const reSlot=card.querySelector(".rv-slot"); const newDate=reSlot?reSlot.value:"";   // "" = auto (sweep fills next open slot)
+      if(reel && platcks.length){
+        // ONE approval fans the same reel to each checked platform; auto = sweep fills each open cadence slot, or your picked date applies to all
+        const sel=platcks.filter(c=>c.checked).map(c=>c.dataset.plat);
+        const existPlat=card.dataset.plat||"", existLC=existPlat.toLowerCase();
+        const vid=card.dataset.vid||"", ty=card.dataset.ty||"reel";
+        if(ap){
+          if(!sel.length){ st.textContent=""; btn.disabled=false; toast("Pick at least one platform, or hit Skip."); return; }
+          const selLC=sel.map(s=>s.toLowerCase());
+          if(selLC.includes(existLC)){   // reuse the existing row for its own platform
+            if(newDate) await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:1,value:newDate});
+            await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:cap});
+            await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"approved"});
+          } else { await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"}); }
+          for(const p of sel){ if(p.toLowerCase()===existLC) continue;   // new approved row per OTHER checked platform (same video + caption)
+            await apiPost({sheet:"NonPromo",action:"appendRow",values:[newDate||"",p,ty,cap,vid,"approved","",""]}); }
+          const n=nonpromo.find(x=>x.row===row); if(n){ n.status=selLC.includes(existLC)?"approved":"skipped"; n.caption=cap; }
+          toast("Reel approved for "+sel.length+" platform"+(sel.length>1?"s":"")+" — fills open slots on the next sweep 🎬");
+        } else {
+          await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"});
+          const n=nonpromo.find(x=>x.row===row); if(n) n.status="skipped"; toast("Reel skipped.");
+        }
+      } else {   // single-card: polls + reschedule reels (unchanged)
+        if(ap){ if(newDate) await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:1,value:newDate});
+                await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:4,value:cap});
+                await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:reel?"approved":"queued"}); }
+        else  { await apiPost({sheet:"NonPromo",action:"updateCell",row:row,col:6,value:"skipped"}); }
+        const n=nonpromo.find(x=>x.row===row); if(n){ n.status=ap?(reel?"approved":"queued"):"skipped"; if(ap&&cap) n.caption=cap; if(ap&&newDate) n.date=newDate; }
+        toast(ap?(reel?"Reel approved — schedules on the next sweep 🎬":"Approved — queued for scheduling."):"Skipped.");
+      }
+      renderTodo(); render();   // reflect immediately + update To-Do counts
       card.style.transition="opacity .3s"; card.style.opacity="0";
       setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")&&!host.querySelector(".pb-card")) renderReview(); },320);
-      toast(ap?(reel?"Reel approved — schedules on the next sweep 🎬":"Approved — queued for scheduling."):"Skipped.");
     }catch(err){ st.textContent=""; btn.disabled=false; toast("Save failed: "+(err&&err.message||err)); }
   };
 }
