@@ -3354,9 +3354,22 @@ async function renderReview(){
           const fbTxt=(()=>{const b=[...card.querySelectorAll(".pb-plat")].find(x=>!x.querySelector("textarea").disabled);return b?b.querySelector("textarea").value:"";})();
           const short=fbTxt.split("\n")[0].slice(0,140);
           const bid=card.dataset.bundle||"";
-          for(const plat of ["facebookstory","instagramstory"]) if(picks[plat])
+          // DEDUPE — one idea → ONE story per platform. Skip an append when (a) this bundle ALREADY has a story
+          // block for that network (e.g. a quick-take's IG-Story row), or (b) a non-skipped story row with the
+          // same caption stem already exists for that network. Case-insensitive so camelCase `instagramStory`
+          // and lowercase `instagramstory` can't slip a duplicate through two doors. (2026-06-15)
+          const netOf=p=>/instagram/i.test(p)?"instagram":/facebook/i.test(p)?"facebook":"";
+          const stem=s=>String(s||"").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim().slice(0,40);
+          const haveNet=new Set([...card.querySelectorAll(".pb-plat")].filter(b=>!b.querySelector("textarea").disabled&&/story/i.test(b.dataset.plat||"")).map(b=>netOf(b.dataset.plat)));
+          const seenStory=new Set(nonpromo.filter(r=>/story/i.test(r.platform)&&r.status!=="skipped").map(r=>netOf(r.platform)+"|"+stem(r.caption)));
+          let dup=0;
+          for(const plat of ["facebookstory","instagramstory"]) if(picks[plat]){
+            const net=netOf(plat), key=net+"|"+stem(short);
+            if(haveNet.has(net)||seenStory.has(key)){ dup++; continue; }   // already a story for this idea+platform
+            seenStory.add(key);
             await apiPost({sheet:"NonPromo",action:"appendRow",values:[sslot,plat,"story",short,"","queued","",bid]});
-          toast("Story version(s) queued for "+sslot+" 📲");
+          }
+          toast(dup?("Already had a story for that platform — skipped the dup 👍"):("Story version(s) queued for "+sslot+" 📲"));
         }
         renderTodo(); render();
         if(pa&&heldN>0){ toast(queuedN+" queued for "+(slot||"next slot")+" 🎉 "+heldN+" platform"+(heldN>1?"s":"")+" still here waiting."); renderReview(); }
