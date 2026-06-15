@@ -172,10 +172,9 @@
   <div class="pp-step" style="display:flex;align-items:center;justify-content:space-between">Step 1 · Pick a lane<button class="pp-start" id="ppstart">↺ Start over</button></div>
   <div class="lanes" id="lanes">
     <div class="lane active" data-lane="idea">💡 My idea</div>
-    <div class="lane" data-lane="evergreen">🛋️ Evergreen room</div>
+    <div class="lane" data-lane="catalog">🗂️ My catalog</div>
     <div class="lane" data-lane="seasonal">🗓️ Seasonal</div>
     <div class="lane" data-lane="trending">🔥 Trending</div>
-    <div class="lane" data-lane="gap">🕳️ Coverage gap</div>
     <div class="lane" data-lane="roundup">🧺 Roundup</div>
   </div>
 
@@ -225,7 +224,7 @@ const API="https://script.google.com/macros/s/AKfycbzYObvkhNOLKGnF6kMmlL3dEjEGzi
 const TOKEN="holls-pipeline-2026";
 const BRIDGE="https://script.google.com/macros/s/AKfycbxPkObU7vxVtY4ZseyenU46h9IQKQStnJMr4XaoQOO3JZLF1-Wtg91yp1Uj5qVNBRhh/exec";
 const AIB='<span class="pp-ai">AI</span>';
-let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null, ROUNDUP_THEME=null, ROUNDUP_STYLE='', ROUNDUP_SEASON='', BOARD=null, ROUNDUP_TYPES=[];
+let LAST=[], PICKS={}, DEMAND=null, PAGE=1, QUERY="", FAILED=0, DEMCOST=null, QUOTA={}, DFSBAL=null, ROUNDUP_THEME=null, ROUNDUP_STYLE='', ROUNDUP_SEASON='', BOARD=null, ROUNDUP_TYPES=[], CAT_LIST=null, CAT_HAVE='', _catLoaded=false;
 
 function api(action,params){
   const q=new URLSearchParams(Object.assign({token:TOKEN,action},params));
@@ -295,6 +294,53 @@ async function coverageGap(){
     have=('Categories she has: '+cats.slice(0,40).join(', ')+'\nProducts on deck: '+od.slice(0,40).join('; ')).slice(0,1800);
   }catch(e){}
   aiChips('gap',{have});
+}
+/* ---- LANE: My catalog (merged Evergreen + Coverage-gap) — your REAL FreshStore categories: pick one to deepen, or see gaps ---- */
+async function showCatalog(){
+  const sub=document.getElementById('ppsub');
+  if(!_catLoaded){
+    sub.innerHTML='<div class="pp-subnote">🧠 Reading your site catalog…</div>';
+    try{
+      const j=await fetch(BRIDGE+'?token='+TOKEN).then(r=>r.json());
+      const d=(j&&j.data)||{};
+      const od=((d['On Deck']||[]).slice(1)).map(r=>r[2]||r[3]).filter(Boolean);
+      let cats=[]; ((d.Meta||[])).forEach(r=>{ if(r[0]==='freshstore_categories'){ try{cats=JSON.parse(r[1]).map(c=>c.title);}catch(e){} } });
+      CAT_LIST=cats; CAT_HAVE=('Categories she has: '+cats.slice(0,40).join(', ')+'\nProducts on deck: '+od.slice(0,40).join('; ')).slice(0,1800);
+    }catch(e){ CAT_LIST=CAT_LIST||[]; }
+    _catLoaded=true;
+  }
+  renderCatalog();
+}
+async function renderCatalog(selected){
+  const cats=CAT_LIST||[];
+  let h='<div class="pp-ablabel">A · Pick one of your categories to go deeper — or see your gaps</div>';
+  h+= cats.length
+    ? '<div class="pp-chips">'+cats.map(c=>{const q=String(c).replace(/"/g,'&quot;');return `<button class="pp-chip${selected===c?' sel':''}" data-cat="${q}">${esc(c)}</button>`;}).join('')+`<button class="btn" id="ppgaps" style="margin-left:6px">🕳️ Show my gaps ${AIB}</button></div>`
+    : '<div class="pp-chips"><span class="pp-subnote" style="margin:0">Couldn\'t read your site categories — type your own below, or </span><button class="btn" id="ppgaps">🕳️ Show my gaps '+AIB+'</button></div>';
+  if(!selected){
+    h+='<div class="pp-ablabel" style="opacity:.45">B · Product types <span style="font-weight:500">(appears once you pick a category)</span></div>'+manualOpt('C');
+    document.getElementById('ppsub').innerHTML=h; setStep(2); return;
+  }
+  h+=`<div class="pp-ablabel">B · Pick a product type ${AIB} — or build a roundup</div><div id="pptypes" class="pp-subnote" style="margin-top:0">🧠 finding ${esc(selected)} product types…</div>`+manualOpt('C');
+  document.getElementById('ppsub').innerHTML=h; setStep(2);
+  try{
+    const r=await api('aiSuggest',{mode:'roundup',context:selected});
+    let types=((r&&r.suggestions)||[]).filter(t=>!denied().includes(t));
+    ROUNDUP_TYPES=types.slice();
+    const el=document.getElementById('pptypes');
+    if(el) el.outerHTML='<div class="pp-chips">'+types.map(t=>{const q=String(t).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-seed="${q}">${esc(t)}<span class="pp-deny" data-deny="${q}" title="never suggest again">✕</span></button>`;}).join('')+`<button class="btn" id="ppbuildboard" style="margin-left:6px">🧺 Build a roundup from these</button></div>`;
+  }catch(e){ const el=document.getElementById('pptypes'); if(el) el.textContent='Brain hiccup — pick another category.'; }
+}
+async function showGaps(){
+  const sub=document.getElementById('ppsub');
+  sub.innerHTML='<div class="pp-ablabel"><button class="pp-back" data-catback="1">← my categories</button> finding your gaps '+AIB+'</div><div class="pp-subnote" style="margin:0">🧠 checking what you\'re missing…</div>';
+  try{
+    const r=await apiPost('aiSuggest',{mode:'gap',have:CAT_HAVE||''});
+    let sug=((r&&r.suggestions)||[]).filter(s=>!denied().includes(s));
+    ROUNDUP_TYPES=sug.slice();
+    sub.innerHTML='<div class="pp-ablabel"><button class="pp-back" data-catback="1">← my categories</button> A · Gaps in your catalog — tap one, or build a roundup '+AIB+'</div><div class="pp-subnote" style="margin-top:0;font-weight:500">✕ = never suggest again</div><div class="pp-chips">'+sug.map(s=>{const q=String(s).replace(/"/g,'&quot;');return `<button class="pp-chip pp-theme" data-seed="${q}">${esc(s)}<span class="pp-deny" data-deny="${q}" title="never suggest again">✕</span></button>`;}).join('')+`<button class="btn" id="ppbuildboard" style="margin-left:6px">🧺 Build a roundup from these</button></div>`+manualOpt('B');
+    setStep(2);
+  }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — tap the lane again.</div>'; }
 }
 /* ---- LANE: Roundup builder (brain picks a theme → product types → coordinated set) ---- */
 function denied(){ try{return JSON.parse(localStorage.getItem('pp_denied'))||[];}catch(e){return[];} }
@@ -657,16 +703,15 @@ document.getElementById('lanes').addEventListener('click',e=>{
   const l=e.target.closest('.lane'); if(!l||l.classList.contains('soon'))return;
   document.querySelectorAll('.lane').forEach(x=>x.classList.remove('active')); l.classList.add('active');
   const lane=l.dataset.lane, sub=document.getElementById('ppsub');
-  const labels={idea:'Step 2 · Type a product type',evergreen:'Step 2 · Pick a room',seasonal:'Step 2 · Pick a seasonal push',trending:'Step 2 · Pick a trending idea',gap:'Step 2 · Pick a gap to fill',roundup:'Step 2 · Pick a roundup theme'};
+  const labels={idea:'Step 2 · Type a product type',catalog:'Step 2 · Pick a category — or see your gaps',seasonal:'Step 2 · Pick a seasonal push',trending:'Step 2 · Pick a trending idea',roundup:'Step 2 · Pick a roundup theme'};
   document.getElementById('step2label').textContent=labels[lane]||'Step 2';
   document.querySelector('.searchbar').style.display='none';
   document.getElementById('step3label').style.display='none';
   document.getElementById('pprefine').innerHTML='';
   if(lane!=='roundup') { ROUNDUP_THEME=null; ROUNDUP_STYLE=''; ROUNDUP_TYPES=[]; refreshTray(); }
-  if(lane==='evergreen') showRooms();
+  if(lane==='catalog') showCatalog();
   else if(lane==='seasonal') showSeasonal();
   else if(lane==='trending') aiChips('trending');
-  else if(lane==='gap') coverageGap();
   else if(lane==='roundup') showThemes();
   else sub.innerHTML=manualOpt('A','Type a product type','Type a product type — e.g. rattan serving tray');
   setStep(2);
@@ -679,6 +724,9 @@ document.getElementById('ppsub').addEventListener('click',e=>{
   const season=e.target.closest('[data-season]'); if(season){ showThemes(season.dataset.season||''); return; }
   const refresh=e.target.closest('[data-refresh]'); if(refresh){ if(refresh.dataset.refresh==='themes') showThemes(ROUNDUP_SEASON); else if(ROUNDUP_THEME) roundupTheme(ROUNDUP_THEME); return; }
   const deny=e.target.closest('[data-deny]'); if(deny){ denyItem(deny.dataset.deny); const ch=deny.closest('.pp-chip'); if(ch)ch.remove(); return; }
+  const cat=e.target.closest('[data-cat]'); if(cat){ renderCatalog(cat.dataset.cat); return; }
+  if(e.target.closest('#ppgaps')){ showGaps(); return; }
+  if(e.target.closest('[data-catback]')){ renderCatalog(); return; }
   const room=e.target.closest('[data-room]'); if(room){ showTypes(room.dataset.room); return; }
   if(e.target.closest('[data-back]')){ showRooms(); return; }
   const theme=e.target.closest('[data-theme]'); if(theme){ roundupTheme(theme.dataset.theme); return; }
