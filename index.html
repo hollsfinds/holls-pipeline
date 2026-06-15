@@ -268,6 +268,10 @@ button.todo-stat:hover{background:var(--peach)}
 .todo-stat.todo-alert{background:#FBE0DC;border-color:#E8C4BE}
 .todo-num{font-weight:800;font-size:13px;color:var(--espresso);min-width:16px;text-align:center}
 .todo-chk{accent-color:var(--coral,#F88378);margin:0;cursor:pointer;flex:0 0 auto;width:13px;height:13px}
+.td-amlbl{display:flex;flex-direction:column;font-size:9.5px;font-weight:700;color:#6E7681;gap:2px;text-transform:uppercase;letter-spacing:.02em}
+.td-amlbl input{font-size:12px;padding:4px 6px;border:1px solid var(--line,#E0D8CF);border-radius:6px;width:60px;box-sizing:border-box;font-family:inherit}
+.td-amlbl input[type=date]{width:122px}
+.todo-amstat>summary::-webkit-details-marker{display:none}
 .todo-done .todo-lbl{text-decoration:line-through;opacity:.45}
 .todo-done .todo-num{opacity:.45}
 .todo-fyi{font-size:10.5px;color:#a89c93;font-style:italic;padding:1px 4px;line-height:1.35}
@@ -2776,7 +2780,19 @@ function renderTodo(){
   // weekly Amazon affiliate stats reminder — appears each week from Sunday; check it off and it stays gone until next Sunday
   const _statWk=(function(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());return iso(d);})();
   let _statDone=false; try{_statDone=!!localStorage.getItem("amazonStatsDone:"+_statWk);}catch(e){}
-  if(!_statDone) rows.push({id:"amazonstats",n:"$",l:"log last week's Amazon affiliate stats",alert:true});
+  if(!_statDone) rows.push({id:"amazonstats",alert:true,custom:
+    '<details class="todo-amstat"><summary style="display:flex;align-items:center;gap:7px;cursor:pointer;list-style:none">'
+    +'<input type="checkbox" class="todo-chk" data-tdid="amazonstats" onclick="event.stopPropagation()">'
+    +'<span class="todo-num">$</span><span class="todo-lbl">log last week\'s Amazon affiliate stats ▾</span></summary>'
+    +'<div style="padding:8px 2px 6px 22px">'
+    +'<div style="font-size:10.5px;color:#8a7f79;margin-bottom:7px">From <b>Associates Central → Reports</b> (set range to the past week):</div>'
+    +'<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:flex-end">'
+    +'<label class="td-amlbl">Week ending<input type="date" id="tdAmWeek" value="'+_statWk+'"></label>'
+    +'<label class="td-amlbl">Clicks<input type="number" id="tdAmClicks" placeholder="0"></label>'
+    +'<label class="td-amlbl">Ordered<input type="number" id="tdAmOrdered" placeholder="0"></label>'
+    +'<label class="td-amlbl">Earnings $<input type="number" step="0.01" id="tdAmEarn" placeholder="0.00"></label>'
+    +'<button class="btn coral" id="tdAmSave" style="font-size:11px;padding:5px 13px">Save</button>'
+    +'</div></div></details>'});
   // seasonal: ONE line that names the seasons
   const hot=window._seasonHot||[], soon=window._seasonSoon||[];
   const sNow=window._seasonNow||[];
@@ -2839,6 +2855,19 @@ function renderTodo(){
   paint();
 }
 document.addEventListener("click",e=>{
+  // save Amazon weekly stats straight from the to-do (same Stats-sheet write as the Stats page)
+  const sv=e.target.closest("#tdAmSave");
+  if(sv){ e.preventDefault(); e.stopPropagation();
+    const wk=(document.getElementById("tdAmWeek")||{}).value||"";
+    const ck=+(document.getElementById("tdAmClicks")||{}).value||0, od=+(document.getElementById("tdAmOrdered")||{}).value||0, er=+(document.getElementById("tdAmEarn")||{}).value||0;
+    if(!wk){ toast("Pick the week-ending date first"); return; }
+    sv.disabled=true; sv.textContent="Saving…";
+    apiPost({sheet:"Stats",action:"appendRow",values:[new Date().toISOString().slice(0,10),"amazon",JSON.stringify({week:wk,clicks:ck,ordered:od,earnings:er})]})
+      .then(function(){ toast("Amazon week saved ✓");
+        try{const z=n=>String(n).padStart(2,"0"),d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());localStorage.setItem("amazonStatsDone:"+d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()),"1");}catch(_){}
+        _cache=null; renderTodo(); if(window.renderStats) renderStats(); })
+      .catch(function(err){ sv.disabled=false; sv.textContent="Save"; toast("Save failed: "+(err&&err.message||"")); });
+    return; }
   const c=e.target.closest(".todo-chk");
   if(c){ e.stopPropagation();
     const z=n=>String(n).padStart(2,"0");
