@@ -3316,7 +3316,7 @@ async function renderReview(){
         if(pa&&heldN>0){ toast(queuedN+" queued for "+(slot||"next slot")+" 🎉 "+heldN+" platform"+(heldN>1?"s":"")+" still here waiting."); renderReview(); }
         else{
           card.style.transition="opacity .3s"; card.style.opacity="0";
-          setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")&&!host.querySelector(".pb-card")) renderReview(); },320);
+          setTimeout(()=>{ card.remove(); _cache=null; renderReview(); },320);   // always re-render so the "landing a slot" strip + counts update right away
           toast(pa?("Chat approved — "+queuedN+" post"+(queuedN===1?"":"s")+" queued 🎉"):"Chat skipped.");
         }
       }catch(err){ st.textContent=""; (pa||ps).disabled=false; toast("Save failed: "+(err&&err.message||err)); }
@@ -3362,7 +3362,7 @@ async function renderReview(){
       }
       renderTodo(); render();   // reflect immediately + update To-Do counts
       card.style.transition="opacity .3s"; card.style.opacity="0";
-      setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")&&!host.querySelector(".pb-card")) renderReview(); },320);
+      setTimeout(()=>{ card.remove(); _cache=null; renderReview(); },320);   // always re-render so the "landing a slot" strip + counts update right away
     }catch(err){ st.textContent=""; btn.disabled=false; toast("Save failed: "+(err&&err.message||err)); }
   };
 }
