@@ -1275,22 +1275,38 @@ body.rail-open .app>*:not(.topbar){margin-left:290px}
       .pb-x{margin-left:auto;background:none;border:none;color:#c9beb6;cursor:pointer;font-size:14px}
       .pb-x:hover{color:#B0392B}
       .pb-acts{display:flex;gap:10px;align-items:center;margin-top:12px}
+      /* approval band (drafts waiting for your yes) — visually distinct from compose */
+      .rv-zone{background:#FFF4F0;border:2px solid var(--coral,#F88378);border-radius:14px;padding:4px 14px 14px;margin:8px 0 22px}
+      .rv-zonehead{display:flex;align-items:center;gap:9px;font-weight:800;font-size:16px;color:#B0392B;padding:11px 2px 9px;flex-wrap:wrap}
+      .rv-zonecount{background:var(--coral,#F88378);color:#fff;border-radius:20px;font-size:12px;font-weight:800;padding:2px 11px}
+      .rv-zonesub{font-weight:600;font-size:11.5px;color:#b08a80;margin-left:auto}
+      .rv-sub-h{font-weight:800;font-size:13px;color:var(--esp,#4A3B33);margin:10px 2px 8px}
+      .rv-allclear{padding:16px;text-align:center;background:#EBF3F1;border:1px solid #CFE6E2;border-radius:12px;color:#3F6E68;font-size:12.5px;margin:8px 0 20px;font-weight:600}
+      .rv-up{margin:4px 0 16px}
+      .rv-up>summary{cursor:pointer;list-style:none;font-weight:800;font-size:13px;color:var(--esp,#4A3B33);padding:9px 13px;background:#F4F6F8;border:1px solid #E3E7EB;border-radius:10px;display:flex;align-items:center;gap:8px}
+      .rv-up>summary::-webkit-details-marker{display:none}
+      .rv-up>summary:before{content:"▸";color:#8A929B;font-size:11px}
+      .rv-up[open]>summary:before{content:"▾"}
+      .rv-up[open]>summary{border-radius:10px 10px 0 0}
+      .rv-upbody{border:1px solid #E3E7EB;border-top:none;border-radius:0 0 10px 10px;padding:2px 13px 12px}
       .pp-up{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
       .pp-upitem{font-size:11.5px;background:#fff;border:1px solid var(--line,#E0D8CF);border-radius:8px;padding:6px 11px}
     </style>
     <div class="toolbar">
       <div>
         <div class="lead">The Group Chat 💬</div>
-        <div class="sub">Where you talk to your people. Pick a spark, tell a story, approve the bundle — everything non-promo lives here, and nothing posts without you.</div>
+        <div class="sub">Where you talk to your people. Pick a spark, start a Holls' Chat, approve the bundle — everything non-promo lives here, and nothing posts without you.</div>
       </div>
       <div class="toolacts"><button class="btn ghost" id="reviewRefresh">↻ Refresh</button></div>
     </div>
+    <div id="reviewUpcoming"></div>
+    <div id="reviewApprove"></div>
     <div class="ns-card">
-      <div class="ns-head">💬 Tell me something <span style="font-weight:600;font-size:11px;color:#8a7f79">— posts &amp; stories</span></div>
-      <div class="ns-sub">Pick a spark — I'll prod you with little questions so you never face a blank box. One story makes ONE bundle: FB + IG + TikTok drafted together, approved together. Skipped sparks never come back.</div>
+      <div class="ns-head">💬 Tell me something <span style="font-weight:600;font-size:11px;color:#8a7f79">— start a Holls' Chat</span></div>
+      <div class="ns-sub">Pick a spark — I'll prod you with little questions so you never face a blank box. One Holls' Chat makes ONE bundle: FB + IG + TikTok drafted together, approved together. Skipped sparks never come back.</div>
       <div class="ns-ideahead">Today's sparks
         <button type="button" class="ns-refresh" id="ppShuffle">🔀 Shuffle</button>
-        <button type="button" class="ns-refresh" id="ppOwn" style="margin-left:14px">✏️ I've got my own story</button>
+        <button type="button" class="ns-refresh" id="ppOwn" style="margin-left:14px">✏️ I've got my own</button>
       </div>
       <div id="ppSparks" class="pp-sparks"><p class="muted" style="font-size:12px">Loading sparks…</p></div>
     </div>
@@ -3134,7 +3150,7 @@ async function renderReview(){
   let draftHtml="";
   if(drafting.length){
     draftHtml='<div class="rv-drafting" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+drafting.map(r=>{
-      const m=String(r[3]||"").match(/TOPIC:\s*(.+)/i); const topic=m?m[1].trim():"Your personal story";
+      const m=String(r[3]||"").match(/TOPIC:\s*(.+)/i); const topic=m?m[1].trim():"Your Holls’ Chat";
       return '<div class="genwait"><span class="genspin"></span><span>✍ <b>Drafting…</b> the brain is writing this in your voice (IG + FB + TikTok) — usually a few minutes, then it drops into the queue below.<br><span style="opacity:.8;font-style:italic">Topic: '+esc(topic)+'</span></span></div>';
     }).join("")+'</div>';
   }
@@ -3173,53 +3189,79 @@ async function renderReview(){
         c+='<div class="rv-acts"><select class="rv-slot" title="New date">'+opts+'</select><button class="btn rv-approve" data-row="'+o.sheetRow+'">✓ Reschedule</button><button class="btn ghost rv-skip" data-row="'+o.sheetRow+'">Skip</button><span class="rv-status"></span></div></div></div>';
         return c; }).join("")+'</div>';
   }
-  if(!allPending.length && !reschedule.length){ host.innerHTML=onDeckHtml()+draftHtml+'<div class="rv-empty">'+(drafting.length?('Nothing to review just yet — your '+drafting.length+' submitted '+(drafting.length===1?'story is':'stories are')+' drafting above. ✍'):'🎉 Nothing waiting for review. New posts show up here as the pipeline queues them.')+'</div>'+upcomingHtml(body); return; }
   const tcol=t=>({personal:["#FAD9D3","#B0392B"],value:["#EBEFE6","#5E6E50"],engagement:["#FFE7D6","#B5702F"],trending:["#E7E0F0","#6B5B95"]})[String(t||"").toLowerCase()]||["#eee","#555"];
   const isImg=s=>/^https?:\/\//i.test(String(s||""));
-  let html=onDeckHtml()+draftHtml+reHtml;
   const PEMO={facebook:"📘",instagram:"📸",tiktok:"🎵"};
-  if(Object.keys(bundles).length) html+='<div class="ns-head" style="font-size:13px;margin:4px 0 8px">📖 Your stories</div>';
-  Object.keys(bundles).forEach(bid=>{
-    const set=bundles[bid];
-    const first=(set[0].r[3]||"").split("\n")[0].slice(0,70);
-    html+='<div class="pb-card" data-bundle="'+esc(bid)+'">'
-      +'<div class="pb-title">📖 Your story — one approve posts all '+set.length+'</div>'
-      +'<div class="pb-sub">"'+esc(first)+'…" · tweak any wording right here, kill a platform with ✕, then approve the lot.</div>'
-      +'<div class="pb-plats">'+set.map(o=>{
-        const pl=String(o.r[1]||"").toLowerCase();
-        return '<div class="pb-plat" data-row="'+o.sheetRow+'" data-plat="'+esc(pl)+'"><div class="pb-plathead">'+(PEMO[pl]||"📣")+' '+esc(pl)
-          +(isImg(o.r[4])?'':' <span class="rv-cardbadge">🖼 card</span>')
-          +'<button class="pb-x" data-row="'+o.sheetRow+'" title="Skip just this platform">✕</button></div>'
-          +'<textarea class="rv-cap" style="min-height:110px">'+esc(o.r[3]||"")+'</textarea></div>';
-      }).join("")+'</div>'
-      +'<div class="pb-acts"><button class="btn rv-approve pb-approve">✓ Approve selected</button>'
-      +'<select class="pb-slot" title="Which day should this story post?"><option value="">📅 next open slot (auto)</option>'
-      +(function(){const taken={};nonpromo.forEach(n=>{const st=String(n.status||"").toLowerCase();if(st==="queued"||st==="scheduled")taken[String(n.date||"").slice(0,10)]=1;});
-        let o="",d=new Date();for(let i=0;i<=14;i++){if(i>0)d.setDate(d.getDate()+1);const ds=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-          o+='<option value="'+ds+'">'+ds.slice(5).replace("-","/")+(i===0?" · today":(taken[ds]?" · busy":" · open"))+"</option>";}return o;})()
-      +'</select><span class="pb-chips">'
-      +[["facebook","FB"],["instagram","IG"],["tiktok","TT"],["facebookstory","FB story"],["instagramstory","IG story"]].map(pc=>
-        '<label class="pb-pc"><input type="checkbox" class="pb-plat-ck" data-plat="'+pc[0]+'"'+(pc[0].indexOf("story")<0?" checked":"")+'><span>'+pc[1]+'</span><i class="pb-open"></i></label>').join("")
-      +'</span><label style="font-size:10.5px;color:#6E7681;display:inline-flex;align-items:center;gap:4px;margin:0 2px" title="If checked, unchecked platforms stay on this card for another day instead of being skipped"><input type="checkbox" class="pb-keep" style="margin:0;width:11px;height:11px;accent-color:#2FA9A4"> 💾 save rest for later</label><button class="btn ghost pb-skipall">Skip story</button><span class="rv-status"></span></div></div>';
-  });
-  if(pending.length) html+='<div class="ns-head" style="font-size:13px;margin:14px 0 2px">💬 Group Chat Starters <span style="font-weight:600;font-size:11px;color:#8a7f79">— auto-drafted polls & trend takes (not your personal stories); approve, tweak, or skip</span></div>';
-  html+='<div class="rv-grid">';
-  pending.forEach(o=>{ const dt=o.r[0],pl=o.r[1],ty=o.r[2],cap=o.r[3],img=o.r[4]; const tc=tcol(ty);
-    // chat REELS carry a hosted .mp4 in ImageRef → show a video preview + route approval to the reel scheduler
-    const isVid=/\.mp4(\?|$)/i.test(String(img||"")); const reel=isVid||/reel/i.test(String(pl||""));
-    // raw.githubusercontent serves .mp4 as application/octet-stream + nosniff → <video> won't play.
-    // GitHub Pages (<owner>.github.io/<repo>/…) serves it as video/mp4 → plays inline. Convert for the preview.
-    const vsrc=String(img||"").replace(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/[^/]+\//,"https://$1.github.io/$2/");
-    html+='<div class="rv-card'+(reel?' rv-reel':'')+'" data-row="'+o.sheetRow+'"'+(reel?' data-reel="1"':'')+'>';
-    if(isVid) html+='<div class="rv-thumb rv-vid"><video src="'+esc(vsrc)+'" controls preload="metadata" playsinline></video></div>';
-    else if(isImg(img)) html+='<div class="rv-thumb"><img src="'+esc(img)+'" alt="" loading="lazy"></div>';
-    html+='<div class="rv-body"><div class="rv-meta"><span class="rv-tag" style="background:'+tc[0]+';color:'+tc[1]+'">'+esc(ty||"post")+'</span><span class="rv-plat">'+esc(pl||"")+'</span>'+(reel?'<span class="rv-cardbadge">🎬 Chat reel</span>':(isImg(img)?'':'<span class="rv-cardbadge">🖼 branded card</span>'))+'<span class="rv-date">'+esc(String(dt||"").slice(0,10))+'</span></div>';
-    html+='<textarea class="rv-cap">'+esc(cap||"")+'</textarea>';
-    html+='<div class="rv-acts"><button class="btn rv-approve" data-row="'+o.sheetRow+'">'+(reel?'✓ Approve reel':'✓ Approve')+'</button><button class="btn ghost rv-skip" data-row="'+o.sheetRow+'">Skip</button><span class="rv-status"></span></div></div></div>';
-  });
-  html+='</div>'+upcomingHtml(body);
-  host.innerHTML=html;
-  host.onclick=async e=>{
+  const upHost=$("#reviewUpcoming"), apHost=$("#reviewApprove");
+
+  /* ===== TOP: collapsible "Coming up" ===== */
+  if(upHost){ const ui=upcomingHtml(body);
+    upHost.innerHTML = ui ? '<details class="rv-up"><summary>📅 Coming up — next 14 days</summary><div class="rv-upbody">'+ui+'</div></details>' : ''; }
+
+  /* ===== COMPOSE lane (below the band): reel ideas to pick ===== */
+  host.innerHTML = onDeckHtml();
+
+  /* ===== Holls' Chats (personal narrative bundles) ===== */
+  let chatsHtml="";
+  if(Object.keys(bundles).length){
+    chatsHtml+='<div class="rv-sub-h">📖 Holls’ Chats <span style="font-weight:600;font-size:11px;color:#8a7f79">— your personal posts; one approve sends the whole bundle</span></div>';
+    Object.keys(bundles).forEach(bid=>{
+      const set=bundles[bid];
+      const first=(set[0].r[3]||"").split("\n")[0].slice(0,70);
+      chatsHtml+='<div class="pb-card" data-bundle="'+esc(bid)+'">'
+        +'<div class="pb-title">📖 Holls’ Chat — one approve posts all '+set.length+'</div>'
+        +'<div class="pb-sub">"'+esc(first)+'…" · tweak any wording right here, kill a platform with ✕, then approve the lot.</div>'
+        +'<div class="pb-plats">'+set.map(o=>{
+          const pl=String(o.r[1]||"").toLowerCase();
+          return '<div class="pb-plat" data-row="'+o.sheetRow+'" data-plat="'+esc(pl)+'"><div class="pb-plathead">'+(PEMO[pl]||"📣")+' '+esc(pl)
+            +(isImg(o.r[4])?'':' <span class="rv-cardbadge">🖼 card</span>')
+            +'<button class="pb-x" data-row="'+o.sheetRow+'" title="Skip just this platform">✕</button></div>'
+            +'<textarea class="rv-cap" style="min-height:110px">'+esc(o.r[3]||"")+'</textarea></div>';
+        }).join("")+'</div>'
+        +'<div class="pb-acts"><button class="btn rv-approve pb-approve">✓ Approve selected</button>'
+        +'<select class="pb-slot" title="Which day should this chat post?"><option value="">📅 next open slot (auto)</option>'
+        +(function(){const taken={};nonpromo.forEach(n=>{const st=String(n.status||"").toLowerCase();if(st==="queued"||st==="scheduled")taken[String(n.date||"").slice(0,10)]=1;});
+          let o="",d=new Date();for(let i=0;i<=14;i++){if(i>0)d.setDate(d.getDate()+1);const ds=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+            o+='<option value="'+ds+'">'+ds.slice(5).replace("-","/")+(i===0?" · today":(taken[ds]?" · busy":" · open"))+"</option>";}return o;})()
+        +'</select><span class="pb-chips">'
+        +[["facebook","FB"],["instagram","IG"],["tiktok","TT"],["facebookstory","FB story"],["instagramstory","IG story"]].map(pc=>
+          '<label class="pb-pc"><input type="checkbox" class="pb-plat-ck" data-plat="'+pc[0]+'"'+(pc[0].indexOf("story")<0?" checked":"")+'><span>'+pc[1]+'</span><i class="pb-open"></i></label>').join("")
+        +'</span><label style="font-size:10.5px;color:#6E7681;display:inline-flex;align-items:center;gap:4px;margin:0 2px" title="If checked, unchecked platforms stay on this card for another day instead of being skipped"><input type="checkbox" class="pb-keep" style="margin:0;width:11px;height:11px;accent-color:#2FA9A4"> 💾 save rest for later</label><button class="btn ghost pb-skipall">Skip chat</button><span class="rv-status"></span></div></div>';
+    });
+  }
+
+  /* ===== Starters (auto-drafted polls / trend takes / chat reels) ===== */
+  let startHtml="";
+  if(pending.length){
+    startHtml+='<div class="rv-sub-h">💬 Starters <span style="font-weight:600;font-size:11px;color:#8a7f79">— auto-drafted polls, trend takes &amp; reels (not your Holls’ Chats); approve, tweak, or skip</span></div><div class="rv-grid">';
+    pending.forEach(o=>{ const dt=o.r[0],pl=o.r[1],ty=o.r[2],cap=o.r[3],img=o.r[4]; const tc=tcol(ty);
+      const isVid=/\.mp4(\?|$)/i.test(String(img||"")); const reel=isVid||/reel/i.test(String(pl||""));
+      const vsrc=String(img||"").replace(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/[^/]+\//,"https://$1.github.io/$2/");
+      startHtml+='<div class="rv-card'+(reel?' rv-reel':'')+'" data-row="'+o.sheetRow+'"'+(reel?' data-reel="1"':'')+'>';
+      if(isVid) startHtml+='<div class="rv-thumb rv-vid"><video src="'+esc(vsrc)+'" controls preload="metadata" playsinline></video></div>';
+      else if(isImg(img)) startHtml+='<div class="rv-thumb"><img src="'+esc(img)+'" alt="" loading="lazy"></div>';
+      startHtml+='<div class="rv-body"><div class="rv-meta"><span class="rv-tag" style="background:'+tc[0]+';color:'+tc[1]+'">'+esc(ty||"post")+'</span><span class="rv-plat">'+esc(pl||"")+'</span>'+(reel?'<span class="rv-cardbadge">🎬 Chat reel</span>':(isImg(img)?'':'<span class="rv-cardbadge">🖼 branded card</span>'))+'<span class="rv-date">'+esc(String(dt||"").slice(0,10))+'</span></div>';
+      startHtml+='<textarea class="rv-cap">'+esc(cap||"")+'</textarea>';
+      startHtml+='<div class="rv-acts"><button class="btn rv-approve" data-row="'+o.sheetRow+'">'+(reel?'✓ Approve reel':'✓ Approve')+'</button><button class="btn ghost rv-skip" data-row="'+o.sheetRow+'">Skip</button><span class="rv-status"></span></div></div></div>';
+    });
+    startHtml+='</div>';
+  }
+
+  /* ===== assemble the approval band ===== */
+  const N = Object.keys(bundles).length + pending.length + reschedule.length;
+  if(apHost){
+    if(N>0){
+      apHost.innerHTML='<div class="rv-zone"><div class="rv-zonehead">⏳ Waiting for your approval <span class="rv-zonecount">'+N+'</span><span class="rv-zonesub">nothing posts without your yes</span></div>'+draftHtml+reHtml+chatsHtml+startHtml+'</div>';
+    } else if(drafting.length||reelDrafting.length){
+      apHost.innerHTML='<div class="rv-zone"><div class="rv-zonehead">✍ Drafting your latest…</div>'+draftHtml+'<div class="rv-allclear" style="background:#FFF4F0;border-color:#F3D9D0;color:#9a6b5e">Nothing ready to approve just yet — '+(drafting.length+reelDrafting.length)+' cooking above. ✍</div></div>';
+    } else {
+      apHost.innerHTML='<div class="rv-allclear">🎉 You’re all caught up — nothing waiting for your approval. New drafts land here the moment the pipeline queues them.</div>';
+    }
+  }
+
+  /* approval cards live in #reviewApprove now → wire clicks there (host shadowed below) */
+  (apHost||host).onclick=async e=>{
+    const host=apHost||document.getElementById("reviewLane");
     // ----- bundle actions (approve/skip the whole story, or ✕ one platform) -----
     const px=e.target.closest(".pb-x");
     if(px){ const row=+px.dataset.row, blk=px.closest(".pb-plat");
@@ -3263,7 +3305,7 @@ async function renderReview(){
         else{
           card.style.transition="opacity .3s"; card.style.opacity="0";
           setTimeout(()=>{ card.remove(); if(!host.querySelector(".rv-card")&&!host.querySelector(".pb-card")) renderReview(); },320);
-          toast(pa?("Story approved — "+queuedN+" post"+(queuedN===1?"":"s")+" queued 🎉"):"Story skipped.");
+          toast(pa?("Chat approved — "+queuedN+" post"+(queuedN===1?"":"s")+" queued 🎉"):"Chat skipped.");
         }
       }catch(err){ st.textContent=""; (pa||ps).disabled=false; toast("Save failed: "+(err&&err.message||err)); }
       return; }
@@ -3328,13 +3370,13 @@ function renderSparks(){
   const ideas=ideaRows();
   // pool priority: fresh → shown (shuffled away) → later ("maybe later")
   const pool=["fresh","shown","later"].flatMap(s=>ideas.filter(i=>i.status===s));
-  if(!pool.length){ box.innerHTML='<p class="muted" style="font-size:12px">The idea bank is refilling — the brain generates fresh sparks on its next pass. Or just hit "I\'ve got my own story." ✏️</p>'; _sparkShown=[]; return; }
+  if(!pool.length){ box.innerHTML='<p class="muted" style="font-size:12px">The idea bank is refilling — the brain generates fresh sparks on its next pass. Or just hit "I\'ve got my own." ✏️</p>'; _sparkShown=[]; return; }
   const pick=pool.slice(0,5);
   _sparkShown=pick.map(p=>p.row);
   box.innerHTML=pick.map(p=>{
     const quick=p.kind==="quick";
     return '<div class="pp-spark'+(quick?' pp-quick':'')+'" data-row="'+p.row+'">'
-      +(quick?'<span class="pp-kindtag">⚡ quick take — one line is plenty</span><span class="pp-postonly">📍 Post only · no story</span>':'<span class="pp-kindtag pp-kstory">📖 story</span>')
+      +(quick?'<span class="pp-kindtag">⚡ quick take — one line is plenty</span><span class="pp-postonly">📍 Post only · no chat</span>':'<span class="pp-kindtag pp-kstory">📖 Holls’ Chat</span>')
       +'<b>'+esc(p.prompt)+'</b>'
       +(p.nudges.length?'<div class="pp-nudge">'+p.nudges.map(n=>'· '+esc(n)).join('<br>')+'</div>':'')
       +'<div class="pp-sparkacts"><button class="pp-use" data-row="'+p.row+'">'+(quick?'Answer it ⚡':'Tell this one →')+'</button>'
@@ -3350,7 +3392,7 @@ function captureModal(idea){
   const nudges=(idea&&idea.nudges&&idea.nudges.length)?idea.nudges:["What actually happened?","How did it feel, honestly?","One tiny specific detail makes it real — a time, a smell, a thing someone said."];
   modal.innerHTML='<button class="x" data-cc="x">×</button>'
     +'<div class="kicker">'+(quick?'Quick take — 10 seconds':'Tell me something')+'</div>'
-    +'<h3>'+(idea?esc(idea.prompt):'Your story')+'</h3>'
+    +'<h3>'+(idea?esc(idea.prompt):'Your Holls’ Chat')+'</h3>'
     +(quick
       ?'<p style="font-size:12.5px;line-height:1.6;color:#8a7f79">One honest line — your real opinion, however blunt. I build the poll/post around YOUR words, so it actually sounds like you.</p>'
        +'<input id="ppTake" class="ns-input" placeholder="Your one-liner…">'
@@ -3592,7 +3634,7 @@ document.addEventListener("DOMContentLoaded",function(){ setTimeout(function(){
     var pulse=document.createElement("section"); pulse.className="rail-box"; pulse.id="railPulse"; pulse.style.flex="0 0 auto";
     pulse.innerHTML='<div class="side-h">📈 Pulse · 7 days</div><div class="todo-body" id="railPulseBody" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px"><span class="todo-empty">loading…</span></div>';
     var quick=document.createElement("section"); quick.className="rail-box"; quick.id="railQuick"; quick.style.flex="0 0 auto";
-    quick.innerHTML='<div class="todo-body" style="display:flex;flex-direction:row;gap:6px;padding:8px"><button class="btn coral" data-railgo="review" style="flex:1;font-size:11px;padding:4px 6px">✍ Tell a story</button><button class="btn ghost" data-railgo="reference" style="flex:1;font-size:11px;padding:4px 6px">💡 Roadmap idea</button></div>';
+    quick.innerHTML='<div class="todo-body" style="display:flex;flex-direction:row;gap:6px;padding:8px"><button class="btn coral" data-railgo="review" style="flex:1;font-size:11px;padding:4px 6px">✍ Holls’ Chat</button><button class="btn ghost" data-railgo="reference" style="flex:1;font-size:11px;padding:4px 6px">💡 Roadmap idea</button></div>';
     inner.insertBefore(pulse,first); inner.insertBefore(quick,first);
     fill();
     setInterval(fill,300000);
