@@ -3006,8 +3006,16 @@ async function renderCalendar(targetId,compact){
     let npReq=0;
     if(L.split){ const r=map[d]&&(map[d][L.key]||(L.fb&&map[d][L.fb])); npReq=Math.min(r?(r.npGoal||0):0, goal); if(!r && L.chat) npReq=goal; }
     const npSc = L.split ? ((npSched[d]&&npSched[d][L.key])||0) : 0;
-    // posts that exist ARE capacity: an off-day or over-reservation post expands the day's goal
-    // instead of flagging "wrong slot" (fix 2026-06-11 — e.g. FB non-promo on a goal-0 Saturday)
+    // Chat-capped lanes (stories: chat+fixed daily cap): npReq is a HARD cap (the preset). Do NOT
+    // absorb overflow into the goal — let an over-schedule SURFACE as non.sched>non.req → coral, shown
+    // as e.g. "4/2". Otherwise a pile-up (4 stories on a 2/day lane) hides as a green "4/4". (2026-06-15)
+    if(L.chat && L.dg!=null){
+      return {exists:true,
+        promo:{sched:Math.max(0,sched-npSc), req:0},
+        non:{sched:npSc, req:npReq}};
+    }
+    // other lanes: posts that exist ARE capacity: an off-day or over-reservation post expands the day's
+    // goal instead of flagging "wrong slot" (fix 2026-06-11 — e.g. FB non-promo on a goal-0 Saturday)
     goal=Math.max(goal, sched, npSc);
     npReq=Math.min(Math.max(npReq, npSc), goal);
     return {exists:true,
