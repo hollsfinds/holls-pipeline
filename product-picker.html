@@ -104,7 +104,8 @@
   .pp-refresh{border:none;background:none;color:var(--teal);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px}
   .pp-season{border:1px solid var(--line);background:#fff;border-radius:9px;padding:5px 10px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--espresso);font-family:inherit}
   .pp-season.on{background:var(--coral);border-color:var(--coral);color:#fff}
-  .pp-sectlabel{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 2px 7px}
+  .pp-sectlabel{font-size:13.5px;font-weight:800;color:var(--coral);margin:18px 2px 7px}
+  .pp-sectlabel .opt{font-weight:600;color:var(--muted);font-size:11.5px}
   .pp-stylebox{background:#fafbfc;border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:2px}
   .pp-typechip{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;color:var(--espresso);font-family:inherit}
   .pp-typechip:hover{border-color:var(--teal)}
@@ -133,6 +134,21 @@
   .pp-picked img{width:100%;height:78px;object-fit:contain;background:var(--peach);border-radius:6px;display:block}
   .pp-picked .pt{font-size:10.5px;line-height:1.25;max-height:39px;overflow:hidden;font-weight:600;margin-top:4px}
   .pp-picked .rm{position:absolute;top:-7px;right:-7px;background:var(--coral);color:#fff;border-radius:50%;width:17px;height:17px;font-size:12px;line-height:17px;text-align:center;cursor:pointer;z-index:1}
+  .pp-pcard{position:relative}
+  .pp-pcard .bimg{position:relative}
+  .pp-pcard .bimg img{width:100%;height:100px;object-fit:contain;background:var(--peach);display:block}
+  .pp-pcard .bscore{position:absolute;top:5px;left:5px;background:var(--espresso);color:#fff;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800}
+  .pp-pcard .bscore.promote{background:var(--teal)}
+  .pp-pcard .bscore.watch{background:#E8A33D}
+  .pp-pcard .bsales{position:absolute;top:5px;right:5px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:1px 5px;font-size:9px;font-weight:700;color:var(--espresso);max-width:92px;line-height:1.15}
+  .pp-pcard .pact{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:6px}
+  .pp-pcard .pact .peek{margin-top:0}
+  .pp-pcard .pcopy{border:1px solid var(--line);background:#fff;border-radius:7px;font-size:10.5px;font-weight:700;padding:2px 8px;cursor:pointer;color:var(--espresso)}
+  .pp-pcard .brm{position:absolute;top:-7px;right:-7px;background:var(--coral);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;line-height:18px;text-align:center;cursor:pointer;z-index:2}
+  .pp-traygrid{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .pp-traygrid .pp-pcard{flex:0 0 152px;width:152px;margin-bottom:0;cursor:default}
+  .pp-season.urgent .pp-due{color:var(--coral)}
+  .card .row .pcopy{border:1.5px solid var(--line);background:#fff;color:var(--espresso);border-radius:9px;font-weight:700;font-size:12px;padding:0 11px;cursor:pointer}
   .pp-more{width:100%;border:1px dashed var(--line);background:#fff;border-radius:9px;padding:6px;font-size:12px;font-weight:700;color:var(--teal);cursor:pointer;font-family:inherit}
   .pp-step{font-family:'Sora',sans-serif;font-size:13px;font-weight:800;color:var(--espresso);margin:18px 2px 9px}
   .pp-step:first-child{margin-top:2px}
@@ -287,7 +303,7 @@ async function showThemes(season){
     const seasons=SEASONS.map(s=>Object.assign({du:daysUntil(s.dl[0],s.dl[1])},s)).sort((a,b)=>a.du-b.du).slice(0,6);
     let h=`<div class="pp-ablabel">A · Seed from a season (optional)</div><div class="pp-chips">`;
     h+=`<button class="pp-season${ROUNDUP_SEASON?'':' on'}" data-season="">None</button>`;
-    h+=seasons.map(s=>`<button class="pp-season${ROUNDUP_SEASON===s.n?' on':''}" data-season="${String(s.n).replace(/"/g,'&quot;')}">${s.e} ${esc(s.n)}</button>`).join('');
+    h+=seasons.map(s=>`<button class="pp-season${ROUNDUP_SEASON===s.n?' on':''}${s.du<=21?' urgent':''}" data-season="${String(s.n).replace(/"/g,'&quot;')}">${s.e} ${esc(s.n)}<span class="pp-due">${s.du<=21?'⏰ add now':'in '+s.du+'d'}</span></button>`).join('');
     h+=`</div>`;
     h+=`<div class="pp-ablabel">B · Pick a roundup theme ${AIB}</div>`;
     h+=`<div class="pp-subnote" style="margin-top:0">${ROUNDUP_SEASON?('🧺 '+esc(ROUNDUP_SEASON)+' themes · '):''}tap to build · <span style="font-weight:500">✕ = never suggest again</span><button class="pp-refresh" data-refresh="themes">🔄 new ideas</button></div>`;
@@ -319,13 +335,13 @@ async function roundupTheme(theme){
     }
     const maxv=Math.max(0,...ranked.map(r=>r.v||0));
     let h=`<div class="pp-subnote">🧺 <b>${esc(theme)}</b> — build your roundup ${AIB}<span class="pp-ai" style="background:var(--coral)">trend-ranked</span><button class="pp-refresh" data-refresh="theme">🔄 reshuffle</button></div>`;
-    h+=`<div class="pp-sectlabel">🎨 Step 3 · coordinating style (optional) — applies to every search</div>`;
+    h+=`<div class="pp-sectlabel">🎨 Step 3 · Pick a coordinating style <span class="opt">optional — keeps the whole set matchy. Tap one, type your own, or skip straight to Step 4 ↓</span></div>`;
     h+=`<div class="pp-stylebox"><div class="pp-stylewrap"><input id="ppstyle" class="pp-styleinput" placeholder="type a style, e.g. checkered" value="">`;
     h+=ranked.map(r=>`<button class="pp-chip pp-stylechip" data-style="${String(r.s).replace(/"/g,'&quot;')}">${(r.v!=null&&maxv>0&&r.v===maxv)?'🔥 ':''}${esc(String(r.s))}</button>`).join('');
     h+=`</div></div>`;
     ROUNDUP_TYPES=types;
-    h+=`<div class="pp-sectlabel">🛍️ Step 4 · build your set</div>`;
-    h+=`<div class="pp-chips" style="align-items:center"><button class="btn" id="ppbuildboard">▦ Build the board — 5 picks per piece</button><span class="hint" style="margin:0">${types.length} pieces · ~${types.length} Amazon lookups</span></div>`;
+    h+=`<div class="pp-sectlabel">🛍️ Step 4 · Build your set <span class="opt">${types.length} pieces · pulls 5 ranked products per piece</span></div>`;
+    h+=`<div class="pp-chips" style="align-items:center"><button class="btn" id="ppbuildboard" style="font-size:15px;padding:12px 20px">🧺 Build my roundup →</button></div>`;
     h+=`<div class="pp-subnote" style="margin-top:4px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--espresso)">${types.map(t=>esc(t)).join(' · ')}</div>`;
     sub.innerHTML=h;
   }catch(e){ sub.innerHTML='<div class="pp-subnote">Brain hiccup — pick another theme.</div>'; }
@@ -346,18 +362,29 @@ async function buildBoard(){
     col.loading=false; renderBoard(); renderMeters();
   }
 }
+/* one card builder for board columns AND the picked tray — same info/look as the main result cards */
+function bcard(p,name,opts){
+  opts=opts||{};
+  const cls=p._score>=70?'promote':(p._score>=55?'watch':'');
+  const nm=String(name).replace(/"/g,'&quot;'); const u=String(p.url).replace(/"/g,'&quot;');
+  const rm=opts.tray?`<span class="brm" data-unpick="${nm}">×</span>`:'';
+  const bp=opts.tray?'':` data-bpick="${nm}|${p.asin}"`;
+  const lock=opts.locked?' locked':'';
+  return `<div class="pp-pcard${lock}"${bp}>${rm}<div class="bimg"><span class="bscore ${cls}">${p._score}</span>${p.sales?`<span class="bsales">${esc(p.sales)}</span>`:''}<img loading="lazy" src="${p.image}" alt=""></div><div class="pi"><div class="pt">${esc(p.title)}</div><div class="pm"><span class="pp">$${(p.price||0).toFixed(2)}</span><span>★${p.rating} · ${(p.reviews||0).toLocaleString()}</span></div><div class="pact"><a class="peek" href="${p.url}" target="_blank" rel="noopener">peek ↗</a><button class="pcopy" data-copyurl="${u}">📋 Copy</button></div></div></div>`;
+}
 function renderBoard(){
   if(!BOARD) return;
   const picks=BOARD.cols.filter(c=>c.picked);
-  let h=`<div class="pp-strip"><h4>🧺 Your roundup — <span style="font-weight:600;color:var(--muted);font-size:11px">${picks.length} of ${BOARD.cols.length} picked${picks.length?'':' · tap a product in any column'}</span>${picks.length?`<button class="btn" id="ppcopyboard" style="margin-left:auto">Copy ${picks.length} URLs</button>`:''}</h4></div>`;
+  let h=`<div class="pp-strip"><h4>🧺 Your roundup — <span style="font-weight:600;color:var(--muted);font-size:11px">${picks.length} of ${BOARD.cols.length} picked${picks.length?'':' · tap a product in any column to add it'}</span></h4>`;
+  if(picks.length) h+=`<div class="pp-traygrid">`+picks.map(c=>bcard(c.picked,c.name,{tray:true})).join('')+`</div>`;
+  h+=`</div>`;
   h+=`<div class="pp-board">`;
   h+=BOARD.cols.map(col=>{
     let c=`<div class="pp-col"><div class="pp-colhead">${esc(col.name)}</div>`;
-    if(col.picked) c+=`<div class="pp-picked"><span class="rm" data-unpick="${String(col.name).replace(/"/g,'&quot;')}">×</span><img src="${col.picked.image}" alt=""><div class="pt">${esc(col.picked.title)}</div></div>`;
     if(col.loading) c+=`<div class="empty" style="font-size:12px;text-align:center">loading…</div>`;
     else if(!col.all.length) c+=`<div class="empty" style="font-size:12px;text-align:center">no matches</div>`;
     else{
-      c+=col.all.slice(0,col.shown).map(p=>`<div class="pp-pcard${col.picked&&col.picked.asin===p.asin?' locked':''}" data-bpick="${String(col.name).replace(/"/g,'&quot;')}|${p.asin}"><img loading="lazy" src="${p.image}" alt=""><div class="pi"><div class="pt">${esc(p.title)}</div><div class="pm"><span class="pp">$${(p.price||0).toFixed(2)}</span><span>★${p.rating} · ${p._score}</span></div><a class="peek" href="${p.url}" target="_blank" rel="noopener">peek ↗</a></div></div>`).join('');
+      c+=col.all.slice(0,col.shown).map(p=>bcard(p,col.name,{locked: col.picked&&col.picked.asin===p.asin})).join('');
       if(col.shown<col.all.length || !col.exhausted) c+=`<button class="pp-more" data-more="${String(col.name).replace(/"/g,'&quot;')}">+ more</button>`;
     }
     return c+`</div>`;
@@ -484,6 +511,7 @@ function render(){
         <div class="row">
           <button class="pickbtn" data-pick="${p.asin}">${picked?'✓ Picked':'+ Pick'}</button>
           <a class="peek" href="${p.url}" target="_blank">peek ↗</a>
+          <button class="pcopy" data-copyurl="${String(p.url).replace(/"/g,'&quot;')}">📋 Copy</button>
         </div>
       </div></div>`;
   }).join('')+'</div>';
@@ -598,6 +626,7 @@ document.getElementById('sort').onchange=render;
 document.getElementById('more').addEventListener('click',e=>{ if(e.target.id==='moreBtn') loadMore(); });
 document.getElementById('results').addEventListener('click',e=>{
   if(e.target.closest('.peek')) return;
+  const cp=e.target.closest('.pcopy'); if(cp){ navigator.clipboard.writeText(cp.dataset.copyurl); toast('Copied URL'); return; }
   const bp=e.target.closest('[data-bpick]'); if(bp){ boardPick(bp.dataset.bpick); return; }
   const mr=e.target.closest('[data-more]'); if(mr){ boardMore(mr.dataset.more); return; }
   const up=e.target.closest('[data-unpick]'); if(up){ boardUnpick(up.dataset.unpick); return; }
