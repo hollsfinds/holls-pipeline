@@ -305,6 +305,7 @@ async function showCatalog(){
       const d=(j&&j.data)||{};
       const od=((d['On Deck']||[]).slice(1)).map(r=>r[2]||r[3]).filter(Boolean);
       let cats=[]; ((d.Meta||[])).forEach(r=>{ if(r[0]==='freshstore_categories'){ try{cats=JSON.parse(r[1]).map(c=>c.title);}catch(e){} } });
+      cats=cats.filter(c=>!/^holl[’']s\b/i.test(String(c).trim())); // drop Holl's personal lists, keep real product categories
       CAT_LIST=cats; CAT_HAVE=('Categories she has: '+cats.slice(0,40).join(', ')+'\nProducts on deck: '+od.slice(0,40).join('; ')).slice(0,1800);
     }catch(e){ CAT_LIST=CAT_LIST||[]; }
     _catLoaded=true;
