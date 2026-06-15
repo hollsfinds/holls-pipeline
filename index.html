@@ -1546,7 +1546,7 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-star
   const next=!it.forceAll;
   b.style.opacity=".5";
   try{ await apiPost({sheet:"Pipeline",action:"updateCell",row:row,col:20,value:next?"yes":""});
-    it.forceAll=next; render(); toast(next?"⭐ Forced onto every platform — IG/FB posts + reels + stories + TikTok":"Force-all removed"); }
+    it.forceAll=next; render(); toast(next?"⭐ Forced across all promo channels — guaranteed pins + IG/FB posts + reels + TikTok":"Force-all removed"); }
   catch(err){ b.style.opacity="1"; toast("Save failed: "+(err&&err.message||err)); }
 });
 { const css=document.createElement("style");
@@ -2060,9 +2060,10 @@ function pipeCard(it){
   }
   const flagTag = "";   // ⚠ Images badge retired with the Missing Images column
   // ⭐ Force-all-platforms toggle (writes Pipeline col T / ForceAll). When on, the schedulers guarantee this
-  //    article a slot on EVERY platform (IG/FB posts + reels + stories + TikTok), jump it to the front of the
-  //    recency queue, and always render its reel — exempt from reel-sampling cap-out (daily caps still apply).
-  const starTag = `<span class="badge b-star${it.forceAll?' on':''}" data-star="${it.row}" title="${it.forceAll?'Forced onto every platform (IG/FB posts + reels + stories + TikTok). Click to unset.':'Force this article onto every platform — guaranteed IG/FB posts + reels + stories + TikTok. Click to set.'}">${it.forceAll?'⭐ All platforms':'☆ Force all'}</span>`;
+  //    article a slot on every PROMO channel (pins + IG/FB feed posts + reels + TikTok — NOT stories, which are
+  //    chat/nurture now), jump it to the front of the recency queue, and always render its reel — exempt from
+  //    each scheduler's cap-out (per-platform daily caps still apply, so forced posts queue across days).
+  const starTag = `<span class="badge b-star${it.forceAll?' on':''}" data-star="${it.row}" title="${it.forceAll?'Forced across all promo channels (pins + IG/FB posts + reels + TikTok). Click to unset.':'Force this article across all promo channels — guaranteed pins + IG/FB posts + reels + TikTok. Click to set.'}">${it.forceAll?'⭐ All platforms':'☆ Force all'}</span>`;
   const spinTag = it.angle?'<span class="badge b-spin" title="Your input added">💬 spin</span>':'';
   const gate=(on,lbl,key)=>`<button class="gate ${on?'on':''}" data-gate="${key}" data-row="${it.row}">${on?'✓ ':''}${lbl}</button>`;
   const discBadge = it.discA?'<span class="badge b-ok">Disclosure ✓</span>':'';
