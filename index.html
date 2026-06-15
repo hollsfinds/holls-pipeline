@@ -506,7 +506,7 @@ h1,h2,h3,h4,.cal-h,.lead,.brand,.st-fnum,.todo-num,.col-h{font-family:'Sora',san
 .st-fclbl{font-size:10px;font-weight:800;letter-spacing:1px;color:#8A929B;margin-bottom:6px}
 .fc-btn{border:1px solid #E4E8EC;background:#fff;border-radius:6px;font-size:11px;font-weight:700;color:#6E7681;padding:4px 10px;cursor:pointer}
 .fc-btn.fc-on{background:#15181C;color:#fff;border-color:#15181C}
-.pb-slot{padding:7px 10px;border:1px solid #E4E8EC;border-radius:7px;font-size:12px;background:#fff;color:#1B1F24}
+.pb-slot,.rv-slot{padding:7px 10px;border:1px solid #E4E8EC;border-radius:7px;font-size:12px;background:#fff;color:#1B1F24;max-width:175px}
 /* global left rail (To-Do + calendar) on every tab */
 #pipeSide{position:fixed!important;left:14px;top:122px;bottom:12px;width:300px;overflow-y:auto;z-index:45;background:transparent}
 #pipeSide.collapsed{width:auto;bottom:auto}
@@ -3124,8 +3124,7 @@ function onDeckCard(n){
 function onDeckHtml(){
   const deck=(nonpromo||[]).filter(n=>n.platform==="(reeldeck)" && n.status==="deck").slice(0,5);
   if(!deck.length) return "";
-  return '<div class="ns-card"><div class="ns-head" style="font-size:13px;margin:0 0 8px">🎬 On Deck — reel ideas '
-    +'<span style="font-weight:600;font-size:11px;color:#8a7f79">— 5 fresh reel-ready ideas. <b>Choose</b> drafts one into a reel (you still approve it), <b>Snooze</b> ~2 weeks, <b>Deny</b> forever.</span></div>'
+  return '<div class="ns-card"><div class="ns-head" style="font-size:13px;margin:0 0 8px">Reels &gt; FB/IG/TT</div>'
     +'<div class="deck-grid">'+deck.map(onDeckCard).join("")+'</div></div>';
 }
 document.addEventListener("click",async e=>{
@@ -3250,9 +3249,9 @@ async function renderReview(){
       startHtml+='<div class="rv-card'+(reel?' rv-reel':'')+'" data-row="'+o.sheetRow+'"'+(reel?' data-reel="1"':'')+'>';
       if(isVid) startHtml+='<div class="rv-thumb rv-vid"><video src="'+esc(vsrc)+'" controls preload="metadata" playsinline></video></div>';
       else if(isImg(img)) startHtml+='<div class="rv-thumb"><img src="'+esc(img)+'" alt="" loading="lazy"></div>';
-      startHtml+='<div class="rv-body"><div class="rv-meta"><span class="rv-tag" style="background:'+tc[0]+';color:'+tc[1]+'">'+esc(ty||"post")+'</span><span class="rv-plat">'+esc(pl||"")+'</span>'+(reel?'<span class="rv-cardbadge">🎬 Chat reel</span>':(isImg(img)?'':'<span class="rv-cardbadge">🖼 branded card</span>'))+'<span class="rv-date">'+esc(String(dt||"").slice(0,10))+'</span></div>';
+      startHtml+='<div class="rv-body"><div class="rv-meta"><span class="rv-tag" style="background:'+tc[0]+';color:'+tc[1]+'">'+esc(ty||"post")+'</span><span class="rv-plat">'+esc(PLAB[String(pl||"").toLowerCase()]||pl||"")+'</span>'+(reel?'<span class="rv-cardbadge">🎬 Chat reel</span>':(isImg(img)?'':'<span class="rv-cardbadge">🖼 branded card</span>'))+'<span class="rv-date">'+esc(String(dt||"").slice(0,10))+'</span></div>';
       startHtml+='<textarea class="rv-cap">'+esc(cap||"")+'</textarea>';
-      startHtml+='<div class="rv-acts"><button class="btn rv-approve" data-row="'+o.sheetRow+'">'+(reel?'✓ Approve reel':'✓ Approve')+'</button><button class="btn ghost rv-skip" data-row="'+o.sheetRow+'">Skip</button><span class="rv-status"></span></div></div></div>';
+      startHtml+='<div class="rv-acts"><select class="rv-slot" title="Which day should this post?">'+npSlotOpts()+'</select><button class="btn rv-approve" data-row="'+o.sheetRow+'">'+(reel?'✓ Approve reel':'✓ Approve')+'</button><button class="btn ghost rv-skip" data-row="'+o.sheetRow+'">Skip</button><span class="rv-status"></span></div></div></div>';
     });
     startHtml+='</div>';
   }
@@ -3341,6 +3340,15 @@ async function renderReview(){
   };
 }
 /* "Coming up" strip — already-approved personal/non-promo posts with future dates */
+/* readable platform labels + a shared slot-picker (next open slot auto + 14 days) for Starter/reel approval cards */
+const PLAB={instagramreel:"IG Reel",facebookreel:"FB Reel",tiktok:"TikTok",instagram:"IG Post",facebook:"FB Post",instagramstory:"IG Story",facebookstory:"FB Story"};
+function npSlotOpts(){
+  const taken={};(typeof nonpromo!=='undefined'?nonpromo:[]).forEach(n=>{const st=String(n.status||"").toLowerCase();if(st==="queued"||st==="scheduled"||st==="approved")taken[String(n.date||"").slice(0,10)]=1;});
+  let o='<option value="">📅 next open slot (auto)</option>',d=new Date();
+  for(let i=0;i<=14;i++){if(i>0)d.setDate(d.getDate()+1);const ds=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    o+='<option value="'+ds+'">'+ds.slice(5).replace("-","/")+(i===0?" · today":(taken[ds]?" · busy":" · open"))+"</option>";}
+  return o;
+}
 /* approved posts the scheduler hasn't placed yet (status queued/approved) → a visible "in flight" strip so nothing feels lost after approve */
 function landingHtml(body){
   const inflight=body.map((r,i)=>({r,i})).filter(o=>{const s=String(o.r[5]||"").toLowerCase();return s==="queued"||s==="approved";});
