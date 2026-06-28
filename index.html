@@ -1832,13 +1832,21 @@ function reviewSendModal(it){
       try{
         // re-read the shared category cache (Meta!freshstore_categories) straight from the Sheet.
         // No FreshStore key needed here — the daily refresh keeps that cell current; this just reloads it.
-        _cache=null;  // bust the 1.5s read-cache so we pull a fresh copy
-        const mv=valuesOf(await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Meta"}));
-        const mrow=mv.find(r=>(r[0]||"")==="freshstore_categories");
-        try{ allCats=mrow?JSON.parse(mrow[1]||"[]"):[]; }catch(e){ allCats=[]; }
+        // 1) ask the bridge to pull the LIVE FreshStore category list (rewrites the Meta cache).
+        //    needs the FreshStore key in Code.gs; if it's missing/old bridge, we quietly fall back to the cache.
+        let pulled=null;
+        try{ const j=await apiPost({action:"refreshCategories"}); if(j&&j.categories) pulled=j.categories; }
+        catch(e){ toast("Live pull unavailable, reloading cached list ("+(e&&e.message||e)+")"); }
+        if(pulled){ allCats=pulled; }
+        else{
+          _cache=null;  // bust the 1.5s read-cache so we pull a fresh copy
+          const mv=valuesOf(await mcp("mcp__google-sheets__get_sheet_data",{spreadsheet_id:SS,sheet:"Meta"}));
+          const mrow=mv.find(r=>(r[0]||"")==="freshstore_categories");
+          try{ allCats=mrow?JSON.parse(mrow[1]||"[]"):[]; }catch(e){ allCats=[]; }
+        }
         const box=modal.querySelector(".rcats");
         if(box) box.innerHTML = catChipsHtml(sel);
-        toast("Categories reloaded ("+allCats.length+")");
+        toast((pulled?"Pulled live from FreshStore (":"Categories reloaded (")+allCats.length+")");
       }catch(err){ toast("Refresh failed: "+(err&&err.message||err)); }
       finally{ btn.disabled=false; btn.textContent=orig; }
     }
