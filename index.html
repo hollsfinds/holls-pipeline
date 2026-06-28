@@ -54,6 +54,7 @@ button{font-family:inherit;cursor:pointer}
 .odcard .odtitle{width:100%;border:1px solid var(--line);border-radius:7px;padding:6px 7px;font-size:12px;font-weight:700;font-family:inherit;color:var(--ink);resize:vertical;min-height:36px;box-sizing:border-box}
 .odcard .odtitle:focus{outline:none;border-color:var(--coral)}
 .odcats{display:flex;flex-wrap:wrap;gap:4px;margin:7px 0 2px}
+.odprice{font-weight:800;font-size:15px;color:var(--coral);margin:5px 0 2px}
 .odcat{background:var(--sage);color:#2f5d2e;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:20px}
 .odcat.newc{background:var(--peach);color:#9a5b3f}
 .odasin{font-size:10px;color:var(--muted);margin-top:5px}
@@ -1637,7 +1638,7 @@ async function load(){
     socialPacks={};
     sv.slice(1).forEach(r=>{const id=(r[0]||"").trim();if(!id)return;try{socialPacks[id]=JSON.parse(r[1]||"{}");}catch(e){socialPacks[id]={blocks:[{label:"Pack",text:r[1]||""}]};}});
     const odv=odk?valuesOf(odk):[];
-    ondeck=odv.slice(1).map((r,i)=>({row:i+2,date:r[0]||"",asin:(r[1]||"").trim(),title:r[2]||"",raw:r[3]||"",img:r[4]||"",url:r[5]||"",cats:(r[6]||""),newcats:(r[7]||""),status:(r[8]||"New").trim(),fsid:r[9]||"",notes:r[10]||""})).filter(x=>x.asin);
+    ondeck=odv.slice(1).map((r,i)=>({row:i+2,date:r[0]||"",asin:(r[1]||"").trim(),title:r[2]||"",raw:r[3]||"",img:r[4]||"",url:r[5]||"",cats:(r[6]||""),newcats:(r[7]||""),status:(r[8]||"New").trim(),fsid:r[9]||"",notes:r[10]||"",price:(r[11]||"")})).filter(x=>x.asin);
     const mv=mta?valuesOf(mta):[]; allCats=[];
     const mrow=mv.find(r=>(r[0]||"")==="freshstore_categories"); if(mrow){try{allCats=JSON.parse(mrow[1]||"[]");}catch(e){allCats=[];}}
     const brow=mv.find(r=>(r[0]||"")==="pinterest_boards"); pinBoards=[]; if(brow){try{pinBoards=JSON.parse(brow[1]||"[]");}catch(e){pinBoards=[];}}
@@ -1729,6 +1730,7 @@ function ondeckCard(it){
   const cats=(it.cats||"").split(",").map(s=>s.trim()).filter(Boolean).map(c=>`<span class="odcat">${esc(c)}</span>`).join("");
   const ncats=(it.newcats||"").split(",").map(s=>s.trim()).filter(Boolean).map(c=>`<span class="odcat newc">＋${esc(c)}</span>`).join("");
   const st=it.status.toLowerCase();
+  const price=it.price?'<div class="odprice">'+esc(String(it.price).trim())+'</div>':'';
   let stCls="od-new",stTxt=esc(it.status);
   if(st==="ready to send"){stCls="od-ready";stTxt="⏳ Queued to send";}
   else if(st==="sending"){stCls="od-sending";stTxt="↻ Sending…";}
@@ -1747,6 +1749,7 @@ function ondeckCard(it){
   const note=(it.notes&&st==="import failed")?`<div class="odstatus od-failed">${esc(it.notes)}</div>`:"";
   d.innerHTML=`${img}
     <textarea class="odtitle" data-row="${it.row}" rows="2" title="Edit the cleaned title">${esc(it.title)}</textarea>
+    ${price}
     <div class="odcats">${cats}${ncats}</div>
     
     ${st==="new"?"":`<div class="odstatus ${stCls}">${stTxt}</div>`}
